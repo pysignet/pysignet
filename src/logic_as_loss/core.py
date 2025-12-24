@@ -195,17 +195,6 @@ class LogicLoss:
                 self._evaluate_expression(expr.args[1], inputs)
             )
 
-        # Universal quantifier (forall) - conjunction over batch
-        if isinstance(expr, sp.logic.boolalg.ForAll):
-            # Placeholder - proper handling requires more context
-            inner_expr = expr.args[-1]  # Last arg is the expression
-            return self._evaluate_expression(inner_expr, inputs)
-
-        # Existential quantifier (exists) - disjunction over batch
-        if isinstance(expr, sp.logic.boolalg.Exists):
-            inner_expr = expr.args[-1]
-            return self._evaluate_expression(inner_expr, inputs)
-
         raise ValueError(f"Unsupported expression type: {type(expr)}")
 
     def __call__(

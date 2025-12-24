@@ -7,7 +7,12 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import LogicLoss, Predicate, LukasiewiczTNorm
+from logic_as_loss import (
+    LogicLoss,
+    Predicate,
+    LukasiewiczTNorm,
+    GodelTNorm,
+)
 
 
 def test_basic_and() -> None:
@@ -261,6 +266,369 @@ def test_get_trainable_parameters() -> None:
     # Should only get parameters from model_p
     assert len(params) == 2  # weight and bias
     assert all(p.requires_grad for p in params)
+
+
+# Edge Case Tests
+
+
+def test_empty_batch() -> None:
+    """Test handling of empty batches (batch_size=0)."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(0, 5)  # Empty batch
+    satisfaction = logic_loss(x)
+
+    assert satisfaction.shape == (0,)
+    assert satisfaction.numel() == 0
+
+
+def test_single_element_batch() -> None:
+    """Test handling of single-element batches."""
+    # pylint: disable=invalid-name
+    P, Q = sp.symbols("P Q")
+    expr = sp.And(P, Q)
+
+    predicates = {
+        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+    }
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(1, 5)  # Single element
+    satisfaction = logic_loss(x)
+
+    assert satisfaction.shape == (1,)
+    assert torch.allclose(satisfaction, torch.tensor([0.35]), atol=1e-5)
+
+
+def test_very_large_batch() -> None:
+    """Test handling of very large batches (10000+ elements)."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.mean(dim=-1)))}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(10000, 5)
+    satisfaction = logic_loss(x)
+
+    assert satisfaction.shape == (10000,)
+    assert satisfaction.min() >= 0.0
+    assert satisfaction.max() <= 1.0
+
+
+def test_nan_handling() -> None:
+    """Test handling of NaN values in inputs."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.tensor([[float("nan"), 1.0, 2.0]])
+    satisfaction = logic_loss(x)
+
+    # sigmoid(nan) = nan, clamped to [0,1] doesn't fix NaN
+    assert satisfaction.shape == (1,)
+    # NaN should propagate through
+    assert torch.isnan(satisfaction).any() or (
+        satisfaction.min() >= 0.0 and satisfaction.max() <= 1.0
+    )
+
+
+def test_inf_handling() -> None:
+    """Test handling of Inf values in inputs."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+
+    logic_loss = LogicLoss(expr, predicates)
+
+    # Test positive infinity
+    x_pos_inf = torch.tensor([[float("inf"), 1.0, 2.0]])
+    satisfaction_pos = logic_loss(x_pos_inf)
+    assert satisfaction_pos.shape == (1,)
+    # sigmoid(+inf) = 1.0
+    assert torch.allclose(satisfaction_pos, torch.tensor([1.0]), atol=1e-5)
+
+    # Test negative infinity
+    x_neg_inf = torch.tensor([[float("-inf"), 1.0, 2.0]])
+    satisfaction_neg = logic_loss(x_neg_inf)
+    assert satisfaction_neg.shape == (1,)
+    # sigmoid(-inf) = 0.0
+    assert torch.allclose(satisfaction_neg, torch.tensor([0.0]), atol=1e-5)
+
+
+def test_predicate_clamping_above_one() -> None:
+    """Test that predicates returning values >1 are clamped to [0,1]."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    # Predicate that returns values > 1
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 2.5)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # Should be clamped to 1.0
+    assert torch.allclose(satisfaction, torch.tensor(1.0))
+    assert satisfaction.max() <= 1.0
+
+
+def test_predicate_clamping_below_zero() -> None:
+    """Test that predicates returning values <0 are clamped to [0,1]."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    # Predicate that returns values < 0
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * -1.5)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # Should be clamped to 0.0
+    assert torch.allclose(satisfaction, torch.tensor(0.0))
+    assert satisfaction.min() >= 0.0
+
+
+def test_missing_predicate_raises_error() -> None:
+    """Test that missing predicates raise ValueError."""
+    # pylint: disable=invalid-name
+    P, Q = sp.symbols("P Q")
+    expr = sp.And(P, Q)
+
+    # Only provide predicate for P, not Q
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
+
+    try:
+        LogicLoss(expr, predicates)
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Missing predicates" in str(e)
+        assert "Q" in str(e)
+
+
+def test_unsupported_expression_raises_error() -> None:
+    """Test that unsupported SymPy expressions raise ValueError."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+
+    # Use an unsupported operation
+    expr = P + P  # Arithmetic, not logic
+
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+
+    try:
+        logic_loss(x)
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Unsupported expression type" in str(e)
+
+
+def test_boolean_true_constant() -> None:
+    """Test handling of sp.true boolean constant."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = sp.And(P, sp.true)
+
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # P AND true = P
+    assert torch.allclose(satisfaction, torch.tensor(0.6), atol=1e-5)
+
+
+def test_boolean_false_constant() -> None:
+    """Test handling of sp.false boolean constant."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = sp.And(P, sp.false)
+
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # P AND false = false = 0
+    assert torch.allclose(satisfaction, torch.tensor(0.0), atol=1e-5)
+
+
+def test_invalid_reduction_mode() -> None:
+    """Test that invalid reduction mode raises ValueError."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+
+    try:
+        logic_loss.loss(x, reduction="invalid")
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Unknown reduction" in str(e)
+
+
+def test_dict_input_with_default_key() -> None:
+    """Test dict input uses 'default' key when specific key missing."""
+    # pylint: disable=invalid-name
+    P, Q = sp.symbols("P Q")
+    expr = sp.And(P, Q)
+
+    predicates = {
+        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
+    }
+
+    logic_loss = LogicLoss(expr, predicates)
+
+    # Provide specific input for P and default for others
+    default_input = torch.randn(5, 3)
+    inputs = {"P": torch.randn(5, 3), "default": default_input}
+
+    satisfaction = logic_loss(inputs)
+
+    # Should use default for Q
+    assert satisfaction.shape == (5,)
+
+
+def test_equivalence_operator() -> None:
+    """Test EQUIVALENCE (biconditional) operator."""
+    # pylint: disable=invalid-name
+    P, Q = sp.symbols("P Q")
+    expr = sp.Equivalent(P, Q)
+
+    predicates = {
+        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+    }
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # P <-> Q = (P -> Q) AND (Q -> P)
+    # P -> Q = NOT P OR Q = 0.2 + 0.6 - 0.12 = 0.68
+    # Q -> P = NOT Q OR P = 0.4 + 0.8 - 0.32 = 0.88
+    # Result = 0.68 * 0.88 = 0.5984
+    p_implies_q = 0.2 + 0.6 - 0.2 * 0.6
+    q_implies_p = 0.4 + 0.8 - 0.4 * 0.8
+    expected = p_implies_q * q_implies_p
+
+    assert satisfaction.shape == (5,)
+    assert torch.allclose(satisfaction, torch.tensor(expected), atol=1e-5)
+
+
+def test_non_tensor_predicate_return() -> None:
+    """Test predicate that returns non-tensor (list/float)."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    # Predicate that returns a Python list (will be converted to tensor)
+    predicates = {"P": Predicate("P", lambda x: 0.75)}
+
+    logic_loss = LogicLoss(expr, predicates)
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # Should convert 0.75 to tensor
+    assert isinstance(satisfaction, torch.Tensor)
+    assert torch.allclose(satisfaction, torch.tensor(0.75))
+
+
+def test_boolean_constants_with_dict_input() -> None:
+    """Test boolean constants (true/false) with dict input."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+
+    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+
+    # Test with true constant
+    expr_true = sp.Or(P, sp.true)
+    logic_loss_true = LogicLoss(expr_true, predicates)
+    inputs = {"P": torch.randn(5, 3)}
+    satisfaction_true = logic_loss_true(inputs)
+
+    # P OR true = true = 1
+    assert torch.allclose(satisfaction_true, torch.tensor(1.0), atol=1e-5)
+
+    # Test with false constant
+    expr_false = sp.Or(P, sp.false)
+    logic_loss_false = LogicLoss(expr_false, predicates)
+    satisfaction_false = logic_loss_false(inputs)
+
+    # P OR false = P = 0.6
+    assert torch.allclose(satisfaction_false, torch.tensor(0.6), atol=1e-5)
+
+
+def test_lukasiewicz_or() -> None:
+    """Test Łukasiewicz t-norm OR operation."""
+    # pylint: disable=invalid-name
+    P, Q = sp.symbols("P Q")
+    expr = sp.Or(P, Q)
+
+    predicates = {
+        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+    }
+
+    logic_loss = LogicLoss(expr, predicates, tnorm=LukasiewiczTNorm())
+    x = torch.randn(5, 3)
+    satisfaction = logic_loss(x)
+
+    # Łukasiewicz OR: min(1, 0.7 + 0.5) = min(1, 1.2) = 1.0
+    assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
+
+
+def test_godel_tnorm() -> None:
+    """Test Gödel t-norm AND and OR operations."""
+    # pylint: disable=invalid-name
+    P, Q = sp.symbols("P Q")
+
+    predicates = {
+        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+    }
+
+    # Test AND
+    expr_and = sp.And(P, Q)
+    logic_loss_and = LogicLoss(expr_and, predicates, tnorm=GodelTNorm())
+    x = torch.randn(5, 3)
+    satisfaction_and = logic_loss_and(x)
+
+    # Gödel AND: min(0.7, 0.5) = 0.5
+    assert torch.allclose(satisfaction_and, torch.tensor(0.5), atol=1e-5)
+
+    # Test OR
+    expr_or = sp.Or(P, Q)
+    logic_loss_or = LogicLoss(expr_or, predicates, tnorm=GodelTNorm())
+    satisfaction_or = logic_loss_or(x)
+
+    # Gödel OR: max(0.7, 0.5) = 0.7
+    assert torch.allclose(satisfaction_or, torch.tensor(0.7), atol=1e-5)
 
 
 def main() -> None:
