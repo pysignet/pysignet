@@ -54,10 +54,16 @@ disallow_untyped_decorators = true
 no_implicit_reexport = true
 warn_unreachable = true
 strict = true
+mypy_path = "src"
+namespace_packages = true
 
 [[tool.mypy.overrides]]
 module = "sympy.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "logic_loss.*"
+ignore_missing_imports = false
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
