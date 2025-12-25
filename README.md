@@ -184,9 +184,9 @@ The `LogicLoss` class converts SymPy expressions to differentiable functions:
 
 ```python
 logic_loss = LogicLoss(
-    expression=expr,      # SymPy logic expression
-    predicates=preds,     # Dict of predicates
-    tnorm=ProductTNorm()  # Optional: t-norm to use
+    expression=expr,         # SymPy logic expression
+    predicates=preds,        # Dict of predicates
+    tnorm=RProductTNorm()    # Optional: t-norm to use (default: RProductTNorm)
 )
 
 # Evaluate satisfaction (higher = better)
@@ -199,7 +199,7 @@ loss = logic_loss.loss(inputs, reduction='mean')
 
 - TODO: This needs to be renamed to LogicCompiler everywhere
 - TODO: Different relaxations require different post-processing.
-  - For ProductTNorm, the loss should be negative log satisfaction
+  - For R-Product/S-ProductTNorm, the loss should be negative log satisfaction
   - For Lukasiewicz, it should just be negative satisfaction
   - For all of them, the post-processing should be specifiable
 

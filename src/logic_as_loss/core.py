@@ -5,7 +5,7 @@ from typing import Callable, Dict, Union, Optional, Set, List, Any
 import sympy as sp
 import torch
 
-from .tnorms import TNorm, ProductTNorm
+from .tnorms import TNorm, RProductTNorm
 
 
 class Predicate:
@@ -50,7 +50,7 @@ class LogicLoss:
     Args:
         expression: SymPy logic expression (And(P, Or(Q, Not(R))))
         predicates: Dict mapping predicate names to Predicate objects
-        tnorm: T-norm for relaxation (default: ProductTNorm)
+        tnorm: T-norm for relaxation (default: RProductTNorm)
 
     Example:
         >>> import sympy as sp
@@ -86,7 +86,7 @@ class LogicLoss:
     ) -> None:
         self.expression = expression
         self.predicates = predicates
-        self.tnorm = tnorm or ProductTNorm()
+        self.tnorm = tnorm or RProductTNorm()
 
         # Verify all symbols have corresponding predicates
         symbols = self._extract_predicate_symbols(expression)

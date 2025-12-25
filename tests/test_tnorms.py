@@ -1,7 +1,10 @@
 """Tests for different t-norm implementations.
 
-This module tests all three t-norm implementations (Product, Łukasiewicz,
+This module tests all t-norm implementations (S-Product, Łukasiewicz,
 Gödel) across all logical operators to ensure correct behavior.
+
+Note: R-Product has its own dedicated test file (test_r_product.py).
+S-Product tests here verify the implication-as-disjunction semantics.
 """
 
 import sympy as sp
@@ -10,7 +13,7 @@ import torch
 from logic_as_loss import (
     LogicLoss,
     Predicate,
-    ProductTNorm,
+    SProductTNorm,
     LukasiewiczTNorm,
     GodelTNorm,
 )
@@ -30,7 +33,7 @@ def test_product_and() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -49,7 +52,7 @@ def test_product_or() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -66,7 +69,7 @@ def test_product_not() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -85,7 +88,7 @@ def test_product_implies() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -106,7 +109,7 @@ def test_product_equivalent() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -344,7 +347,7 @@ def test_product_multi_and() -> None:
         "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 

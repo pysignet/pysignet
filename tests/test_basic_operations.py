@@ -1,7 +1,7 @@
 """Tests for basic logical operations (AND, OR, NOT, IMPLIES, EQUIVALENT).
 
 This module tests the core logical operators provided by the library,
-ensuring they work correctly with the default ProductTNorm.
+ensuring they work correctly with the default RProductTNorm.
 """
 
 import sympy as sp
@@ -66,7 +66,7 @@ def test_negation() -> None:
 
 
 def test_implication() -> None:
-    """Test IMPLIES operation."""
+    """Test IMPLIES operation with R-Product (default)."""
     # pylint: disable=invalid-name
     P, Q = sp.symbols("P Q")
     expr = sp.Implies(P, Q)
@@ -80,14 +80,14 @@ def test_implication() -> None:
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
-    # P -> Q = ~P | Q = 0.2 | 0.6
-    not_p = 0.2
-    expected = not_p + 0.6 - not_p * 0.6
+    # R-Product: P -> Q = (1 if P <= Q else Q/P)
+    # 0.8 > 0.6, so result = 0.6/0.8 = 0.75
+    expected = 0.6 / 0.8
     assert torch.allclose(satisfaction, torch.tensor(expected), atol=1e-5)
 
 
 def test_equivalence_operator() -> None:
-    """Test EQUIVALENCE (biconditional) operator."""
+    """Test EQUIVALENCE (biconditional) operator with R-Product (default)."""
     # pylint: disable=invalid-name
     P, Q = sp.symbols("P Q")
     expr = sp.Equivalent(P, Q)
@@ -102,11 +102,12 @@ def test_equivalence_operator() -> None:
     satisfaction = logic_loss(x)
 
     # P <-> Q = (P -> Q) AND (Q -> P)
-    # P -> Q = NOT P OR Q = 0.2 + 0.6 - 0.12 = 0.68
-    # Q -> P = NOT Q OR P = 0.4 + 0.8 - 0.32 = 0.88
-    # Result = 0.68 * 0.88 = 0.5984
-    p_implies_q = 0.2 + 0.6 - 0.2 * 0.6
-    q_implies_p = 0.4 + 0.8 - 0.4 * 0.8
+    # R-Product:
+    # P -> Q: 0.8 > 0.6, so 0.6/0.8 = 0.75
+    # Q -> P: 0.6 <= 0.8, so 1.0
+    # Result = 0.75 * 1.0 = 0.75
+    p_implies_q = 0.6 / 0.8
+    q_implies_p = 1.0
     expected = p_implies_q * q_implies_p
 
     assert satisfaction.shape == (5,)

@@ -7,7 +7,8 @@ loss functions compatible with PyTorch.
 from .core import LogicLoss, Predicate
 from .tnorms import (
     TNorm,
-    ProductTNorm,
+    RProductTNorm,
+    SProductTNorm,
     LukasiewiczTNorm,
     GodelTNorm
 )
@@ -17,7 +18,8 @@ __all__ = [
     "LogicLoss",
     "Predicate",
     "TNorm",
-    "ProductTNorm",
+    "RProductTNorm",
+    "SProductTNorm",
     "LukasiewiczTNorm",
     "GodelTNorm"
 ]

@@ -11,7 +11,7 @@ import torch.nn as nn
 from logic_as_loss import (
     LogicLoss,
     Predicate,
-    ProductTNorm,
+    RProductTNorm,
     LukasiewiczTNorm,
     GodelTNorm,
 )
@@ -207,7 +207,7 @@ def test_gradient_flow_complex_expression() -> None:
 
 
 def test_gradient_flow_product_tnorm() -> None:
-    """Test gradient flow with Product t-norm."""
+    """Test gradient flow with R-Product t-norm."""
     # pylint: disable=invalid-name
     P, Q = sp.symbols("P Q")
     expr = sp.And(P, Q)
@@ -220,7 +220,7 @@ def test_gradient_flow_product_tnorm() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = LogicLoss(expr, predicates, tnorm=ProductTNorm())
+    logic_loss = LogicLoss(expr, predicates, tnorm=RProductTNorm())
 
     x = torch.randn(10, 5)
     loss = logic_loss.loss(x)
