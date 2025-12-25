@@ -156,8 +156,10 @@ def test_input_preserves_dtype() -> None:
 
     # float64
     x_float64 = torch.randn(5, 3, dtype=torch.float64)
-    satisfaction_float64 = logic_loss(x_float64)
+    unused_satisfaction_float64 = logic_loss(x_float64)
     # Note: dtype might be converted due to operations
+    # Intentionally unused, just testing execution
+    del unused_satisfaction_float64
 
 
 def test_multidimensional_features() -> None:

@@ -17,7 +17,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import LogicLoss, Predicate, SProductTNorm
+from logic_as_loss import LogicLoss, Predicate, RProductTNorm, SProductTNorm
 
 
 def test_s_product_implication_formula() -> None:
@@ -96,8 +96,6 @@ def test_s_product_not() -> None:
 
 def test_s_product_differs_from_r_product_on_implication() -> None:
     """Test that S-Product and R-Product give different implication results."""
-    from logic_as_loss import RProductTNorm
-
     s_tnorm = SProductTNorm()
     r_tnorm = RProductTNorm()
 
@@ -120,8 +118,6 @@ def test_s_product_differs_from_r_product_on_implication() -> None:
 
 def test_s_product_and_or_not_same_as_r_product() -> None:
     """Test that S-Product uses same AND, OR, NOT as R-Product."""
-    from logic_as_loss import RProductTNorm
-
     s_tnorm = SProductTNorm()
     r_tnorm = RProductTNorm()
 
@@ -157,7 +153,9 @@ def test_s_product_self_consistency() -> None:
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * p_value)
+            "P": Predicate(
+                "P", lambda x, val=p_value: torch.ones(x.shape[0]) * val
+            )
         }
 
         logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
@@ -177,7 +175,9 @@ def test_s_product_implication_tautology() -> None:
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * p_value)
+            "P": Predicate(
+                "P", lambda x, val=p_value: torch.ones(x.shape[0]) * val
+            )
         }
 
         logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())
@@ -313,7 +313,9 @@ def test_s_product_implication_with_constants() -> None:
 
     # true -> P: 1 - 1 + 1*0.7 = 0.7
     expr_true_p = sp.Implies(sp.true, P)
-    logic_loss_true_p = LogicLoss(expr_true_p, predicates, tnorm=SProductTNorm())
+    logic_loss_true_p = LogicLoss(
+        expr_true_p, predicates, tnorm=SProductTNorm()
+    )
     satisfaction_true_p = logic_loss_true_p(x)
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
@@ -323,13 +325,19 @@ def test_s_product_implication_with_constants() -> None:
         expr_false_p, predicates, tnorm=SProductTNorm()
     )
     satisfaction_false_p = logic_loss_false_p(x)
-    assert torch.allclose(satisfaction_false_p, torch.tensor(1.0), atol=1e-5)
+    assert torch.allclose(
+        satisfaction_false_p, torch.tensor(1.0), atol=1e-5
+    )
 
     # P -> true: 1 - 0.7 + 0.7*1 = 0.3 + 0.7 = 1.0
     expr_p_true = sp.Implies(P, sp.true)
-    logic_loss_p_true = LogicLoss(expr_p_true, predicates, tnorm=SProductTNorm())
+    logic_loss_p_true = LogicLoss(
+        expr_p_true, predicates, tnorm=SProductTNorm()
+    )
     satisfaction_p_true = logic_loss_p_true(x)
-    assert torch.allclose(satisfaction_p_true, torch.tensor(1.0), atol=1e-5)
+    assert torch.allclose(
+        satisfaction_p_true, torch.tensor(1.0), atol=1e-5
+    )
 
     # P -> false: 1 - 0.7 + 0.7*0 = 0.3
     expr_p_false = sp.Implies(P, sp.false)
@@ -337,11 +345,16 @@ def test_s_product_implication_with_constants() -> None:
         expr_p_false, predicates, tnorm=SProductTNorm()
     )
     satisfaction_p_false = logic_loss_p_false(x)
-    assert torch.allclose(satisfaction_p_false, torch.tensor(0.3), atol=1e-5)
+    assert torch.allclose(
+        satisfaction_p_false, torch.tensor(0.3), atol=1e-5
+    )
 
 
 def test_s_product_equivalent_decomposition() -> None:
-    """Test S-Product EQUIVALENT decomposes correctly: (P<->Q) = (P->Q)∧(Q->P)."""
+    """Test S-Product EQUIVALENT decomposes correctly.
+
+    Tests: (P<->Q) = (P->Q)∧(Q->P).
+    """
     # pylint: disable=invalid-name
     P, Q = sp.symbols("P Q")
 
@@ -365,7 +378,9 @@ def test_s_product_equivalent_decomposition() -> None:
     satisfaction_decomposed = logic_loss_decomposed(x)
 
     # Should be equal
-    assert torch.allclose(satisfaction_equiv, satisfaction_decomposed, atol=1e-5)
+    assert torch.allclose(
+        satisfaction_equiv, satisfaction_decomposed, atol=1e-5
+    )
 
 
 def test_s_product_cross_entropy_equivalence() -> None:
@@ -381,7 +396,9 @@ def test_s_product_cross_entropy_equivalence() -> None:
     # Test with hard labels (0 and 1)
     for label in [0.0, 1.0]:
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * label)
+            "P": Predicate(
+                "P", lambda x, val=label: torch.ones(x.shape[0]) * val
+            )
         }
 
         logic_loss = LogicLoss(expr, predicates, tnorm=SProductTNorm())

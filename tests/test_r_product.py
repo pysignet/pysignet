@@ -152,7 +152,11 @@ def test_r_product_self_consistency() -> None:
 
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
-        predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * p_value)}
+        predicates = {
+            "P": Predicate(
+                "P", lambda x, val=p_value: torch.ones(x.shape[0]) * val
+            )
+        }
 
         logic_loss = LogicLoss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(10, 5)
@@ -170,7 +174,11 @@ def test_r_product_implication_tautology() -> None:
 
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
-        predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * p_value)}
+        predicates = {
+            "P": Predicate(
+                "P", lambda x, val=p_value: torch.ones(x.shape[0]) * val
+            )
+        }
 
         logic_loss = LogicLoss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(10, 5)
@@ -298,37 +306,56 @@ def test_r_product_implication_with_constants() -> None:
     # Wait, let me recalculate: true=1, P=0.7
     # implication(1, 0.7): 1 <= 0.7? No, so return 0.7/1 = 0.7
     expr_true_p = sp.Implies(sp.true, P)
-    logic_loss_true_p = LogicLoss(expr_true_p, predicates, tnorm=RProductTNorm())
+    logic_loss_true_p = LogicLoss(
+        expr_true_p, predicates, tnorm=RProductTNorm()
+    )
     satisfaction_true_p = logic_loss_true_p(x)
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
     # false -> P: should be 1 (since false=0, 0 <= P is true)
     expr_false_p = sp.Implies(sp.false, P)
-    logic_loss_false_p = LogicLoss(expr_false_p, predicates, tnorm=RProductTNorm())
+    logic_loss_false_p = LogicLoss(
+        expr_false_p, predicates, tnorm=RProductTNorm()
+    )
     satisfaction_false_p = logic_loss_false_p(x)
-    assert torch.allclose(satisfaction_false_p, torch.tensor(1.0), atol=1e-5)
+    assert torch.allclose(
+        satisfaction_false_p, torch.tensor(1.0), atol=1e-5
+    )
 
     # P -> true: should be 1 (since 0.7 <= 1 is true)
     expr_p_true = sp.Implies(P, sp.true)
-    logic_loss_p_true = LogicLoss(expr_p_true, predicates, tnorm=RProductTNorm())
+    logic_loss_p_true = LogicLoss(
+        expr_p_true, predicates, tnorm=RProductTNorm()
+    )
     satisfaction_p_true = logic_loss_p_true(x)
-    assert torch.allclose(satisfaction_p_true, torch.tensor(1.0), atol=1e-5)
+    assert torch.allclose(
+        satisfaction_p_true, torch.tensor(1.0), atol=1e-5
+    )
 
     # P -> false: R-Product gives 0/0.7 = 0 when evaluated directly
     # But with SymPy constant evaluation, this becomes NOT(P) = 0.3
     expr_p_false = sp.Implies(P, sp.false)
-    logic_loss_p_false = LogicLoss(expr_p_false, predicates, tnorm=RProductTNorm())
+    logic_loss_p_false = LogicLoss(
+        expr_p_false, predicates, tnorm=RProductTNorm()
+    )
     satisfaction_p_false = logic_loss_p_false(x)
     # SymPy simplifies P -> false to NOT(P), so expect 1 - 0.7 = 0.3
-    assert torch.allclose(satisfaction_p_false, torch.tensor(0.3), atol=1e-5)
+    assert torch.allclose(
+        satisfaction_p_false, torch.tensor(0.3), atol=1e-5
+    )
 
 
 def test_r_product_transitive_implication() -> None:
-    """Test R-Product with transitive implications: (P->Q ∧ Q->R) -> (P->R)."""
+    """Test R-Product with transitive implications.
+
+    Tests: (P->Q ∧ Q->R) -> (P->R).
+    """
     # pylint: disable=invalid-name
     P, Q, R = sp.symbols("P Q R")
     # Transitivity: ((P->Q) AND (Q->R)) -> (P->R)
-    expr = sp.Implies(sp.And(sp.Implies(P, Q), sp.Implies(Q, R)), sp.Implies(P, R))
+    expr = sp.Implies(
+        sp.And(sp.Implies(P, Q), sp.Implies(Q, R)), sp.Implies(P, R)
+    )
 
     predicates = {
         "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -365,7 +392,10 @@ def test_r_product_contrapositive() -> None:
 
 
 def test_r_product_equivalent_decomposition() -> None:
-    """Test R-Product EQUIVALENT decomposes correctly: (P<->Q) = (P->Q)∧(Q->P)."""
+    """Test R-Product EQUIVALENT decomposes correctly.
+
+    Tests: (P<->Q) = (P->Q)∧(Q->P).
+    """
     # pylint: disable=invalid-name
     P, Q = sp.symbols("P Q")
 
@@ -389,4 +419,6 @@ def test_r_product_equivalent_decomposition() -> None:
     satisfaction_decomposed = logic_loss_decomposed(x)
 
     # Should be equal
-    assert torch.allclose(satisfaction_equiv, satisfaction_decomposed, atol=1e-5)
+    assert torch.allclose(
+        satisfaction_equiv, satisfaction_decomposed, atol=1e-5
+    )

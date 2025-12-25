@@ -12,8 +12,6 @@ from logic_as_loss import LogicLoss, Predicate
 
 def test_true_constant() -> None:
     """Test sp.true evaluates to 1.0."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
     expr = sp.true  # Just the constant
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
@@ -28,8 +26,6 @@ def test_true_constant() -> None:
 
 def test_false_constant() -> None:
     """Test sp.false evaluates to 0.0."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
     expr = sp.false  # Just the constant
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
@@ -108,8 +104,6 @@ def test_or_with_false() -> None:
 
 def test_not_true() -> None:
     """Test NOT true = false."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
     expr = sp.Not(sp.true)
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
@@ -124,8 +118,6 @@ def test_not_true() -> None:
 
 def test_not_false() -> None:
     """Test NOT false = true."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
     expr = sp.Not(sp.false)
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
@@ -293,8 +285,6 @@ def test_equivalent_with_constants() -> None:
 
 def test_false_constant_with_dict_input() -> None:
     """Test sp.false with dict input."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
     expr = sp.false
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}

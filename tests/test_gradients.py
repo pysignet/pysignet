@@ -103,7 +103,9 @@ def test_gradient_flow_not() -> None:
     expr = sp.Not(P)
 
     model = nn.Linear(5, 1)
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))}
+    predicates = {
+        "P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))
+    }
 
     logic_loss = LogicLoss(expr, predicates)
 
@@ -297,7 +299,9 @@ def test_gradient_accumulation() -> None:
     expr = P
 
     model = nn.Linear(5, 1)
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))}
+    predicates = {
+        "P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))
+    }
 
     logic_loss = LogicLoss(expr, predicates)
 
@@ -331,7 +335,9 @@ def test_gradient_zero() -> None:
     expr = P
 
     model = nn.Linear(5, 1)
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))}
+    predicates = {
+        "P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))
+    }
 
     logic_loss = LogicLoss(expr, predicates)
 

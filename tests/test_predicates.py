@@ -34,9 +34,6 @@ def test_deterministic_predicate() -> None:
 
 def test_model_predicate_auto_detection() -> None:
     """Test automatic detection of nn.Module as model."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
-
     # Should auto-detect nn.Module as model
     model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
     predicate = Predicate("P", model)
@@ -46,9 +43,6 @@ def test_model_predicate_auto_detection() -> None:
 
 def test_function_predicate_auto_detection() -> None:
     """Test automatic detection of function as non-model."""
-    # pylint: disable=invalid-name
-    P = sp.symbols("P")
-
     # Should auto-detect lambda as non-model
     predicate = Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))
 

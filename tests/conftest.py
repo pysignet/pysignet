@@ -4,7 +4,7 @@ This module provides reusable fixtures for testing the logic_as_loss library.
 Fixtures include common predicates, sample expressions, and test inputs.
 """
 
-from typing import Dict, Callable
+from typing import Dict
 
 import pytest  # type: ignore[import-not-found]
 import sympy as sp
@@ -38,7 +38,9 @@ def neural_predicates() -> Dict[str, Predicate]:
         wrapping simple neural networks.
     """
     model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-    model_q = nn.Sequential(nn.Linear(5, 3), nn.ReLU(), nn.Linear(3, 1), nn.Sigmoid())
+    model_q = nn.Sequential(
+        nn.Linear(5, 3), nn.ReLU(), nn.Linear(3, 1), nn.Sigmoid()
+    )
 
     return {
         "P": Predicate("P", lambda x: model_p(x).squeeze(-1)),
