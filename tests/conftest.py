@@ -1,0 +1,113 @@
+"""Shared pytest fixtures for logic_as_loss tests.
+
+This module provides reusable fixtures for testing the logic_as_loss library.
+Fixtures include common predicates, sample expressions, and test inputs.
+"""
+
+from typing import Dict, Callable
+
+import pytest  # type: ignore[import-not-found]
+import sympy as sp
+import torch
+import torch.nn as nn
+
+from logic_as_loss import Predicate
+
+
+@pytest.fixture  # type: ignore[misc]
+def simple_predicates() -> Dict[str, Predicate]:
+    """Simple deterministic predicates with constant values.
+
+    Returns:
+        Dictionary mapping predicate names to Predicate instances
+        with fixed satisfaction values.
+    """
+    return {
+        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
+    }
+
+
+@pytest.fixture  # type: ignore[misc]
+def neural_predicates() -> Dict[str, Predicate]:
+    """Neural network-based predicates.
+
+    Returns:
+        Dictionary mapping predicate names to Predicate instances
+        wrapping simple neural networks.
+    """
+    model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
+    model_q = nn.Sequential(nn.Linear(5, 3), nn.ReLU(), nn.Linear(3, 1), nn.Sigmoid())
+
+    return {
+        "P": Predicate("P", lambda x: model_p(x).squeeze(-1)),
+        "Q": Predicate("Q", lambda x: model_q(x).squeeze(-1)),
+    }
+
+
+@pytest.fixture  # type: ignore[misc]
+def dynamic_predicates() -> Dict[str, Predicate]:
+    """Input-dependent predicates.
+
+    Returns:
+        Dictionary of predicates that compute values based on input.
+    """
+    return {
+        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "R": Predicate("R", lambda x: (x > 0).float().mean(dim=-1)),
+    }
+
+
+@pytest.fixture  # type: ignore[misc]
+def sample_expressions() -> Dict[str, sp.Basic]:
+    """Common logical expressions for testing.
+
+    Returns:
+        Dictionary mapping expression names to SymPy logic expressions.
+    """
+    # pylint: disable=invalid-name
+    P, Q, R = sp.symbols("P Q R")
+
+    return {
+        "simple_and": sp.And(P, Q),
+        "simple_or": sp.Or(P, Q),
+        "negation": sp.Not(P),
+        "implication": sp.Implies(P, Q),
+        "equivalence": sp.Equivalent(P, Q),
+        "complex": sp.And(sp.Or(P, Q), sp.Not(R)),
+        "nested": sp.Implies(sp.And(P, Q), sp.Or(Q, R)),
+    }
+
+
+@pytest.fixture  # type: ignore[misc]
+def batch_inputs() -> Dict[str, torch.Tensor]:
+    """Various batch sizes for testing.
+
+    Returns:
+        Dictionary mapping size names to random tensors.
+    """
+    return {
+        "empty": torch.randn(0, 5),
+        "single": torch.randn(1, 5),
+        "small": torch.randn(5, 5),
+        "medium": torch.randn(32, 5),
+        "large": torch.randn(100, 5),
+    }
+
+
+@pytest.fixture  # type: ignore[misc]
+def special_values() -> Dict[str, torch.Tensor]:
+    """Tensors with special values (NaN, Inf, etc.).
+
+    Returns:
+        Dictionary of tensors containing edge case values.
+    """
+    return {
+        "nan": torch.tensor([[float("nan"), 1.0, 2.0]]),
+        "pos_inf": torch.tensor([[float("inf"), 1.0, 2.0]]),
+        "neg_inf": torch.tensor([[float("-inf"), 1.0, 2.0]]),
+        "zeros": torch.zeros(5, 3),
+        "ones": torch.ones(5, 3),
+    }
