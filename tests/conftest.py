@@ -6,7 +6,7 @@ Fixtures include common predicates, sample expressions, and test inputs.
 
 from typing import Dict
 
-import pytest  # type: ignore[import-not-found]
+import pytest
 import sympy as sp
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ import torch.nn as nn
 from logic_as_loss import Predicate
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def simple_predicates() -> Dict[str, Predicate]:
     """Simple deterministic predicates with constant values.
 
@@ -29,7 +29,7 @@ def simple_predicates() -> Dict[str, Predicate]:
     }
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def neural_predicates() -> Dict[str, Predicate]:
     """Neural network-based predicates.
 
@@ -48,7 +48,7 @@ def neural_predicates() -> Dict[str, Predicate]:
     }
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def dynamic_predicates() -> Dict[str, Predicate]:
     """Input-dependent predicates.
 
@@ -62,7 +62,7 @@ def dynamic_predicates() -> Dict[str, Predicate]:
     }
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def sample_expressions() -> Dict[str, sp.Basic]:
     """Common logical expressions for testing.
 
@@ -83,7 +83,7 @@ def sample_expressions() -> Dict[str, sp.Basic]:
     }
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def batch_inputs() -> Dict[str, torch.Tensor]:
     """Various batch sizes for testing.
 
@@ -99,7 +99,7 @@ def batch_inputs() -> Dict[str, torch.Tensor]:
     }
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def special_values() -> Dict[str, torch.Tensor]:
     """Tensors with special values (NaN, Inf, etc.).
 
