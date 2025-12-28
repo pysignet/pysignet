@@ -44,7 +44,7 @@ class Predicate:
         return torch.clamp(result, 0.0, 1.0)
 
 
-class LogicLoss:
+class LogicCompiler:
     """Converts SymPy logic expressions to differentiable losses.
 
     Args:
@@ -69,13 +69,13 @@ class LogicLoss:
         >>>         torch.sigmoid(x.sum(dim=-1)))
         >>> }
         >>>
-        >>> # Create loss function
-        >>> logic_loss = LogicLoss(expr, predicates)
+        >>> # Create logic compiler
+        >>> compiler = LogicCompiler(expr, predicates)
         >>>
-        >>> # Compute loss on batch
+        >>> # Compute satisfaction on batch
         >>> x = torch.randn(32, 10)  # batch_size=32, features=10
-        >>> satisfaction = logic_loss(x)  # shape (32,)
-        >>> loss = 1.0 - satisfaction.mean()  # Convert to loss
+        >>> satisfaction = compiler(x)  # shape (32,)
+        >>> loss = compiler.loss(x)  # Compute loss
     """
 
     def __init__(

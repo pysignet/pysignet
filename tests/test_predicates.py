@@ -8,7 +8,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import LogicLoss, Predicate
+from logic_as_loss import LogicCompiler, Predicate
 
 
 def test_deterministic_predicate() -> None:
@@ -23,7 +23,7 @@ def test_deterministic_predicate() -> None:
 
     predicates = {"P": Predicate("P", deterministic_func, is_model=False)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     x_pos = torch.ones(5, 3)
     x_neg = -torch.ones(5, 3)
@@ -62,7 +62,7 @@ def test_get_trainable_parameters() -> None:
         "Q": Predicate("Q", lambda x: (x > 0).float().mean(dim=-1)),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     params = logic_loss.get_trainable_parameters()
 
     # Should only get parameters from model_p
@@ -81,7 +81,7 @@ def test_get_trainable_parameters_no_models() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     params = logic_loss.get_trainable_parameters()
 
     # Should return empty list
@@ -97,7 +97,7 @@ def test_non_tensor_predicate_return() -> None:
     # Predicate that returns a Python float (will be converted to tensor)
     predicates = {"P": Predicate("P", lambda x: 0.75)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -115,7 +115,7 @@ def test_predicate_clamping_above_one() -> None:
     # Predicate that returns values > 1
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 2.5)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -133,7 +133,7 @@ def test_predicate_clamping_below_zero() -> None:
     # Predicate that returns values < 0
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * -1.5)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -155,7 +155,7 @@ def test_predicate_with_neural_network() -> None:
 
     predicates = {"P": Predicate("P", lambda x: model(x).squeeze(-1))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -182,7 +182,7 @@ def test_predicate_with_multiple_models() -> None:
         "R": Predicate("R", lambda x: model_r(x).squeeze(-1)),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 

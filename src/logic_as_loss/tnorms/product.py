@@ -49,7 +49,7 @@ class RProductTNorm(SProductTNorm):
     - R-Product is self-consistent for all formulas (Proposition 1)
     - R-Product is the recommended default t-norm for neural networks
 
-    This is the default t-norm used by LogicLoss.
+    This is the default t-norm used by LogicCompiler.
     """
 
     def implication(

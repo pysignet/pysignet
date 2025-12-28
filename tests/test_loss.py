@@ -7,7 +7,7 @@ This module tests the loss() method and its different reduction modes
 import sympy as sp
 import torch
 
-from logic_as_loss import LogicLoss, Predicate
+from logic_as_loss import LogicCompiler, Predicate
 
 
 def test_loss_mean_reduction() -> None:
@@ -18,7 +18,7 @@ def test_loss_mean_reduction() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     # Mean reduction (default)
@@ -37,7 +37,7 @@ def test_loss_sum_reduction() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     # Sum reduction
@@ -55,7 +55,7 @@ def test_loss_none_reduction() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     # No reduction
@@ -74,7 +74,7 @@ def test_loss_reduction_consistency() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     # Get all three reduction modes
@@ -100,7 +100,7 @@ def test_invalid_reduction_mode() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
 
     try:
@@ -118,7 +118,7 @@ def test_loss_is_one_minus_satisfaction() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     satisfaction = logic_loss(x)
@@ -137,7 +137,7 @@ def test_loss_with_perfect_satisfaction() -> None:
     # Predicate always returns 1.0
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
 
     loss = logic_loss.loss(x, reduction="mean")
@@ -155,7 +155,7 @@ def test_loss_with_zero_satisfaction() -> None:
     # Predicate always returns 0.0
     predicates = {"P": Predicate("P", lambda x: torch.zeros(x.shape[0]))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
 
     loss = logic_loss.loss(x, reduction="mean")
@@ -176,7 +176,7 @@ def test_loss_with_complex_expression() -> None:
         "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.3),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     # Compute satisfaction manually
@@ -201,7 +201,7 @@ def test_loss_default_reduction() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
     # Default should be mean
@@ -220,7 +220,7 @@ def test_loss_with_varying_batch_sizes() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # Test different batch sizes
     for batch_size in [1, 5, 10, 100]:
@@ -252,7 +252,7 @@ def test_loss_with_dict_input() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     batch_size = 10
     inputs = {
@@ -277,7 +277,7 @@ def test_loss_numerics_stability() -> None:
     predicates_high = {
         "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.9999999)
     }
-    logic_loss_high = LogicLoss(expr, predicates_high)
+    logic_loss_high = LogicCompiler(expr, predicates_high)
     x = torch.randn(5, 3)
     loss_high = logic_loss_high.loss(x, reduction="mean")
 
@@ -289,7 +289,7 @@ def test_loss_numerics_stability() -> None:
     predicates_low = {
         "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 1e-7)
     }
-    logic_loss_low = LogicLoss(expr, predicates_low)
+    logic_loss_low = LogicCompiler(expr, predicates_low)
     loss_low = logic_loss_low.loss(x, reduction="mean")
 
     # Loss should be very high (near 1)

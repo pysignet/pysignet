@@ -86,7 +86,7 @@ The usage pattern involves the following four steps:
 import torch
 import torch.nn as nn
 import sympy as sp
-from logic_loss import LogicLoss, Predicate
+from logic_as_loss import LogicCompiler, Predicate
 
 # Define logic expression. First define the symbols
 P, Q, R = sp.symbols('P Q R')
@@ -106,8 +106,8 @@ predicates = {
     'R': Predicate('R', lambda x: model(x["B"][1:, :]))
 }
 
-# Create logic loss --> TODO: Rename this as compiler
-compiled_logic = LogicLoss(expr, predicates)
+# Create logic compiler
+compiled_logic = LogicCompiler(expr, predicates)
 
 # Use in training
 x = torch.randn(32, 10)  # batch_size=32
@@ -180,24 +180,22 @@ pred = Predicate('Q', lambda x: (x > 0).float().mean(dim=-1))
 
 ### Logic Loss:
 
-The `LogicLoss` class converts SymPy expressions to differentiable functions:
+The `LogicCompiler` class converts SymPy expressions to differentiable functions:
 
 ```python
-logic_loss = LogicLoss(
+compiler = LogicCompiler(
     expression=expr,         # SymPy logic expression
     predicates=preds,        # Dict of predicates
     tnorm=RProductTNorm()    # Optional: t-norm to use (default: RProductTNorm)
 )
 
 # Evaluate satisfaction (higher = better)
-satisfaction = logic_loss(inputs)  # Returns tensor in [0, 1]
+satisfaction = compiler(inputs)  # Returns tensor in [0, 1]
 
 # Compute loss (lower = better)
-loss = logic_loss.loss(inputs, reduction='mean')
+loss = compiler.loss(inputs, reduction='mean')
 ```
 
-
-- TODO: This needs to be renamed to LogicCompiler everywhere
 - TODO: Different relaxations require different post-processing.
   - For R-Product/S-ProductTNorm, the loss should be negative log satisfaction
   - For Lukasiewicz, it should just be negative satisfaction

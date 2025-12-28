@@ -4,7 +4,7 @@ Relaxes logical operators using t-norms to create differentiable
 loss functions compatible with PyTorch.
 """
 
-from .core import LogicLoss, Predicate
+from .core import LogicCompiler, Predicate
 from .consistency import ConsistencyChecker
 from .tnorms import (
     TNorm,
@@ -16,7 +16,7 @@ from .tnorms import (
 
 __version__ = "0.1.0"
 __all__ = [
-    "LogicLoss",
+    "LogicCompiler",
     "Predicate",
     "ConsistencyChecker",
     "TNorm",

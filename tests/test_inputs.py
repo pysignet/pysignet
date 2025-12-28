@@ -7,7 +7,7 @@ handling, and input routing to predicates.
 import sympy as sp
 import torch
 
-from logic_as_loss import LogicLoss, Predicate
+from logic_as_loss import LogicCompiler, Predicate
 
 
 def test_single_tensor_input() -> None:
@@ -21,7 +21,7 @@ def test_single_tensor_input() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # Single tensor input - same tensor passed to all predicates
     x = torch.randn(10, 5)
@@ -43,7 +43,7 @@ def test_dict_input_per_predicate() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     batch_size = 10
     inputs = {
@@ -66,7 +66,7 @@ def test_dict_input_with_default_key() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # Provide specific input for P and default for others
     default_input = torch.randn(5, 3)
@@ -87,7 +87,7 @@ def test_batching_various_sizes() -> None:
     # Predicate that depends on input
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # Different batch sizes
     for batch_size in [1, 10, 100]:
@@ -110,7 +110,7 @@ def test_different_feature_dimensions() -> None:
         "R": Predicate("R", lambda x: torch.sigmoid(x[:, 0])),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     batch_size = 10
     inputs = {
@@ -131,7 +131,7 @@ def test_input_preserves_device() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # CPU tensor
     x_cpu = torch.randn(5, 3)
@@ -147,7 +147,7 @@ def test_input_preserves_dtype() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # float32 (default)
     x_float32 = torch.randn(5, 3, dtype=torch.float32)
@@ -173,7 +173,7 @@ def test_multidimensional_features() -> None:
         "P": Predicate("P", lambda x: torch.sigmoid(x.flatten(1).sum(dim=-1)))
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # 3D input: (batch, height, width)
     x = torch.randn(5, 4, 4)
@@ -192,7 +192,7 @@ def test_sequential_calls_same_input() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
 
     # Multiple calls should give same result
@@ -210,7 +210,7 @@ def test_sequential_calls_different_inputs() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # Different inputs should give potentially different results
     x1 = torch.ones(5, 3)  # Positive
@@ -238,7 +238,7 @@ def test_dict_input_subset_of_predicates() -> None:
         "R": Predicate("R", lambda x: torch.sigmoid(x.max(dim=-1)[0])),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     # Only provide P and default
     batch_size = 5
@@ -261,7 +261,7 @@ def test_consistent_batch_size_required() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicLoss(expr, predicates)
+    logic_loss = LogicCompiler(expr, predicates)
 
     batch_size = 10
     inputs = {
