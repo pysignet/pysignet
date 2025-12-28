@@ -5,6 +5,7 @@ loss functions compatible with PyTorch.
 """
 
 from .core import LogicLoss, Predicate
+from .consistency import ConsistencyChecker
 from .tnorms import (
     TNorm,
     RProductTNorm,
@@ -17,6 +18,7 @@ __version__ = "0.1.0"
 __all__ = [
     "LogicLoss",
     "Predicate",
+    "ConsistencyChecker",
     "TNorm",
     "RProductTNorm",
     "SProductTNorm",
