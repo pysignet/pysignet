@@ -1,4 +1,37 @@
-"""Core functionality for converting SymPy logic to PyTorch losses."""
+"""Core functionality for converting SymPy logic to PyTorch losses.
+
+Named Neurons and Predicates
+-----------------------------
+
+This module is built on the concept of **named neurons**: nodes in a
+computation graph that have externally defined meaning. Named neurons bridge
+symbolic logic and neural network representations.
+
+A **named neuron** is any node with external semantics (not just arbitrary
+activations):
+
+- **Network outputs**: A classifier's output predictions
+- **Network inputs**: Input features with semantic meaning
+- **Intermediate nodes**: Attention weights, embeddings, or other activations
+  with externally assigned meaning
+
+The `Predicate` class wraps named neurons and maps them to logical predicates.
+This abstraction is foundational to the entire library.
+
+NN→Predicate Mapping
+--------------------
+
+When a neural network P predicts label y for input x, this corresponds to the
+predicate P(x, y) being true. For multi-input networks with inputs x1, x2
+predicting y, we have P(x1, x2, y).
+
+The input structure is flexible:
+- Single tensor: `x_tensor` (shared across all predicates)
+- Dict of tensors: `{"x1": x1_tensor, "x2": x2_tensor}` (per-predicate inputs)
+
+Since both inputs and outputs can be named neurons, input-output constraints
+(relating input features to output predictions) are naturally supported.
+"""
 
 from typing import Callable, Dict, Union, Optional, Set, List, Any
 
@@ -9,12 +42,43 @@ from .tnorms import TNorm, RProductTNorm
 
 
 class Predicate:
-    """Wrapper for a predicate (PyTorch model or callable function).
+    """Wraps a named neuron and maps it to a logical predicate.
+
+    A Predicate wraps any node in a computation graph that has externally
+    defined meaning (a "named neuron"). This can be:
+
+    - **Output neuron**: Network output predicting a label
+    - **Input neuron**: Input feature with semantic meaning
+    - **Intermediate neuron**: Attention weights, embeddings, etc.
+
+    The predicate maps the named neuron to logical reasoning: when network P
+    predicts label y for input x, this corresponds to P(x, y) being true.
+
+    Examples:
+        Output predicates (network outputs):
+            >>> binary_classifier = nn.Sequential(
+            ...     nn.Linear(784, 1), nn.Sigmoid()
+            ... )
+            >>> is_cat = Predicate('IsCat', binary_classifier)
+
+        Input predicates (input features):
+            >>> is_young = Predicate(
+            ...     'IsYoung', lambda x: (x['age'] < 18).float()
+            ... )
+
+        Deterministic predicates (simple functions):
+            >>> above_threshold = Predicate(
+            ...     'AboveThreshold', lambda x: (x > 0.5).float()
+            ... )
 
     Args:
         name: Name of the predicate (must match SymPy symbol)
-        func: torch.nn.Module or callable returning [0, 1] values
+        func: Named neuron - torch.nn.Module or callable returning [0, 1]
         is_model: Whether the function is trainable (default: auto-detect)
+
+    Note:
+        The func must return values in [0, 1] representing the degree to which
+        the predicate is satisfied. Values are automatically clamped to [0, 1].
     """
 
     def __init__(
@@ -23,24 +87,52 @@ class Predicate:
         func: Union[torch.nn.Module, Callable[..., Any]],
         is_model: Optional[bool] = None
     ) -> None:
-        self.name = name
-        self.func = func
+        """Initialize a predicate wrapping a named neuron.
 
-        # Auto-detect if it's a model
+        Args:
+            name: Symbol name for use in logical expressions
+            func: The named neuron (computation node with external semantics)
+            is_model: True if func is trainable, False otherwise, None to
+                     auto-detect
+        """
+        self.name = name
+        self.func = func  # The named neuron being wrapped
+
+        # Auto-detect if it's a trainable model (has parameters)
         if is_model is None:
             self.is_model = isinstance(func, torch.nn.Module)
         else:
             self.is_model = is_model
 
     def __call__(self, *args: Any, **kwargs: Any) -> torch.Tensor:
-        """Evaluate the predicate, ensuring output is in [0, 1]."""
+        """Evaluate the named neuron and return satisfaction degree.
+
+        The predicate evaluates its wrapped named neuron (network, function, or
+        computation node) and returns a value in [0, 1] representing the degree
+        to which the predicate is satisfied.
+
+        Input routing:
+        - If LogicCompiler receives a single tensor, it's passed to all
+          predicates
+        - If LogicCompiler receives a dict, each predicate gets its
+          corresponding input
+
+        Args:
+            *args: Positional arguments forwarded to the named neuron
+            **kwargs: Keyword arguments forwarded to the named neuron
+
+        Returns:
+            Tensor of satisfaction degrees in [0, 1]. Shape is typically
+            (batch_size,) but can vary based on the named neuron's output.
+        """
+        # Evaluate the named neuron
         result = self.func(*args, **kwargs)
 
         # Ensure result is a tensor
         if not isinstance(result, torch.Tensor):
             result = torch.tensor(result, dtype=torch.float32)
 
-        # Clamp to [0, 1] for safety
+        # Clamp to [0, 1] to ensure valid satisfaction degrees
         return torch.clamp(result, 0.0, 1.0)
 
 
@@ -120,17 +212,22 @@ class LogicCompiler:
         Returns:
             Tensor of shape (batch_size,) with values in [0, 1]
         """
-        # Base case: predicate symbol
+        # Base case: predicate symbol (named neuron evaluation)
         if isinstance(expr, sp.Symbol):
             pred_name = str(expr)
             predicate = self.predicates[pred_name]
 
-            # Get input for this predicate
+            # Input routing: support both single tensor and dict of tensors
+            # This enables multi-argument predicates P(x1, x2, y) where
+            # different named neurons receive different inputs
             if isinstance(inputs, dict):
+                # Dict input: route specific input to this predicate
                 pred_input = inputs.get(pred_name, inputs.get('default'))
             else:
+                # Single tensor: shared input for all predicates
                 pred_input = inputs
 
+            # Evaluate the named neuron and get satisfaction degree
             return predicate(pred_input)
 
         # Boolean constant
