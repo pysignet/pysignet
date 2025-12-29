@@ -21,8 +21,8 @@ def test_loss_mean_reduction() -> None:
     logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
-    # Mean reduction (default)
-    loss = logic_loss.loss(x, reduction="mean")
+    # Mean reduction (default) with linear post-processing
+    loss = logic_loss.loss(x, reduction="mean", post_processing="linear")
 
     assert loss.shape == ()  # Scalar
     assert loss >= 0.0
@@ -58,8 +58,8 @@ def test_loss_none_reduction() -> None:
     logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(10, 5)
 
-    # No reduction
-    loss = logic_loss.loss(x, reduction="none")
+    # No reduction with linear post-processing
+    loss = logic_loss.loss(x, reduction="none", post_processing="linear")
 
     assert loss.shape == (10,)  # Per-sample losses
     assert loss.min() >= 0.0
@@ -111,7 +111,7 @@ def test_invalid_reduction_mode() -> None:
 
 
 def test_loss_is_one_minus_satisfaction() -> None:
-    """Test that loss = 1 - satisfaction."""
+    """Test that loss = 1 - satisfaction with linear post-processing."""
     # pylint: disable=invalid-name
     P = sp.symbols("P")
     expr = P
@@ -122,9 +122,9 @@ def test_loss_is_one_minus_satisfaction() -> None:
     x = torch.randn(10, 5)
 
     satisfaction = logic_loss(x)
-    loss_none = logic_loss.loss(x, reduction="none")
+    loss_none = logic_loss.loss(x, reduction="none", post_processing="linear")
 
-    # loss = 1 - satisfaction
+    # loss = 1 - satisfaction (with linear post-processing)
     assert torch.allclose(loss_none, 1.0 - satisfaction)
 
 
@@ -158,9 +158,9 @@ def test_loss_with_zero_satisfaction() -> None:
     logic_loss = LogicCompiler(expr, predicates)
     x = torch.randn(5, 3)
 
-    loss = logic_loss.loss(x, reduction="mean")
+    loss = logic_loss.loss(x, reduction="mean", post_processing="linear")
 
-    # Zero satisfaction => loss = 1
+    # Zero satisfaction => loss = 1 (with linear post-processing)
     assert torch.allclose(loss, torch.tensor(1.0))
 
 
@@ -189,7 +189,7 @@ def test_loss_with_complex_expression() -> None:
     expected_satisfaction = p_or_q * not_r
     expected_loss = 1.0 - expected_satisfaction
 
-    loss = logic_loss.loss(x, reduction="mean")
+    loss = logic_loss.loss(x, reduction="mean", post_processing="linear")
     assert torch.allclose(loss, torch.tensor(expected_loss), atol=1e-5)
 
 
@@ -222,13 +222,13 @@ def test_loss_with_varying_batch_sizes() -> None:
 
     logic_loss = LogicCompiler(expr, predicates)
 
-    # Test different batch sizes
+    # Test different batch sizes with linear post-processing
     for batch_size in [1, 5, 10, 100]:
         x = torch.randn(batch_size, 5)
 
-        loss_mean = logic_loss.loss(x, reduction="mean")
-        loss_sum = logic_loss.loss(x, reduction="sum")
-        loss_none = logic_loss.loss(x, reduction="none")
+        loss_mean = logic_loss.loss(x, reduction="mean", post_processing="linear")
+        loss_sum = logic_loss.loss(x, reduction="sum", post_processing="linear")
+        loss_none = logic_loss.loss(x, reduction="none", post_processing="linear")
 
         assert loss_mean.shape == ()
         assert loss_sum.shape == ()
@@ -260,7 +260,7 @@ def test_loss_with_dict_input() -> None:
         "Q": torch.randn(batch_size, 10),
     }
 
-    loss = logic_loss.loss(inputs, reduction="mean")
+    loss = logic_loss.loss(inputs, reduction="mean", post_processing="linear")
 
     assert loss.shape == ()
     assert loss >= 0.0
@@ -279,9 +279,9 @@ def test_loss_numerics_stability() -> None:
     }
     logic_loss_high = LogicCompiler(expr, predicates_high)
     x = torch.randn(5, 3)
-    loss_high = logic_loss_high.loss(x, reduction="mean")
+    loss_high = logic_loss_high.loss(x, reduction="mean", post_processing="linear")
 
-    # Loss should be very small (near 0)
+    # Loss should be very small (near 0) with linear post-processing
     assert loss_high >= 0.0
     assert loss_high < 1e-6
 
@@ -290,8 +290,8 @@ def test_loss_numerics_stability() -> None:
         "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 1e-7)
     }
     logic_loss_low = LogicCompiler(expr, predicates_low)
-    loss_low = logic_loss_low.loss(x, reduction="mean")
+    loss_low = logic_loss_low.loss(x, reduction="mean", post_processing="linear")
 
-    # Loss should be very high (near 1)
+    # Loss should be very high (near 1) with linear post-processing
     assert loss_low > 0.999999
     assert loss_low <= 1.0

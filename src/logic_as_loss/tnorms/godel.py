@@ -14,6 +14,11 @@ class GodelTNorm(TNorm):
     Most conservative option, but can have gradient issues.
     """
 
+    @property
+    def recommended_postprocessing(self) -> str:
+        """Gödel recommends linear post-processing."""
+        return 'linear'
+
     def conjunction(
         self,
         a: torch.Tensor,

@@ -216,20 +216,48 @@ class LogicCompiler:
     def loss(
         self,
         inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
-        reduction: str = 'mean'
+        reduction: str = 'mean',
+        post_processing: Optional[
+            Union[str, Callable[[torch.Tensor], torch.Tensor]]
+        ] = None
     ) -> torch.Tensor:
         """Compute loss based on logical constraint violation.
 
         Args:
             inputs: Inputs for predicates
             reduction: 'mean', 'sum', or 'none'
+            post_processing: Post-processing mode - 'log', 'linear', callable,
+                           or None (uses t-norm's recommendation)
 
         Returns:
             Loss value (lower = better satisfaction)
         """
         satisfaction = self(inputs)
-        loss_values: torch.Tensor = 1.0 - satisfaction
 
+        # Determine which post-processing to apply
+        postprocessing_type = (
+            post_processing
+            if post_processing is not None
+            else self.tnorm.recommended_postprocessing
+        )
+
+        # Apply post-processing
+        if postprocessing_type == 'log':
+            # Negative log with numerical stability
+            loss_values = -torch.log(satisfaction + 1e-10)
+        elif postprocessing_type == 'linear':
+            # Linear: 1 - satisfaction
+            loss_values = 1.0 - satisfaction
+        elif callable(postprocessing_type):
+            # User-provided custom post-processing function
+            loss_values = postprocessing_type(satisfaction)
+        else:
+            raise ValueError(
+                f"Unknown post-processing: {postprocessing_type}. "
+                f"Expected 'log', 'linear', or a callable."
+            )
+
+        # Apply reduction
         if reduction == 'mean':
             result: torch.Tensor = loss_values.mean()
             return result

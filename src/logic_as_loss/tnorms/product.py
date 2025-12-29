@@ -18,6 +18,11 @@ class SProductTNorm(TNorm):
     empirically, but is equivalent to cross-entropy for labeled data.
     """
 
+    @property
+    def recommended_postprocessing(self) -> str:
+        """S-Product recommends logarithmic post-processing."""
+        return 'log'
+
     def conjunction(
         self,
         a: torch.Tensor,
@@ -51,6 +56,11 @@ class RProductTNorm(SProductTNorm):
 
     This is the default t-norm used by LogicCompiler.
     """
+
+    @property
+    def recommended_postprocessing(self) -> str:
+        """R-Product recommends logarithmic post-processing."""
+        return 'log'
 
     def implication(
         self,

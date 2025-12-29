@@ -14,6 +14,11 @@ class LukasiewiczTNorm(TNorm):
     Good for enforcing stricter logical constraints.
     """
 
+    @property
+    def recommended_postprocessing(self) -> str:
+        """Łukasiewicz recommends linear post-processing."""
+        return 'linear'
+
     def conjunction(
         self,
         a: torch.Tensor,

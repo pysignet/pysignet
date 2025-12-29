@@ -8,6 +8,15 @@ import torch
 class TNorm(ABC):
     """Base class for t-norms (continuous relaxations of logic ops)."""
 
+    @property
+    @abstractmethod
+    def recommended_postprocessing(self) -> str:
+        """Return recommended loss post-processing mode.
+
+        Returns:
+            'log' for -log(satisfaction) or 'linear' for 1 - satisfaction
+        """
+
     @abstractmethod
     def conjunction(
         self,
