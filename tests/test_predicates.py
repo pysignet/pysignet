@@ -235,3 +235,26 @@ def test_predicate_explicit_is_model_flag() -> None:
     # Explicitly mark lambda as model
     predicate2 = Predicate("Q", lambda x: x.sum(), is_model=True)
     assert predicate2.is_model is True
+
+
+def test_predicate_name_mismatch_detection() -> None:
+    """Test that LogicCompiler detects predicate name mismatches."""
+    # pylint: disable=invalid-name
+    P = sp.symbols("P")
+    expr = P
+
+    # Create predicate with name 'Q' but use dict key 'P'
+    predicates = {
+        "P": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5)
+    }
+
+    # Should raise ValueError with clear message
+    try:
+        LogicCompiler(expr, predicates)
+        assert False, "Expected ValueError for name mismatch"
+    except ValueError as e:
+        error_msg = str(e)
+        assert "name" in error_msg.lower()
+        assert "mismatch" in error_msg.lower() or "match" in error_msg.lower()
+        assert "Q" in error_msg
+        assert "P" in error_msg

@@ -180,6 +180,15 @@ class LogicCompiler:
         self.predicates = predicates
         self.tnorm = tnorm or RProductTNorm()
 
+        # Validate that predicate names match their dict keys
+        for key, pred in predicates.items():
+            if pred.name != key:
+                raise ValueError(
+                    f"Predicate name '{pred.name}' doesn't match dict key "
+                    f"'{key}'. Use consistent naming: predicates['{key}'] "
+                    f"should be Predicate('{key}', ...)."
+                )
+
         # Verify all symbols have corresponding predicates
         symbols = self._extract_predicate_symbols(expression)
         missing = symbols - set(predicates.keys())
