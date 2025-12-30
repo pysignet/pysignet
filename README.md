@@ -86,7 +86,7 @@ The usage pattern involves the following four steps:
 import torch
 import torch.nn as nn
 import sympy as sp
-from logic_as_loss import LogicCompiler, Predicate
+from pysignet import LogicCompiler, Predicate
 
 # Define logic expression. First define the symbols
 P, Q, R = sp.symbols('P Q R')
