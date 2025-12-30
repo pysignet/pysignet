@@ -7,7 +7,7 @@ ensuring they work correctly with the default RProductTNorm.
 import sympy as sp
 import torch
 
-from logic_as_loss import LogicCompiler, Predicate
+from pysignet import LogicCompiler, Predicate
 
 
 def test_basic_and() -> None:

@@ -7,7 +7,7 @@ This module tests the loss() method and its different reduction modes
 import sympy as sp
 import torch
 
-from logic_as_loss import LogicCompiler, Predicate
+from pysignet import LogicCompiler, Predicate
 
 
 def test_loss_mean_reduction() -> None:

@@ -10,8 +10,8 @@ import torch.nn as nn
 import pytest
 
 # Import from current location (will be moved to neural_logic later)
-from logic_as_loss import Predicate, TNormCompiler, LogicLoss
-from logic_as_loss.tnorms import RProductTNorm, LukasiewiczTNorm
+from pysignet import Predicate, TNormCompiler, LogicLoss
+from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm
 
 
 # Note: LogicLoss doesn't exist yet - these are the tests we'll

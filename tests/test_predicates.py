@@ -8,7 +8,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import LogicCompiler, Predicate
+from pysignet import LogicCompiler, Predicate
 
 
 def test_deterministic_predicate() -> None:

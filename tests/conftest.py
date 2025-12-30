@@ -11,7 +11,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import Predicate
+from pysignet import Predicate
 
 
 @pytest.fixture

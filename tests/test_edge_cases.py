@@ -7,7 +7,7 @@ error conditions, and boundary scenarios.
 import sympy as sp
 import torch
 
-from logic_as_loss import LogicCompiler, Predicate
+from pysignet import LogicCompiler, Predicate
 
 
 def test_empty_batch() -> None:

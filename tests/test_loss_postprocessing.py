@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from logic_as_loss import (
+from pysignet import (
     LogicCompiler,
     Predicate,
     RProductTNorm,

@@ -17,7 +17,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import LogicCompiler, Predicate, RProductTNorm, SProductTNorm
+from pysignet import LogicCompiler, Predicate, RProductTNorm, SProductTNorm
 
 
 def test_s_product_implication_formula() -> None:

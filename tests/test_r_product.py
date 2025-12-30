@@ -16,7 +16,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from logic_as_loss import LogicCompiler, Predicate, RProductTNorm
+from pysignet import LogicCompiler, Predicate, RProductTNorm
 
 
 def test_r_product_implication_when_antecedent_less() -> None:

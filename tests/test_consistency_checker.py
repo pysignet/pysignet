@@ -8,7 +8,7 @@ import pytest
 import sympy as sp
 import torch
 
-from logic_as_loss import ConsistencyChecker
+from pysignet import ConsistencyChecker
 
 
 class TestBasicConsistencyChecking:

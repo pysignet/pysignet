@@ -10,7 +10,7 @@ S-Product tests here verify the implication-as-disjunction semantics.
 import sympy as sp
 import torch
 
-from logic_as_loss import (
+from pysignet import (
     LogicCompiler,
     Predicate,
     SProductTNorm,

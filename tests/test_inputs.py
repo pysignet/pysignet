@@ -7,7 +7,7 @@ handling, and input routing to predicates.
 import sympy as sp
 import torch
 
-from logic_as_loss import LogicCompiler, Predicate
+from pysignet import LogicCompiler, Predicate
 
 
 def test_single_tensor_input() -> None:

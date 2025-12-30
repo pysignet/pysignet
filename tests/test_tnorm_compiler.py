@@ -10,8 +10,8 @@ import torch.nn as nn
 import pytest
 
 # Import from current location (will be moved to pysignet later)
-from logic_as_loss import Predicate, TNormCompiler
-from logic_as_loss.tnorms import (
+from pysignet import Predicate, TNormCompiler
+from pysignet.tnorms import (
     RProductTNorm,
     SProductTNorm,
     LukasiewiczTNorm,
@@ -691,6 +691,26 @@ class TestTNormCompilerBooleanConstants:
             result = compiled_false(x)
             assert result.shape == (batch_size,)
             assert torch.allclose(result, torch.zeros(batch_size), atol=1e-5)
+
+    def test_constants_with_dict_input(self) -> None:
+        """Test constants work correctly with dict inputs."""
+        # Test true constant with dict input
+        expr_true = sp.true
+        compiler = TNormCompiler()
+        compiled_true = compiler.compile(expr_true, {})
+
+        inputs = {'input1': torch.randn(10, 5), 'input2': torch.randn(10, 3)}
+        result = compiled_true(inputs)
+        assert result.shape == (10,)
+        assert torch.allclose(result, torch.ones(10), atol=1e-5)
+
+        # Test false constant with dict input
+        expr_false = sp.false
+        compiled_false = compiler.compile(expr_false, {})
+
+        result = compiled_false(inputs)
+        assert result.shape == (10,)
+        assert torch.allclose(result, torch.zeros(10), atol=1e-5)
 
 
 class TestTNormCompilerErrorHandling:

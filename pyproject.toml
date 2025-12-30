@@ -1,7 +1,7 @@
 [project]
-name = "logic-as-loss"
-version = "0.1.0"
-description = "A library for converting predicate logic expressions into differentiable PyTorch loss functions"
+name = "pysignet"
+version = "0.2.0"
+description = "A library for integrating symbolic logic with neural networks"
 authors = [
     {name = "Vivek Srikumar",email = "svivek@cs.utah.edu"}
 ]
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "logic_as_loss", from = "src"}]
+packages = [{include = "pysignet", from = "src"}]
 
 
 [tool.poetry.group.dev.dependencies]
@@ -30,7 +30,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "--cov=src/logic_as_loss",
+    "--cov=src/pysignet",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-fail-under=95",
@@ -63,7 +63,7 @@ module = "sympy.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "logic_loss.*"
+module = "pysignet.*"
 ignore_missing_imports = false
 
 [build-system]
