@@ -1,0 +1,89 @@
+"""Convenience API for logic compilation."""
+
+from typing import Dict, Optional, Union, Callable
+
+import sympy as sp
+import torch
+
+from .predicate import Predicate
+from .compilation import TNormCompiler
+from .loss import LogicLoss
+from .tnorms import TNorm, RProductTNorm
+
+
+def compile_logic(
+    expr: sp.Basic,
+    predicates: Dict[str, Predicate],
+    mode: str = 'tnorm',
+    tnorm: Optional[TNorm] = None,
+    post_processing: Union[str, Callable[[torch.Tensor], torch.Tensor]] = 'linear'
+) -> LogicLoss:
+    """Compile logic expression into a LogicLoss (one-liner convenience API).
+
+    This is the main entry point for most users. It compiles a SymPy logic
+    expression into a LogicLoss object that can compute satisfaction degrees
+    and losses.
+
+    Args:
+        expr: SymPy logic expression (e.g., sp.And(P, sp.Or(Q, sp.Not(R))))
+        predicates: Dict mapping predicate names to Predicate objects
+        mode: Compilation mode - 'tnorm' (default), or 'semantic' (future)
+        tnorm: T-norm for mode='tnorm' (default: RProductTNorm)
+        post_processing: Default post-processing - 'log', 'linear' (default),
+                        or callable
+
+    Returns:
+        LogicLoss instance ready for computing satisfaction and loss
+
+    Raises:
+        ValueError: If unknown mode specified
+
+    Example:
+        Basic usage:
+            >>> P, Q, R = sp.symbols('P Q R')
+            >>> expr = sp.And(P, sp.Or(Q, sp.Not(R)))
+            >>> predicates = {
+            ...     'P': Predicate('P', model_p),
+            ...     'Q': Predicate('Q', lambda x: (x > 0).float()),
+            ...     'R': Predicate('R', lambda x: torch.sigmoid(x.sum(-1)))
+            ... }
+            >>> logic_loss = compile_logic(expr, predicates)
+            >>>
+            >>> # Compute satisfaction
+            >>> satisfaction = logic_loss(x)  # Returns [0, 1]
+            >>>
+            >>> # Compute loss
+            >>> loss = logic_loss.loss(x)  # Returns scalar loss
+            >>>
+            >>> # Get parameters for optimization
+            >>> params = logic_loss.get_trainable_parameters()
+            >>> optimizer = torch.optim.Adam(params, lr=0.001)
+
+        With custom t-norm:
+            >>> from logic_as_loss.tnorms import LukasiewiczTNorm
+            >>> logic_loss = compile_logic(
+            ...     expr, predicates,
+            ...     tnorm=LukasiewiczTNorm(),
+            ...     post_processing='linear'
+            ... )
+
+        With log post-processing:
+            >>> logic_loss = compile_logic(
+            ...     expr, predicates,
+            ...     post_processing='log'  # Use -log(satisfaction)
+            ... )
+    """
+    if mode == 'tnorm':
+        # Create t-norm compiler
+        compiler = TNormCompiler(tnorm=tnorm or RProductTNorm())
+    else:
+        raise ValueError(
+            f"Unknown mode: {mode}. Expected 'tnorm'. "
+            f"(Future: 'semantic', 'kenn')"
+        )
+
+    # Compile the expression
+    compiled = compiler.compile(expr, predicates)
+
+    # Wrap in LogicLoss
+    return LogicLoss(compiled, predicates, post_processing)
