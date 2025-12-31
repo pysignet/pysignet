@@ -17,7 +17,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import LogicCompiler, Predicate, RProductTNorm, SProductTNorm
+from pysignet import compile_logic, Predicate, RProductTNorm, SProductTNorm
 
 
 def test_s_product_implication_formula() -> None:
@@ -158,7 +158,7 @@ def test_s_product_self_consistency() -> None:
             )
         }
 
-        logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+        logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(10, 5)
         satisfaction = logic_loss(x)
 
@@ -180,7 +180,7 @@ def test_s_product_implication_tautology() -> None:
             )
         }
 
-        logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+        logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(10, 5)
         satisfaction = logic_loss(x)
 
@@ -225,7 +225,7 @@ def test_s_product_gradient_flow_implication() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
     x = torch.randn(10, 5)
     loss = logic_loss.loss(x)
@@ -257,7 +257,7 @@ def test_s_product_gradient_flow_complex() -> None:
         "R": Predicate("R", lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
     x = torch.randn(10, 5)
     loss = logic_loss.loss(x)
@@ -288,7 +288,7 @@ def test_s_product_with_batch_dimensions() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
     # Test with different batch sizes
     for batch_size in [1, 5, 10, 100]:
@@ -313,7 +313,7 @@ def test_s_product_implication_with_constants() -> None:
 
     # true -> P: 1 - 1 + 1*0.7 = 0.7
     expr_true_p = sp.Implies(sp.true, P)
-    logic_loss_true_p = LogicCompiler(
+    logic_loss_true_p = compile_logic(
         expr_true_p, predicates, tnorm=SProductTNorm()
     )
     satisfaction_true_p = logic_loss_true_p(x)
@@ -321,7 +321,7 @@ def test_s_product_implication_with_constants() -> None:
 
     # false -> P: 1 - 0 + 0*P = 1
     expr_false_p = sp.Implies(sp.false, P)
-    logic_loss_false_p = LogicCompiler(
+    logic_loss_false_p = compile_logic(
         expr_false_p, predicates, tnorm=SProductTNorm()
     )
     satisfaction_false_p = logic_loss_false_p(x)
@@ -331,7 +331,7 @@ def test_s_product_implication_with_constants() -> None:
 
     # P -> true: 1 - 0.7 + 0.7*1 = 0.3 + 0.7 = 1.0
     expr_p_true = sp.Implies(P, sp.true)
-    logic_loss_p_true = LogicCompiler(
+    logic_loss_p_true = compile_logic(
         expr_p_true, predicates, tnorm=SProductTNorm()
     )
     satisfaction_p_true = logic_loss_p_true(x)
@@ -341,7 +341,7 @@ def test_s_product_implication_with_constants() -> None:
 
     # P -> false: 1 - 0.7 + 0.7*0 = 0.3
     expr_p_false = sp.Implies(P, sp.false)
-    logic_loss_p_false = LogicCompiler(
+    logic_loss_p_false = compile_logic(
         expr_p_false, predicates, tnorm=SProductTNorm()
     )
     satisfaction_p_false = logic_loss_p_false(x)
@@ -367,12 +367,12 @@ def test_s_product_equivalent_decomposition() -> None:
 
     # Test P <-> Q
     expr_equiv = sp.Equivalent(P, Q)
-    logic_loss_equiv = LogicCompiler(expr_equiv, predicates, tnorm=SProductTNorm())
+    logic_loss_equiv = compile_logic(expr_equiv, predicates, tnorm=SProductTNorm())
     satisfaction_equiv = logic_loss_equiv(x)
 
     # Test (P->Q) AND (Q->P)
     expr_decomposed = sp.And(sp.Implies(P, Q), sp.Implies(Q, P))
-    logic_loss_decomposed = LogicCompiler(
+    logic_loss_decomposed = compile_logic(
         expr_decomposed, predicates, tnorm=SProductTNorm()
     )
     satisfaction_decomposed = logic_loss_decomposed(x)
@@ -401,7 +401,7 @@ def test_s_product_cross_entropy_equivalence() -> None:
             )
         }
 
-        logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+        logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(10, 5)
         satisfaction = logic_loss(x)
 
@@ -421,7 +421,7 @@ def test_s_product_modus_ponens() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -446,8 +446,8 @@ def test_s_product_de_morgans_laws() -> None:
     expr1 = sp.Not(sp.And(P, Q))
     expr2 = sp.Or(sp.Not(P), sp.Not(Q))
 
-    logic_loss1 = LogicCompiler(expr1, predicates, tnorm=SProductTNorm())
-    logic_loss2 = LogicCompiler(expr2, predicates, tnorm=SProductTNorm())
+    logic_loss1 = compile_logic(expr1, predicates, tnorm=SProductTNorm())
+    logic_loss2 = compile_logic(expr2, predicates, tnorm=SProductTNorm())
 
     satisfaction1 = logic_loss1(x)
     satisfaction2 = logic_loss2(x)
@@ -458,8 +458,8 @@ def test_s_product_de_morgans_laws() -> None:
     expr3 = sp.Not(sp.Or(P, Q))
     expr4 = sp.And(sp.Not(P), sp.Not(Q))
 
-    logic_loss3 = LogicCompiler(expr3, predicates, tnorm=SProductTNorm())
-    logic_loss4 = LogicCompiler(expr4, predicates, tnorm=SProductTNorm())
+    logic_loss3 = compile_logic(expr3, predicates, tnorm=SProductTNorm())
+    logic_loss4 = compile_logic(expr4, predicates, tnorm=SProductTNorm())
 
     satisfaction3 = logic_loss3(x)
     satisfaction4 = logic_loss4(x)
@@ -478,7 +478,7 @@ def test_s_product_numerical_stability() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
     # Test with various inputs including extreme values
     x = torch.randn(10, 5) * 10  # Large values

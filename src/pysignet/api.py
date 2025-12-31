@@ -16,7 +16,9 @@ def compile_logic(
     predicates: Dict[str, Predicate],
     mode: str = 'tnorm',
     tnorm: Optional[TNorm] = None,
-    post_processing: Union[str, Callable[[torch.Tensor], torch.Tensor]] = 'linear'
+    post_processing: Optional[
+        Union[str, Callable[[torch.Tensor], torch.Tensor]]
+    ] = None
 ) -> LogicLoss:
     """Compile logic expression into a LogicLoss (one-liner convenience API).
 
@@ -29,8 +31,8 @@ def compile_logic(
         predicates: Dict mapping predicate names to Predicate objects
         mode: Compilation mode - 'tnorm' (default), or 'semantic' (future)
         tnorm: T-norm for mode='tnorm' (default: RProductTNorm)
-        post_processing: Default post-processing - 'log', 'linear' (default),
-                        or callable
+        post_processing: Post-processing mode - 'log', 'linear', callable,
+                        or None to use t-norm's recommendation (default)
 
     Returns:
         LogicLoss instance ready for computing satisfaction and loss
@@ -75,7 +77,12 @@ def compile_logic(
     """
     if mode == 'tnorm':
         # Create t-norm compiler
-        compiler = TNormCompiler(tnorm=tnorm or RProductTNorm())
+        tnorm_instance = tnorm or RProductTNorm()
+        compiler = TNormCompiler(tnorm=tnorm_instance)
+
+        # Use t-norm's recommended post-processing if not specified
+        if post_processing is None:
+            post_processing = tnorm_instance.recommended_postprocessing
     else:
         raise ValueError(
             f"Unknown mode: {mode}. Expected 'tnorm'. "

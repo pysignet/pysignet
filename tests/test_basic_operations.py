@@ -7,7 +7,7 @@ ensuring they work correctly with the default RProductTNorm.
 import sympy as sp
 import torch
 
-from pysignet import LogicCompiler, Predicate
+from pysignet import compile_logic, Predicate
 
 
 def test_basic_and() -> None:
@@ -21,7 +21,7 @@ def test_basic_and() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -41,7 +41,7 @@ def test_basic_or() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -58,7 +58,7 @@ def test_negation() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -76,7 +76,7 @@ def test_implication() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -97,7 +97,7 @@ def test_equivalence_operator() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -126,7 +126,7 @@ def test_complex_expression() -> None:
         "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.3),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 

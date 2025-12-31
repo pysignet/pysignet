@@ -11,7 +11,7 @@ import sympy as sp
 import torch
 
 from pysignet import (
-    LogicCompiler,
+    compile_logic,
     Predicate,
     SProductTNorm,
     LukasiewiczTNorm,
@@ -33,7 +33,7 @@ def test_product_and() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -52,7 +52,7 @@ def test_product_or() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -69,7 +69,7 @@ def test_product_not() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -88,7 +88,7 @@ def test_product_implies() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -109,7 +109,7 @@ def test_product_equivalent() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -138,7 +138,7 @@ def test_lukasiewicz_and() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -157,7 +157,7 @@ def test_lukasiewicz_or() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -173,7 +173,7 @@ def test_lukasiewicz_not() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -192,7 +192,7 @@ def test_lukasiewicz_implies() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -213,7 +213,7 @@ def test_lukasiewicz_equivalent() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -242,7 +242,7 @@ def test_godel_and() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -261,7 +261,7 @@ def test_godel_or() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -277,7 +277,7 @@ def test_godel_not() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -296,7 +296,7 @@ def test_godel_implies() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -317,7 +317,7 @@ def test_godel_equivalent() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -347,7 +347,7 @@ def test_product_multi_and() -> None:
         "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=SProductTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -367,7 +367,7 @@ def test_lukasiewicz_multi_or() -> None:
         "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -389,7 +389,7 @@ def test_godel_multi_and() -> None:
         "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 

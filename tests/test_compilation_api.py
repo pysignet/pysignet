@@ -153,9 +153,9 @@ class TestCompileLogicPostProcessing:
     """Test compile_logic with post-processing options."""
 
     def test_compile_logic_with_auto_postprocessing(self) -> None:
-        """Test post_processing='auto' (default)."""
-        # Note: 'auto' is not a valid post-processing mode in current API
-        # Default is 'linear' - this test just confirms the default works
+        """Test default post-processing uses t-norm's recommendation."""
+        # Default behavior: use t-norm's recommended post-processing
+        # RProductTNorm (default) recommends 'log'
         # pylint: disable=invalid-name
         P = sp.symbols('P')
         expr = P
@@ -168,8 +168,9 @@ class TestCompileLogicPostProcessing:
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
 
-        # Default post-processing is 'linear': 1 - satisfaction
-        assert torch.allclose(loss, torch.tensor(0.3), atol=1e-5)
+        # Default uses RProductTNorm with 'log': -log(satisfaction)
+        expected_loss = -torch.log(torch.tensor(0.7))
+        assert torch.allclose(loss, expected_loss, atol=1e-5)
 
     def test_compile_logic_with_log_postprocessing(self) -> None:
         """Test post_processing='log'."""
@@ -256,9 +257,10 @@ class TestCompileLogicUsability:
 
         # Should compute loss correctly
         # Product AND: 0.8 * 0.6 = 0.48
-        # Linear loss: 1 - 0.48 = 0.52
-        expected_loss = 1.0 - 0.48
-        assert torch.allclose(loss, torch.tensor(expected_loss), atol=1e-5)
+        # RProductTNorm recommends 'log': -log(0.48)
+        satisfaction = 0.8 * 0.6
+        expected_loss = -torch.log(torch.tensor(satisfaction))
+        assert torch.allclose(loss, expected_loss, atol=1e-5)
 
     def test_compiled_logic_reusable(self) -> None:
         """Test compiled logic can be reused across batches."""
@@ -323,9 +325,10 @@ class TestCompileLogicUsability:
         loss = logic_loss.loss(x)
 
         # NOT: 1 - 0.4 = 0.6
-        # Linear loss: 1 - 0.6 = 0.4
-        expected_loss = 1.0 - 0.6
-        assert torch.allclose(loss, torch.tensor(expected_loss), atol=1e-5)
+        # RProductTNorm recommends 'log': -log(0.6)
+        satisfaction = 1.0 - 0.4
+        expected_loss = -torch.log(torch.tensor(satisfaction))
+        assert torch.allclose(loss, expected_loss, atol=1e-5)
 
 
 class TestCompileLogicErrorHandling:
@@ -494,23 +497,23 @@ class TestCompileLogicInputHandling:
         assert torch.allclose(satisfaction, expected, atol=1e-5)
 
     def test_with_dict_input(self) -> None:
-        """Test with dict of tensors (per-predicate inputs)."""
+        """Test with dict of tensors (explicit routing)."""
         # pylint: disable=invalid-name
         P, Q = sp.symbols('P Q')
         expr = sp.And(P, Q)
 
-        # Each predicate gets different input
+        # Predicates explicitly select their inputs from the dict
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
+            'P': Predicate('P', lambda x: torch.ones(x['input_p'].shape[0]) * 0.8),
+            'Q': Predicate('Q', lambda x: torch.ones(x['input_q'].shape[0]) * 0.6),
         }
 
         logic_loss = compile_logic(expr, predicates)
 
-        # Dict input with separate tensors for each predicate
+        # Dict input with descriptive keys (not tied to predicate names)
         x = {
-            'P': torch.randn(10, 3),
-            'Q': torch.randn(10, 5),
+            'input_p': torch.randn(10, 3),
+            'input_q': torch.randn(10, 5),
         }
         satisfaction = logic_loss(x)
 
@@ -519,23 +522,34 @@ class TestCompileLogicInputHandling:
         assert torch.allclose(satisfaction, torch.tensor(0.48), atol=1e-5)
 
     def test_with_mixed_input_types(self) -> None:
-        """Test with dict and default fallback."""
+        """Test predicates can handle both tensor and dict inputs."""
         # pylint: disable=invalid-name
         P, Q, R = sp.symbols('P Q R')
         expr = sp.And(P, sp.And(Q, R))
 
+        # Predicates that handle both tensor and dict inputs
+        def make_pred(value: float):
+            def pred_fn(x):
+                # Handle both single tensor and dict inputs
+                if isinstance(x, dict):
+                    # For dict, use any value (they're all the same in this test)
+                    tensor = next(iter(x.values()))
+                else:
+                    tensor = x
+                return torch.ones(tensor.shape[0]) * value
+            return pred_fn
+
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.9),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'R': Predicate('R', lambda x: torch.ones(x.shape[0]) * 0.7),
+            'P': Predicate('P', make_pred(0.9)),
+            'Q': Predicate('Q', make_pred(0.8)),
+            'R': Predicate('R', make_pred(0.7)),
         }
 
         logic_loss = compile_logic(expr, predicates)
 
         # Can use single tensor or dict
         x_tensor = torch.randn(5, 3)
-        x_dict = {'P': torch.randn(5, 3), 'Q': torch.randn(5, 3),
-                  'R': torch.randn(5, 3)}
+        x_dict = {'data1': torch.randn(5, 3), 'data2': torch.randn(5, 3)}
 
         satisfaction_tensor = logic_loss(x_tensor)
         satisfaction_dict = logic_loss(x_dict)

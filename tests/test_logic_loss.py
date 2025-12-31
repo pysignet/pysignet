@@ -779,8 +779,8 @@ class TestLogicLossInputHandling:
 
         # Each predicate receives different input
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate('P', lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
+            'Q': Predicate('Q', lambda x: torch.ones(x["q_data"].shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -789,8 +789,8 @@ class TestLogicLossInputHandling:
 
         # Dict input with different tensors for P and Q
         inputs = {
-            'P': torch.randn(10, 5),
-            'Q': torch.randn(10, 3)
+            'p_data': torch.randn(10, 5),
+            'q_data': torch.randn(10, 3)
         }
         satisfaction = logic_loss(inputs)
         loss = logic_loss.loss(inputs, reduction='mean')

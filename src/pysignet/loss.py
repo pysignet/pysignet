@@ -10,9 +10,10 @@ from .predicate import Predicate
 class LogicLoss:
     """Wrapper for compiled logic that provides loss computation.
 
-    LogicLoss wraps a compiled logic expression (returned by LogicCompiler.compile())
-    and provides methods for computing satisfaction degrees and losses with
-    configurable post-processing and reduction.
+    LogicLoss wraps a compiled logic expression (returned by
+    LogicCompiler.compile()) and provides methods for computing
+    satisfaction degrees and losses with configurable post-processing
+    and reduction.
 
     Args:
         compiled_logic: Callable returned by LogicCompiler.compile()
@@ -34,7 +35,9 @@ class LogicLoss:
             [Union[torch.Tensor, Dict[str, torch.Tensor]]], torch.Tensor
         ],
         predicates: Dict[str, Predicate],
-        post_processing: Union[str, Callable[[torch.Tensor], torch.Tensor]] = 'linear'
+        post_processing: Union[
+            str, Callable[[torch.Tensor], torch.Tensor]
+        ] = 'linear'
     ) -> None:
         """Initialize LogicLoss.
 

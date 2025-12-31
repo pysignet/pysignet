@@ -86,7 +86,7 @@ The usage pattern involves the following four steps:
 import torch
 import torch.nn as nn
 import sympy as sp
-from pysignet import LogicCompiler, Predicate
+from pysignet import compile_logic, Predicate
 
 # Define logic expression. First define the symbols
 P, Q, R = sp.symbols('P Q R')
@@ -99,20 +99,20 @@ expr = sp.Implies(sp.And(sp.Implies(P, Q),
 # Define a model
 model = nn.Sequential(nn.Linear(10, 5), nn.Sigmoid())
 
-# Inputs contain two parts indexed by "A" and "B"
+# Predicates explicitly select their inputs
 predicates = {
-    'P': Predicate('P', lambda x: model(x["A"])[0, :]),
-    'Q': Predicate('Q', lambda x: (x["B"].sum(dim=-1) > 0).float()),
-    'R': Predicate('R', lambda x: model(x["B"][1:, :]))
+    'P': Predicate('P', lambda x: model(x).squeeze(-1)),
+    'Q': Predicate('Q', lambda x: (x.sum(dim=-1) > 0).float()),
+    'R': Predicate('R', lambda x: model(x).squeeze(-1))
 }
 
-# Create logic compiler
-compiled_logic = LogicCompiler(expr, predicates)
+# Compile logic expression
+logic_loss = compile_logic(expr, predicates)
 
-# Use in training
+# Use in training with a single tensor input
 x = torch.randn(32, 10)  # batch_size=32
-satisfaction = compiled_logic(x)  # Shape: (32,), values in [0, 1]
-loss = compiled_logic.loss(x)    # Scalar loss = 1 - mean(satisfaction)
+satisfaction = logic_loss(x)  # Shape: (32,), values in [0, 1]
+loss = logic_loss.loss(x)    # Scalar loss (lower = better)
 
 # Backpropagate
 loss.backward()
@@ -147,6 +147,17 @@ expr = sp.Implies(task1_predicts_X, task2_predicts_Y)
 
 ## Core Concepts
 
+### Named Neurons
+
+The library is built on the concept of **named neurons**: nodes in a computation graph that have externally defined semantic meaning, not just arbitrary activations.
+
+A **named neuron** can be:
+- **Network outputs**: Classifier predictions with semantic labels
+- **Network inputs**: Input features with defined meaning
+- **Intermediate nodes**: Attention weights, embeddings, or activations with assigned semantics
+
+The `Predicate` class wraps named neurons and maps them to logical predicates, bridging symbolic logic with neural network representations. This abstraction is foundational to the entire library.
+
 ### T-Norms
 
 T-norms are continuous relaxations of discrete logical operators:
@@ -178,22 +189,57 @@ pred = Predicate('P', lambda x: model(x).squeeze(-1))
 pred = Predicate('Q', lambda x: (x > 0).float().mean(dim=-1))
 ```
 
-### Logic Loss:
+### Input Handling
 
-The `LogicCompiler` class converts SymPy expressions to differentiable functions:
+Predicates use **explicit routing** to select inputs:
+
+**Single tensor input** (all predicates use the same data):
+```python
+predicates = {
+    'P': Predicate('P', lambda x: model_p(x)),
+    'Q': Predicate('Q', lambda x: model_q(x))
+}
+x = torch.randn(32, 10)
+satisfaction = logic_loss(x)
+```
+
+**Dict input** (predicates explicitly select what they need):
+```python
+predicates = {
+    'P': Predicate('P', lambda x: image_model(x["image"])),
+    'Q': Predicate('Q', lambda x: text_model(x["text"]))
+}
+inputs = {
+    "image": torch.randn(32, 3, 224, 224),
+    "text": torch.randn(32, 512)
+}
+satisfaction = logic_loss(inputs)
+```
+
+**Multi-input predicates** (combining multiple inputs):
+```python
+predicates = {
+    'symmetry': Predicate('symmetry',
+        lambda x: model(torch.cat([x["X1"], x["X2"]], dim=-1)))
+}
+```
+
+### Compiling Logic
+
+The `compile_logic()` function compiles SymPy expressions to differentiable functions:
 
 ```python
-compiler = LogicCompiler(
+logic_loss = compile_logic(
     expression=expr,         # SymPy logic expression
     predicates=preds,        # Dict of predicates
-    tnorm=RProductTNorm()    # Optional: t-norm to use (default: RProductTNorm)
+    tnorm='rproduct'         # Optional: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
 )
 
 # Evaluate satisfaction (higher = better)
-satisfaction = compiler(inputs)  # Returns tensor in [0, 1]
+satisfaction = logic_loss(inputs)  # Returns tensor in [0, 1]
 
 # Compute loss (lower = better)
-loss = compiler.loss(inputs, reduction='mean')
+loss = logic_loss.loss(inputs, reduction='mean')
 ```
 
 - TODO: Different relaxations require different post-processing.

@@ -7,7 +7,7 @@ handling, and input routing to predicates.
 import sympy as sp
 import torch
 
-from pysignet import LogicCompiler, Predicate
+from pysignet import compile_logic, Predicate
 
 
 def test_single_tensor_input() -> None:
@@ -21,7 +21,7 @@ def test_single_tensor_input() -> None:
         "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # Single tensor input - same tensor passed to all predicates
     x = torch.randn(10, 5)
@@ -39,16 +39,16 @@ def test_dict_input_per_predicate() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     batch_size = 10
     inputs = {
-        "P": torch.randn(batch_size, 5),
-        "Q": torch.randn(batch_size, 10),  # Different shape
+        "p_data": torch.randn(batch_size, 5),
+        "q_data": torch.randn(batch_size, 10),  # Different shape
     }
 
     satisfaction = logic_loss(inputs)
@@ -56,25 +56,27 @@ def test_dict_input_per_predicate() -> None:
 
 
 def test_dict_input_with_default_key() -> None:
-    """Test dict input uses 'default' key when specific key missing."""
+    """Test dict input with fallback to shared key."""
     # pylint: disable=invalid-name
     P, Q = sp.symbols("P Q")
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x["shared_data"].mean(dim=-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
-    # Provide specific input for P and default for others
-    default_input = torch.randn(5, 3)
-    inputs = {"P": torch.randn(5, 3), "default": default_input}
+    # Provide specific input for P and shared data for Q
+    inputs = {
+        "p_data": torch.randn(5, 3),
+        "shared_data": torch.randn(5, 3)
+    }
 
     satisfaction = logic_loss(inputs)
 
-    # Should use default for Q
+    # Should work with explicit routing
     assert satisfaction.shape == (5,)
 
 
@@ -87,7 +89,7 @@ def test_batching_various_sizes() -> None:
     # Predicate that depends on input
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # Different batch sizes
     for batch_size in [1, 10, 100]:
@@ -105,18 +107,18 @@ def test_different_feature_dimensions() -> None:
     expr = sp.And(sp.Or(P, Q), R)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
-        "R": Predicate("R", lambda x: torch.sigmoid(x[:, 0])),
+        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
+        "R": Predicate("R", lambda x: torch.sigmoid(x["r_data"][:, 0])),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     batch_size = 10
     inputs = {
-        "P": torch.randn(batch_size, 5),
-        "Q": torch.randn(batch_size, 10),
-        "R": torch.randn(batch_size, 3),
+        "p_data": torch.randn(batch_size, 5),
+        "q_data": torch.randn(batch_size, 10),
+        "r_data": torch.randn(batch_size, 3),
     }
 
     satisfaction = logic_loss(inputs)
@@ -131,7 +133,7 @@ def test_input_preserves_device() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # CPU tensor
     x_cpu = torch.randn(5, 3)
@@ -147,7 +149,7 @@ def test_input_preserves_dtype() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # float32 (default)
     x_float32 = torch.randn(5, 3, dtype=torch.float32)
@@ -173,7 +175,7 @@ def test_multidimensional_features() -> None:
         "P": Predicate("P", lambda x: torch.sigmoid(x.flatten(1).sum(dim=-1)))
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # 3D input: (batch, height, width)
     x = torch.randn(5, 4, 4)
@@ -192,7 +194,7 @@ def test_sequential_calls_same_input() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
 
     # Multiple calls should give same result
@@ -210,7 +212,7 @@ def test_sequential_calls_different_inputs() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # Different inputs should give potentially different results
     x1 = torch.ones(5, 3)  # Positive
@@ -227,23 +229,25 @@ def test_sequential_calls_different_inputs() -> None:
 
 
 def test_dict_input_subset_of_predicates() -> None:
-    """Test dict input providing subset of predicates uses default."""
+    """Test dict input with some predicates sharing data."""
     # pylint: disable=invalid-name
     P, Q, R = sp.symbols("P Q R")
     expr = sp.And(P, sp.Or(Q, R))
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
-        "R": Predicate("R", lambda x: torch.sigmoid(x.max(dim=-1)[0])),
+        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x["shared_data"].mean(dim=-1))),
+        "R": Predicate("R", lambda x: torch.sigmoid(x["shared_data"].max(dim=-1)[0])),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
-    # Only provide P and default
+    # Provide specific data for P and shared data for Q and R
     batch_size = 5
-    default_input = torch.randn(batch_size, 3)
-    inputs = {"P": torch.randn(batch_size, 5), "default": default_input}
+    inputs = {
+        "p_data": torch.randn(batch_size, 5),
+        "shared_data": torch.randn(batch_size, 3)
+    }
 
     satisfaction = logic_loss(inputs)
     assert satisfaction.shape == (batch_size,)
@@ -257,16 +261,16 @@ def test_consistent_batch_size_required() -> None:
 
     # Predicates that return different batch sizes will cause shape mismatch
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     batch_size = 10
     inputs = {
-        "P": torch.randn(batch_size, 5),
-        "Q": torch.randn(batch_size, 3),  # Same batch size
+        "p_data": torch.randn(batch_size, 5),
+        "q_data": torch.randn(batch_size, 3),  # Same batch size
     }
 
     # Should work fine

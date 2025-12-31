@@ -7,7 +7,7 @@ error conditions, and boundary scenarios.
 import sympy as sp
 import torch
 
-from pysignet import LogicCompiler, Predicate
+from pysignet import compile_logic, Predicate
 
 
 def test_empty_batch() -> None:
@@ -18,7 +18,7 @@ def test_empty_batch() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(0, 5)  # Empty batch
     satisfaction = logic_loss(x)
 
@@ -37,7 +37,7 @@ def test_single_element_batch() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 5)  # Single element
     satisfaction = logic_loss(x)
 
@@ -53,7 +53,7 @@ def test_very_large_batch() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.mean(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10000, 5)
     satisfaction = logic_loss(x)
 
@@ -70,7 +70,7 @@ def test_nan_handling() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.tensor([[float("nan"), 1.0, 2.0]])
     satisfaction = logic_loss(x)
 
@@ -90,7 +90,7 @@ def test_inf_handling() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # Test positive infinity
     x_pos_inf = torch.tensor([[float("inf"), 1.0, 2.0]])
@@ -117,7 +117,7 @@ def test_missing_predicate_raises_error() -> None:
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     try:
-        LogicCompiler(expr, predicates)
+        compile_logic(expr, predicates)
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "Missing predicates" in str(e)
@@ -134,7 +134,7 @@ def test_unsupported_expression_raises_error() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
 
     try:
@@ -153,7 +153,7 @@ def test_zero_dimension_input() -> None:
     # Predicate that doesn't depend on input dimension
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 0)  # 5 samples, 0 features
     satisfaction = logic_loss(x)
 
@@ -172,7 +172,7 @@ def test_very_small_values() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 1e-10),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -193,7 +193,7 @@ def test_values_near_one() -> None:
         "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.9999999),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -220,7 +220,7 @@ def test_deeply_nested_expression() -> None:
         "S": Predicate("S", lambda x: torch.ones(x.shape[0]) * 0.7),
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
     satisfaction = logic_loss(x)
 
@@ -243,7 +243,7 @@ def test_many_predicates() -> None:
         for sym in symbols_list[:10]
     }
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -261,7 +261,7 @@ def test_single_predicate_expression() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.75)}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
     satisfaction = logic_loss(x)
 
@@ -277,7 +277,7 @@ def test_mixed_batch_dimensions() -> None:
 
     predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = LogicCompiler(expr, predicates)
+    logic_loss = compile_logic(expr, predicates)
 
     # Test different batch sizes sequentially
     for batch_size in [1, 5, 10, 100]:

@@ -1,6 +1,6 @@
 """T-norm based logic compilation strategy."""
 
-from typing import Callable, Dict, Union, Set
+from typing import Callable, Dict, Union, Set, Optional
 
 import sympy as sp
 import torch
@@ -29,7 +29,7 @@ class TNormCompiler(LogicCompiler):
         >>> satisfaction = compiled(x)  # Returns tensor in [0, 1]
     """
 
-    def __init__(self, tnorm: TNorm = None) -> None:
+    def __init__(self, tnorm: Optional[TNorm] = None) -> None:
         """Initialize TNormCompiler with a t-norm.
 
         Args:
@@ -128,18 +128,14 @@ class TNormCompiler(LogicCompiler):
             pred_name = str(expr)
             predicate = predicates[pred_name]
 
-            # Input routing: support both single tensor and dict of tensors
-            # This enables multi-argument predicates P(x1, x2, y) where
-            # different named neurons receive different inputs
-            if isinstance(inputs, dict):
-                # Dict input: route specific input to this predicate
-                pred_input = inputs.get(pred_name, inputs.get('default'))
-            else:
-                # Single tensor: shared input for all predicates
-                pred_input = inputs
-
-            # Evaluate the named neuron and get satisfaction degree
-            return predicate(pred_input)
+            # Pass entire inputs to predicate - let predicate choose what
+            # to use. This enables flexible input handling:
+            # - Single tensor: lambda x: model(x)
+            # - Dict with one key: lambda x: model(x["key"])
+            # - Dict with multiple keys:
+            #   lambda x: model(cat([x["k1"], x["k2"]]))
+            # The predicate function decides how to extract/combine inputs
+            return predicate(inputs)
 
         # Boolean constant
         if expr == sp.true:

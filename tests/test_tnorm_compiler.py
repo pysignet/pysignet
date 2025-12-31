@@ -514,8 +514,8 @@ class TestTNormCompilerInputHandling:
 
         # Predicates that use their inputs differently
         predicates = {
-            'P': Predicate('P', lambda x: torch.sigmoid(x.sum(dim=-1))),
-            'Q': Predicate('Q', lambda x: torch.sigmoid(x.mean(dim=-1)))
+            'P': Predicate('P', lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+            'Q': Predicate('Q', lambda x: torch.sigmoid(x["q_data"].mean(dim=-1)))
         }
 
         compiler = TNormCompiler()
@@ -524,7 +524,7 @@ class TestTNormCompilerInputHandling:
         # Dict input with different tensors for each predicate
         x_p = torch.randn(10, 5)
         x_q = torch.randn(10, 3)
-        inputs = {'P': x_p, 'Q': x_q}
+        inputs = {'p_data': x_p, 'q_data': x_q}
 
         result = compiled(inputs)
 
@@ -532,29 +532,29 @@ class TestTNormCompilerInputHandling:
         assert result.shape == (10,)
 
     def test_compiled_logic_with_mixed_input_types(self) -> None:
-        """Test dict input with default key fallback."""
+        """Test dict input with some predicates sharing data."""
         # pylint: disable=invalid-name
         P, Q, R = sp.symbols('P Q R')
         expr = sp.And(sp.And(P, Q), R)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
-            'R': Predicate('R', lambda x: torch.ones(x.shape[0]) * 0.9)
+            'P': Predicate('P', lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
+            'Q': Predicate('Q', lambda x: torch.ones(x["q_data"].shape[0]) * 0.6),
+            'R': Predicate('R', lambda x: torch.ones(x["shared_data"].shape[0]) * 0.9)
         }
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
-        # Dict with specific inputs for P and Q, default for R
+        # Dict with specific inputs for P and Q, shared data for R
         x_p = torch.randn(10, 5)
         x_q = torch.randn(10, 3)
-        x_default = torch.randn(10, 7)
-        inputs = {'P': x_p, 'Q': x_q, 'default': x_default}
+        x_shared = torch.randn(10, 7)
+        inputs = {'p_data': x_p, 'q_data': x_q, 'shared_data': x_shared}
 
         result = compiled(inputs)
 
-        # R should use the default input
+        # R should use the shared data input
         assert isinstance(result, torch.Tensor)
         assert result.shape == (10,)
 

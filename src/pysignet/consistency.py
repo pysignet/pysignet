@@ -103,11 +103,8 @@ class ConsistencyChecker:
             # Evaluate predicate to get boolean decision
             result = predicate(pred_input)
 
-            # Ensure result is boolean tensor
-            if not isinstance(result, torch.Tensor):
-                result = torch.tensor(result, dtype=torch.bool)
-            elif result.dtype != torch.bool:
-                # Convert to boolean if not already
+            # Predicate always returns a tensor, convert to boolean
+            if result.dtype != torch.bool:
                 result = result.bool()
 
             decisions[name] = result
