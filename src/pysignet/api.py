@@ -75,6 +75,22 @@ def compile_logic(
             ...     post_processing='log'  # Use -log(satisfaction)
             ... )
     """
+    # Auto-wrap raw callables in Predicate objects
+    wrapped_predicates: Dict[str, Predicate] = {}
+    for key, value in predicates.items():
+        if isinstance(value, Predicate):
+            # Already a Predicate, use as-is
+            wrapped_predicates[key] = value
+        elif callable(value):
+            # Raw callable (function, lambda, nn.Module) - auto-wrap
+            wrapped_predicates[key] = Predicate(value)
+        else:
+            # Not callable - raise helpful error
+            raise TypeError(
+                f"Predicate '{key}' must be callable (function, lambda, "
+                f"nn.Module) or a Predicate instance, got {type(value).__name__}"
+            )
+
     if mode == 'tnorm':
         # Create t-norm compiler
         tnorm_instance = tnorm or RProductTNorm()
@@ -89,8 +105,8 @@ def compile_logic(
             f"(Future: 'semantic', 'kenn')"
         )
 
-    # Compile the expression
-    compiled = compiler.compile(expr, predicates)
+    # Compile the expression with wrapped predicates
+    compiled = compiler.compile(expr, wrapped_predicates)
 
-    # Wrap in LogicLoss
-    return LogicLoss(compiled, predicates, post_processing)
+    # Wrap in LogicLoss with wrapped predicates
+    return LogicLoss(compiled, wrapped_predicates, post_processing)

@@ -56,43 +56,43 @@ class Predicate:
             >>> binary_classifier = nn.Sequential(
             ...     nn.Linear(784, 1), nn.Sigmoid()
             ... )
-            >>> is_cat = Predicate('IsCat', binary_classifier)
+            >>> is_cat = Predicate(binary_classifier)
 
         Input predicates (input features):
-            >>> is_young = Predicate(
-            ...     'IsYoung', lambda x: (x['age'] < 18).float()
-            ... )
+            >>> is_young = Predicate(lambda x: (x['age'] < 18).float())
 
         Deterministic predicates (simple functions):
-            >>> above_threshold = Predicate(
-            ...     'AboveThreshold', lambda x: (x > 0.5).float()
-            ... )
+            >>> above_threshold = Predicate(lambda x: (x > 0.5).float())
 
     Args:
-        name: Name of the predicate (must match SymPy symbol)
         func: Named neuron - torch.nn.Module or callable returning [0, 1]
         is_model: Whether the function is trainable (default: auto-detect)
 
     Note:
-        The func must return values in [0, 1] representing the degree to which
-        the predicate is satisfied. Values are automatically clamped to [0, 1].
+        The predicate name is automatically assigned by the compiler based on
+        the dict key used when registering this predicate. The func must return
+        values in [0, 1] representing the degree to which the predicate is
+        satisfied. Values are automatically clamped to [0, 1].
     """
 
     def __init__(
         self,
-        name: str,
         func: Union[torch.nn.Module, Callable[..., Any]],
         is_model: Optional[bool] = None
     ) -> None:
         """Initialize a predicate wrapping a named neuron.
 
         Args:
-            name: Symbol name for use in logical expressions
             func: The named neuron (computation node with external semantics)
             is_model: True if func is trainable, False otherwise, None to
                      auto-detect
+
+        Note:
+            The predicate name is automatically assigned by the compiler from
+            the dict key when the predicate is registered. Before compilation,
+            the name will be None.
         """
-        self.name = name
+        self.name: Optional[str] = None  # Assigned by compiler
         self.func = func  # The named neuron being wrapped
 
         # Auto-detect if it's a trainable model (has parameters)
@@ -131,3 +131,14 @@ class Predicate:
 
         # Clamp to [0, 1] to ensure valid satisfaction degrees
         return torch.clamp(result, 0.0, 1.0)
+
+    def __repr__(self) -> str:
+        """Return string representation of the predicate.
+
+        Returns:
+            String showing predicate name if assigned, otherwise indicates
+            it's unnamed.
+        """
+        if self.name is not None:
+            return f"Predicate(name='{self.name}')"
+        return "Predicate(unnamed - name will be assigned by compiler)"

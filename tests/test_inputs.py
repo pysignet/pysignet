@@ -17,8 +17,8 @@ def test_single_tensor_input() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -39,8 +39,8 @@ def test_dict_input_per_predicate() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
+        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -62,8 +62,8 @@ def test_dict_input_with_default_key() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x["shared_data"].mean(dim=-1))),
+        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x["shared_data"].mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -87,7 +87,7 @@ def test_batching_various_sizes() -> None:
     expr = P
 
     # Predicate that depends on input
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -107,9 +107,9 @@ def test_different_feature_dimensions() -> None:
     expr = sp.And(sp.Or(P, Q), R)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
-        "R": Predicate("R", lambda x: torch.sigmoid(x["r_data"][:, 0])),
+        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
+        "R": Predicate( lambda x: torch.sigmoid(x["r_data"][:, 0])),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -131,7 +131,7 @@ def test_input_preserves_device() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -147,7 +147,7 @@ def test_input_preserves_dtype() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -172,7 +172,7 @@ def test_multidimensional_features() -> None:
 
     # Predicate that flattens multi-dimensional features
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.flatten(1).sum(dim=-1)))
+        "P": Predicate( lambda x: torch.sigmoid(x.flatten(1).sum(dim=-1)))
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -192,7 +192,7 @@ def test_sequential_calls_same_input() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -210,7 +210,7 @@ def test_sequential_calls_different_inputs() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -235,9 +235,9 @@ def test_dict_input_subset_of_predicates() -> None:
     expr = sp.And(P, sp.Or(Q, R))
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x["shared_data"].mean(dim=-1))),
-        "R": Predicate("R", lambda x: torch.sigmoid(x["shared_data"].max(dim=-1)[0])),
+        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x["shared_data"].mean(dim=-1))),
+        "R": Predicate( lambda x: torch.sigmoid(x["shared_data"].max(dim=-1)[0])),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -261,8 +261,8 @@ def test_consistent_batch_size_required() -> None:
 
     # Predicates that return different batch sizes will cause shape mismatch
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
+        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)

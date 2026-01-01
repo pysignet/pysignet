@@ -16,7 +16,7 @@ def test_loss_mean_reduction() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -35,7 +35,7 @@ def test_loss_sum_reduction() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -53,7 +53,7 @@ def test_loss_none_reduction() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -72,7 +72,7 @@ def test_loss_reduction_consistency() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -98,7 +98,7 @@ def test_invalid_reduction_mode() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -116,7 +116,7 @@ def test_loss_is_one_minus_satisfaction() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -135,7 +135,7 @@ def test_loss_with_perfect_satisfaction() -> None:
     expr = P
 
     # Predicate always returns 1.0
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]))}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -153,7 +153,7 @@ def test_loss_with_zero_satisfaction() -> None:
     expr = P
 
     # Predicate always returns 0.0
-    predicates = {"P": Predicate("P", lambda x: torch.zeros(x.shape[0]))}
+    predicates = {"P": Predicate( lambda x: torch.zeros(x.shape[0]))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -171,9 +171,9 @@ def test_loss_with_complex_expression() -> None:
     expr = sp.And(sp.Or(P, Q), sp.Not(R))
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
-        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.3),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -199,7 +199,7 @@ def test_loss_default_reduction() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -218,7 +218,7 @@ def test_loss_with_varying_batch_sizes() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -248,8 +248,8 @@ def test_loss_with_dict_input() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
+        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -275,7 +275,7 @@ def test_loss_numerics_stability() -> None:
 
     # Very high satisfaction (near 1)
     predicates_high = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.9999999)
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.9999999)
     }
     logic_loss_high = compile_logic(expr, predicates_high)
     x = torch.randn(5, 3)
@@ -287,7 +287,7 @@ def test_loss_numerics_stability() -> None:
 
     # Very low satisfaction (near 0)
     predicates_low = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 1e-7)
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 1e-7)
     }
     logic_loss_low = compile_logic(expr, predicates_low)
     loss_low = logic_loss_low.loss(x, reduction="mean", post_processing="linear")

@@ -14,7 +14,7 @@ def test_true_constant() -> None:
     """Test sp.true evaluates to 1.0."""
     expr = sp.true  # Just the constant
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -28,7 +28,7 @@ def test_false_constant() -> None:
     """Test sp.false evaluates to 0.0."""
     expr = sp.false  # Just the constant
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -44,7 +44,7 @@ def test_and_with_true() -> None:
     P = sp.symbols("P")
     expr = sp.And(P, sp.true)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -60,7 +60,7 @@ def test_and_with_false() -> None:
     P = sp.symbols("P")
     expr = sp.And(P, sp.false)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -76,7 +76,7 @@ def test_or_with_true() -> None:
     P = sp.symbols("P")
     expr = sp.Or(P, sp.true)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -92,7 +92,7 @@ def test_or_with_false() -> None:
     P = sp.symbols("P")
     expr = sp.Or(P, sp.false)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -106,7 +106,7 @@ def test_not_true() -> None:
     """Test NOT true = false."""
     expr = sp.Not(sp.true)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -120,7 +120,7 @@ def test_not_false() -> None:
     """Test NOT false = true."""
     expr = sp.Not(sp.false)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -136,7 +136,7 @@ def test_implies_with_true_antecedent() -> None:
     P = sp.symbols("P")
     expr = sp.Implies(sp.true, P)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -152,7 +152,7 @@ def test_implies_with_false_antecedent() -> None:
     P = sp.symbols("P")
     expr = sp.Implies(sp.false, P)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -168,7 +168,7 @@ def test_implies_with_true_consequent() -> None:
     P = sp.symbols("P")
     expr = sp.Implies(P, sp.true)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -184,7 +184,7 @@ def test_implies_with_false_consequent() -> None:
     P = sp.symbols("P")
     expr = sp.Implies(P, sp.false)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -199,7 +199,7 @@ def test_constants_with_dict_input() -> None:
     # pylint: disable=invalid-name
     P = sp.symbols("P")
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x["data"].shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x["data"].shape[0]) * 0.6)}
 
     # Test with true constant
     expr_true = sp.Or(P, sp.true)
@@ -228,8 +228,8 @@ def test_complex_with_constants() -> None:
     expr = sp.Or(sp.And(P, sp.true), sp.And(Q, sp.false))
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -245,7 +245,7 @@ def test_constants_preserve_batch_size() -> None:
     # pylint: disable=invalid-name
     P = sp.symbols("P")
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(sp.And(P, sp.true), predicates)
 
@@ -262,7 +262,7 @@ def test_equivalent_with_constants() -> None:
     # pylint: disable=invalid-name
     P = sp.symbols("P")
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)}
 
     # P <-> true = P
     expr_true = sp.Equivalent(P, sp.true)
@@ -287,7 +287,7 @@ def test_false_constant_with_dict_input() -> None:
     """Test sp.false with dict input."""
     expr = sp.false
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     inputs = {"P": torch.randn(5, 3)}

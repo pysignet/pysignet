@@ -39,7 +39,7 @@ class TestTNormCompilerBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         compiler = TNormCompiler()
@@ -55,8 +55,8 @@ class TestTNormCompilerBasics:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler()
@@ -80,7 +80,7 @@ class TestTNormCompilerBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.sigmoid(x.sum(dim=-1)))
+            'P': Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))
         }
 
         compiler = TNormCompiler()
@@ -103,8 +103,8 @@ class TestTNormCompilerOperators:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler()
@@ -123,8 +123,8 @@ class TestTNormCompilerOperators:
         expr = sp.Or(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler()
@@ -143,7 +143,7 @@ class TestTNormCompilerOperators:
         expr = sp.Not(P)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.3)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.3)
         }
 
         compiler = TNormCompiler()
@@ -162,8 +162,8 @@ class TestTNormCompilerOperators:
         expr = sp.Implies(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler(tnorm=RProductTNorm())
@@ -182,8 +182,8 @@ class TestTNormCompilerOperators:
         expr = sp.Equivalent(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -202,9 +202,9 @@ class TestTNormCompilerOperators:
         expr = sp.And(P, sp.Or(Q, sp.Not(R)))
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.9),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.5),
-            'R': Predicate('R', lambda x: torch.ones(x.shape[0]) * 0.3)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.9),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+            'R': Predicate( lambda x: torch.ones(x.shape[0]) * 0.3)
         }
 
         compiler = TNormCompiler()
@@ -230,8 +230,8 @@ class TestTNormCompilerWithDifferentTNorms:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler(tnorm=RProductTNorm())
@@ -250,8 +250,8 @@ class TestTNormCompilerWithDifferentTNorms:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler(tnorm=SProductTNorm())
@@ -270,8 +270,8 @@ class TestTNormCompilerWithDifferentTNorms:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler(tnorm=LukasiewiczTNorm())
@@ -290,8 +290,8 @@ class TestTNormCompilerWithDifferentTNorms:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler(tnorm=GodelTNorm())
@@ -310,8 +310,8 @@ class TestTNormCompilerWithDifferentTNorms:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         x = torch.randn(10, 5)
@@ -343,7 +343,7 @@ class TestTNormCompilerGradients:
 
         # Create a simple neural network predicate
         model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-        predicates = {'P': Predicate('P', model)}
+        predicates = {'P': Predicate( model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -368,8 +368,8 @@ class TestTNormCompilerGradients:
         model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {
-            'P': Predicate('P', model_p),
-            'Q': Predicate('Q', model_q)
+            'P': Predicate( model_p),
+            'Q': Predicate( model_q)
         }
 
         compiler = TNormCompiler()
@@ -396,8 +396,8 @@ class TestTNormCompilerGradients:
         model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {
-            'P': Predicate('P', model_p),
-            'Q': Predicate('Q', model_q)
+            'P': Predicate( model_p),
+            'Q': Predicate( model_q)
         }
 
         compiler = TNormCompiler()
@@ -425,9 +425,9 @@ class TestTNormCompilerGradients:
         model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_r = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {
-            'P': Predicate('P', model_p),
-            'Q': Predicate('Q', model_q),
-            'R': Predicate('R', model_r)
+            'P': Predicate( model_p),
+            'Q': Predicate( model_q),
+            'R': Predicate( model_r)
         }
 
         compiler = TNormCompiler()
@@ -459,10 +459,10 @@ class TestTNormCompilerGradients:
         model_r = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_s = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {
-            'P': Predicate('P', model_p),
-            'Q': Predicate('Q', model_q),
-            'R': Predicate('R', model_r),
-            'S': Predicate('S', model_s)
+            'P': Predicate( model_p),
+            'Q': Predicate( model_q),
+            'R': Predicate( model_r),
+            'S': Predicate( model_s)
         }
 
         compiler = TNormCompiler()
@@ -491,8 +491,8 @@ class TestTNormCompilerInputHandling:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler()
@@ -514,8 +514,8 @@ class TestTNormCompilerInputHandling:
 
         # Predicates that use their inputs differently
         predicates = {
-            'P': Predicate('P', lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-            'Q': Predicate('Q', lambda x: torch.sigmoid(x["q_data"].mean(dim=-1)))
+            'P': Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
+            'Q': Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1)))
         }
 
         compiler = TNormCompiler()
@@ -538,9 +538,9 @@ class TestTNormCompilerInputHandling:
         expr = sp.And(sp.And(P, Q), R)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x["q_data"].shape[0]) * 0.6),
-            'R': Predicate('R', lambda x: torch.ones(x["shared_data"].shape[0]) * 0.9)
+            'P': Predicate( lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x["q_data"].shape[0]) * 0.6),
+            'R': Predicate( lambda x: torch.ones(x["shared_data"].shape[0]) * 0.9)
         }
 
         compiler = TNormCompiler()
@@ -569,8 +569,8 @@ class TestTNormCompilerReusability:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler()
@@ -589,7 +589,7 @@ class TestTNormCompilerReusability:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -610,8 +610,8 @@ class TestTNormCompilerReusability:
         expr2 = sp.Or(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         compiler = TNormCompiler()
@@ -637,7 +637,7 @@ class TestTNormCompilerBooleanConstants:
         expr = sp.And(P, sp.true)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -656,7 +656,7 @@ class TestTNormCompilerBooleanConstants:
         expr = sp.And(P, sp.false)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -724,7 +724,7 @@ class TestTNormCompilerErrorHandling:
 
         # Only provide predicate for P, not Q
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
         }
 
         compiler = TNormCompiler()
@@ -741,7 +741,7 @@ class TestTNormCompilerErrorHandling:
         expr = sp.sin(P)  # Sine function is not a logical operator
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
         }
 
         compiler = TNormCompiler()
@@ -759,7 +759,7 @@ class TestTNormCompilerErrorHandling:
         # Test 1: Missing predicate error includes symbol name
         P, Q = sp.symbols('P Q')
         expr = sp.And(P, Q)
-        predicates = {'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8)}
+        predicates = {'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)}
 
         compiler = TNormCompiler()
 
@@ -772,7 +772,7 @@ class TestTNormCompilerErrorHandling:
 
         # Test 2: Predicate name mismatch error
         predicates_mismatch = {
-            'P': Predicate('WrongName', lambda x: torch.ones(x.shape[0]) * 0.8)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
         }
 
         try:

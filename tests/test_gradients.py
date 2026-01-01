@@ -24,7 +24,7 @@ def test_basic_gradient_flow() -> None:
     expr = P
 
     model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-    predicates = {"P": Predicate("P", lambda x: model(x).squeeze(-1))}
+    predicates = {"P": Predicate( lambda x: model(x).squeeze(-1))}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -48,8 +48,8 @@ def test_gradient_flow_and() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -78,8 +78,8 @@ def test_gradient_flow_or() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -104,7 +104,7 @@ def test_gradient_flow_not() -> None:
 
     model = nn.Linear(5, 1)
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))
+        "P": Predicate( lambda x: torch.sigmoid(model(x).squeeze(-1)))
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -129,8 +129,8 @@ def test_gradient_flow_implies() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -157,8 +157,8 @@ def test_gradient_flow_equivalent() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -186,9 +186,9 @@ def test_gradient_flow_complex_expression() -> None:
     model_r = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
-        "R": Predicate("R", lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "R": Predicate( lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -218,8 +218,8 @@ def test_gradient_flow_product_tnorm() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -246,8 +246,8 @@ def test_gradient_flow_lukasiewicz_tnorm() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -274,8 +274,8 @@ def test_gradient_flow_godel_tnorm() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
@@ -300,7 +300,7 @@ def test_gradient_accumulation() -> None:
 
     model = nn.Linear(5, 1)
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))
+        "P": Predicate( lambda x: torch.sigmoid(model(x).squeeze(-1)))
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -336,7 +336,7 @@ def test_gradient_zero() -> None:
 
     model = nn.Linear(5, 1)
     predicates = {
-        "P": Predicate("P", lambda x: torch.sigmoid(model(x).squeeze(-1)))
+        "P": Predicate( lambda x: torch.sigmoid(model(x).squeeze(-1)))
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -372,15 +372,12 @@ def test_gradient_no_nan_or_inf() -> None:
 
     predicates = {
         "P": Predicate(
-            "P",
             lambda x: torch.sigmoid(model_p(x).mean(dim=-1))
         ),
         "Q": Predicate(
-            "Q",
             lambda x: torch.sigmoid(model_q(x).mean(dim=-1))
         ),
         "R": Predicate(
-            "R",
             lambda x: torch.sigmoid(model_r(x).mean(dim=-1))
         ),
     }
@@ -408,8 +405,8 @@ def test_get_trainable_parameters_for_optimization() -> None:
     model_p = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", model_p),
-        "Q": Predicate("Q", lambda x: (x > 0).float().mean(dim=-1)),
+        "P": Predicate( model_p),
+        "Q": Predicate( lambda x: (x > 0).float().mean(dim=-1)),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -443,8 +440,8 @@ def test_gradient_with_multiple_models() -> None:
     model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
 
     predicates = {
-        "P": Predicate("P", lambda x: model_p(x).squeeze(-1)),
-        "Q": Predicate("Q", lambda x: model_q(x).squeeze(-1)),
+        "P": Predicate( lambda x: model_p(x).squeeze(-1)),
+        "Q": Predicate( lambda x: model_q(x).squeeze(-1)),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -467,7 +464,7 @@ def test_gradient_independent_of_batch_size() -> None:
     P = sp.symbols("P")
     expr = P
 
-    predicates = {"P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
 

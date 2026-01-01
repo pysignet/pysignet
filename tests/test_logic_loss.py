@@ -26,7 +26,7 @@ class TestLogicLossBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         # Compile and wrap in LogicLoss
@@ -45,7 +45,7 @@ class TestLogicLossBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -69,7 +69,7 @@ class TestLogicLossBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -96,7 +96,7 @@ class TestLogicLossPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         compiler = TNormCompiler()
@@ -117,7 +117,7 @@ class TestLogicLossPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -142,7 +142,7 @@ class TestLogicLossPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         # Custom post-processing: square the violation
@@ -167,7 +167,7 @@ class TestLogicLossPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -192,7 +192,7 @@ class TestLogicLossReductionModes:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -215,7 +215,7 @@ class TestLogicLossReductionModes:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -238,7 +238,7 @@ class TestLogicLossReductionModes:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -261,7 +261,7 @@ class TestLogicLossReductionModes:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -285,7 +285,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         compiler = TNormCompiler()
@@ -308,7 +308,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -330,7 +330,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
         }
 
         compiler = TNormCompiler()
@@ -376,7 +376,7 @@ class TestLogicLossGradientFlow:
 
         model = SimpleModel()
         predicates = {
-            'P': Predicate('P', model)
+            'P': Predicate( model)
         }
 
         compiler = TNormCompiler()
@@ -411,7 +411,7 @@ class TestLogicLossGradientFlow:
 
         model = SimpleModel()
         predicates = {
-            'P': Predicate('P', model)
+            'P': Predicate( model)
         }
 
         compiler = TNormCompiler()
@@ -445,7 +445,7 @@ class TestLogicLossGradientFlow:
 
         model = SimpleModel()
         predicates = {
-            'P': Predicate('P', model)
+            'P': Predicate( model)
         }
 
         compiler = TNormCompiler()
@@ -479,7 +479,7 @@ class TestLogicLossGradientFlow:
 
         model = SimpleModel()
         predicates = {
-            'P': Predicate('P', model)
+            'P': Predicate( model)
         }
 
         compiler = TNormCompiler()
@@ -519,8 +519,8 @@ class TestLogicLossTrainableParameters:
         model_q = SimpleModel()
 
         predicates = {
-            'P': Predicate('P', model_p),
-            'Q': Predicate('Q', model_q)
+            'P': Predicate( model_p),
+            'Q': Predicate( model_q)
         }
 
         compiler = TNormCompiler()
@@ -544,7 +544,7 @@ class TestLogicLossTrainableParameters:
 
         # Use lambda function (no trainable parameters)
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -575,7 +575,7 @@ class TestLogicLossTrainableParameters:
 
         model = SimpleModel()
         predicates = {
-            'P': Predicate('P', model)
+            'P': Predicate( model)
         }
 
         compiler = TNormCompiler()
@@ -608,7 +608,7 @@ class TestLogicLossBoundaryConditions:
 
         # Predicate always returns 1.0 (perfect satisfaction)
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]))
+            'P': Predicate( lambda x: torch.ones(x.shape[0]))
         }
 
         compiler = TNormCompiler()
@@ -639,7 +639,7 @@ class TestLogicLossBoundaryConditions:
 
         # Predicate returns very small value (near 0)
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 1e-7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 1e-7)
         }
 
         compiler = TNormCompiler()
@@ -675,7 +675,7 @@ class TestLogicLossBoundaryConditions:
 
         for val in small_values:
             predicates = {
-                'P': Predicate('P', lambda x, v=val: torch.ones(x.shape[0]) * v)
+                'P': Predicate( lambda x, v=val: torch.ones(x.shape[0]) * v)
             }
 
             compiler = TNormCompiler()
@@ -712,7 +712,7 @@ class TestLogicLossBoundaryConditions:
 
         for val in near_one_values:
             predicates = {
-                'P': Predicate('P', lambda x, v=val: torch.ones(x.shape[0]) * v)
+                'P': Predicate( lambda x, v=val: torch.ones(x.shape[0]) * v)
             }
 
             compiler = TNormCompiler()
@@ -752,8 +752,8 @@ class TestLogicLossInputHandling:
 
         # Both predicates receive the same input tensor
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -779,8 +779,8 @@ class TestLogicLossInputHandling:
 
         # Each predicate receives different input
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x["q_data"].shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x["q_data"].shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()
@@ -808,7 +808,7 @@ class TestLogicLossInputHandling:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         compiler = TNormCompiler()

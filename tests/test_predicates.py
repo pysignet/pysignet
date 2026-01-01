@@ -21,7 +21,7 @@ def test_deterministic_predicate() -> None:
         """Deterministic predicate function."""
         return (x.sum(dim=-1) > 0).float()
 
-    predicates = {"P": Predicate("P", deterministic_func, is_model=False)}
+    predicates = {"P": Predicate( deterministic_func, is_model=False)}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -36,7 +36,7 @@ def test_model_predicate_auto_detection() -> None:
     """Test automatic detection of nn.Module as model."""
     # Should auto-detect nn.Module as model
     model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-    predicate = Predicate("P", model)
+    predicate = Predicate( model)
 
     assert predicate.is_model is True
 
@@ -44,7 +44,7 @@ def test_model_predicate_auto_detection() -> None:
 def test_function_predicate_auto_detection() -> None:
     """Test automatic detection of function as non-model."""
     # Should auto-detect lambda as non-model
-    predicate = Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1)))
+    predicate = Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))
 
     assert predicate.is_model is False
 
@@ -58,8 +58,8 @@ def test_get_trainable_parameters() -> None:
     model_p = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate("P", model_p),
-        "Q": Predicate("Q", lambda x: (x > 0).float().mean(dim=-1)),
+        "P": Predicate( model_p),
+        "Q": Predicate( lambda x: (x > 0).float().mean(dim=-1)),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -77,8 +77,8 @@ def test_get_trainable_parameters_no_models() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -95,7 +95,7 @@ def test_non_tensor_predicate_return() -> None:
     expr = P
 
     # Predicate that returns a Python float (will be converted to tensor)
-    predicates = {"P": Predicate("P", lambda x: 0.75)}
+    predicates = {"P": Predicate( lambda x: 0.75)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -113,7 +113,7 @@ def test_predicate_clamping_above_one() -> None:
     expr = P
 
     # Predicate that returns values > 1
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 2.5)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 2.5)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -131,7 +131,7 @@ def test_predicate_clamping_below_zero() -> None:
     expr = P
 
     # Predicate that returns values < 0
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * -1.5)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * -1.5)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -153,7 +153,7 @@ def test_predicate_with_neural_network() -> None:
         nn.Linear(5, 10), nn.ReLU(), nn.Linear(10, 1), nn.Sigmoid()
     )
 
-    predicates = {"P": Predicate("P", lambda x: model(x).squeeze(-1))}
+    predicates = {"P": Predicate( lambda x: model(x).squeeze(-1))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -177,9 +177,9 @@ def test_predicate_with_multiple_models() -> None:
     model_r = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
 
     predicates = {
-        "P": Predicate("P", lambda x: model_p(x).squeeze(-1)),
-        "Q": Predicate("Q", lambda x: model_q(x).squeeze(-1)),
-        "R": Predicate("R", lambda x: model_r(x).squeeze(-1)),
+        "P": Predicate( lambda x: model_p(x).squeeze(-1)),
+        "Q": Predicate( lambda x: model_q(x).squeeze(-1)),
+        "R": Predicate( lambda x: model_r(x).squeeze(-1)),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -193,14 +193,25 @@ def test_predicate_with_multiple_models() -> None:
 
 
 def test_predicate_name_attribute() -> None:
-    """Test that predicate stores its name correctly."""
+    """Test that predicate name is assigned by compiler."""
     # pylint: disable=invalid-name
-    predicate_p = Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)
-    predicate_q = Predicate("CustomName", lambda x: torch.ones(x.shape[0]) *
-                            0.7)
+    P, Q = sp.symbols("P Q")
+    expr = sp.And(P, Q)
 
+    predicate_p = Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)
+    predicate_q = Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)
+
+    # Names should be None before compilation
+    assert predicate_p.name is None
+    assert predicate_q.name is None
+
+    # Compile to assign names
+    predicates = {"P": predicate_p, "Q": predicate_q}
+    compile_logic(expr, predicates)
+
+    # Names should now be assigned
     assert predicate_p.name == "P"
-    assert predicate_q.name == "CustomName"
+    assert predicate_q.name == "Q"
 
 
 def test_predicate_callable_behavior() -> None:
@@ -210,7 +221,7 @@ def test_predicate_callable_behavior() -> None:
         """Custom function with multiple arguments."""
         return torch.ones(x.shape[0]) * y * 0.5
 
-    predicate = Predicate("P", custom_func)
+    predicate = Predicate( custom_func)
 
     x = torch.randn(5, 3)
 
@@ -229,32 +240,26 @@ def test_predicate_explicit_is_model_flag() -> None:
     model = nn.Linear(5, 1)
 
     # Explicitly mark as non-model (override auto-detection)
-    predicate = Predicate("P", model, is_model=False)
+    predicate = Predicate( model, is_model=False)
     assert predicate.is_model is False
 
     # Explicitly mark lambda as model
-    predicate2 = Predicate("Q", lambda x: x.sum(), is_model=True)
+    predicate2 = Predicate( lambda x: x.sum(), is_model=True)
     assert predicate2.is_model is True
 
 
-def test_predicate_name_mismatch_detection() -> None:
-    """Test that LogicCompiler detects predicate name mismatches."""
+def test_predicate_name_assignment_from_dict_key() -> None:
+    """Test that predicate names are assigned from dict keys."""
     # pylint: disable=invalid-name
     P = sp.symbols("P")
     expr = P
 
-    # Create predicate with name 'Q' but use dict key 'P'
-    predicates = {
-        "P": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5)
-    }
+    predicate = Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)
 
-    # Should raise ValueError with clear message
-    try:
-        compile_logic(expr, predicates)
-        assert False, "Expected ValueError for name mismatch"
-    except ValueError as e:
-        error_msg = str(e)
-        assert "name" in error_msg.lower()
-        assert "mismatch" in error_msg.lower() or "match" in error_msg.lower()
-        assert "Q" in error_msg
-        assert "P" in error_msg
+    # Dict key determines the name
+    predicates = {"P": predicate}
+
+    compile_logic(expr, predicates)
+
+    # Predicate should now have name 'P' from dict key
+    assert predicate.name == "P"

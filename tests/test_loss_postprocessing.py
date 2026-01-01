@@ -32,8 +32,8 @@ class TestRProductPostProcessing:
         expr = sp.And(P, Q)
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-            "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -57,7 +57,7 @@ class TestRProductPostProcessing:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.5, 0.8, 0.2]))
+            "P": Predicate( lambda x: torch.tensor([0.5, 0.8, 0.2]))
         }
 
         compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -77,7 +77,7 @@ class TestRProductPostProcessing:
 
         # Very low satisfaction values
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([1e-10, 1e-8, 0.01]))
+            "P": Predicate( lambda x: torch.tensor([1e-10, 1e-8, 0.01]))
         }
 
         compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -102,8 +102,8 @@ class TestSProductPostProcessing:
         expr = sp.Implies(P, Q)
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-            "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -127,8 +127,8 @@ class TestLukasiewiczPostProcessing:
         expr = sp.And(P, Q)
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
-            "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+            "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = compile_logic(
@@ -150,7 +150,7 @@ class TestLukasiewiczPostProcessing:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.3, 0.7, 0.9]))
+            "P": Predicate( lambda x: torch.tensor([0.3, 0.7, 0.9]))
         }
 
         compiler = compile_logic(
@@ -179,8 +179,8 @@ class TestGodelPostProcessing:
         expr = sp.And(P, Q)
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-            "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = compile_logic(expr, predicates, tnorm=GodelTNorm())
@@ -204,7 +204,7 @@ class TestCustomPostProcessing:
         P = sp.symbols("P")
         expr = P
 
-        predicates = {"P": Predicate("P", lambda x: torch.tensor([0.8, 0.6]))}
+        predicates = {"P": Predicate( lambda x: torch.tensor([0.8, 0.6]))}
 
         # Custom post-processing: square of (1 - satisfaction)
         def custom_loss(satisfaction: torch.Tensor) -> torch.Tensor:
@@ -229,7 +229,7 @@ class TestCustomPostProcessing:
         model = nn.Linear(5, 1)
         predicates = {
             "P": Predicate(
-                "P", lambda x: torch.sigmoid(model(x).squeeze())
+                lambda x: torch.sigmoid(model(x).squeeze())
             )
         }
 
@@ -261,7 +261,7 @@ class TestPostProcessingDifferentiability:
         model = nn.Linear(5, 1)
         predicates = {
             "P": Predicate(
-                "P", lambda x: torch.sigmoid(model(x).squeeze())
+                lambda x: torch.sigmoid(model(x).squeeze())
             )
         }
 
@@ -287,7 +287,7 @@ class TestPostProcessingDifferentiability:
         model = nn.Linear(5, 1)
         predicates = {
             "P": Predicate(
-                "P", lambda x: torch.sigmoid(model(x).squeeze())
+                lambda x: torch.sigmoid(model(x).squeeze())
             )
         }
 
@@ -316,7 +316,7 @@ class TestBoundaryValues:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]))
+            "P": Predicate( lambda x: torch.ones(x.shape[0]))
         }
 
         # Test R-Product (log)
@@ -342,7 +342,7 @@ class TestBoundaryValues:
 
         # Use very small but non-zero to avoid log(0)
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 1e-10)
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 1e-10)
         }
 
         # Test R-Product (log)
@@ -368,7 +368,7 @@ class TestBoundaryValues:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5)
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         x = torch.randn(5, 3)
@@ -403,7 +403,7 @@ class TestReductionModes:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.3, 0.6, 0.9]))
+            "P": Predicate( lambda x: torch.tensor([0.3, 0.6, 0.9]))
         }
 
         compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
@@ -427,7 +427,7 @@ class TestReductionModes:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.3, 0.6, 0.9]))
+            "P": Predicate( lambda x: torch.tensor([0.3, 0.6, 0.9]))
         }
 
         compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
@@ -452,7 +452,7 @@ class TestReductionModes:
 
         batch_size = 7
         predicates = {
-            "P": Predicate("P", lambda x: torch.rand(batch_size))
+            "P": Predicate( lambda x: torch.rand(batch_size))
         }
 
         compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
@@ -491,8 +491,8 @@ class TestCombinedPostProcessingAndReduction:
         expr = sp.And(P, Q)
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.rand(x.shape[0])),
-            "Q": Predicate("Q", lambda x: torch.rand(x.shape[0])),
+            "P": Predicate( lambda x: torch.rand(x.shape[0])),
+            "Q": Predicate( lambda x: torch.rand(x.shape[0])),
         }
 
         compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
@@ -524,7 +524,7 @@ class TestPostProcessingParameterOverride:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.8]))
+            "P": Predicate( lambda x: torch.tensor([0.8]))
         }
 
         compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -550,7 +550,7 @@ class TestPostProcessingParameterOverride:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.6]))
+            "P": Predicate( lambda x: torch.tensor([0.6]))
         }
 
         compiler = compile_logic(
@@ -576,7 +576,7 @@ class TestPostProcessingParameterOverride:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.5]))
+            "P": Predicate( lambda x: torch.tensor([0.5]))
         }
 
         compiler = compile_logic(expr, predicates)
@@ -593,7 +593,7 @@ class TestPostProcessingParameterOverride:
         expr = P
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.tensor([0.7]))
+            "P": Predicate( lambda x: torch.tensor([0.7]))
         }
 
         # R-Product recommends log
@@ -617,9 +617,9 @@ class TestComplexExpressions:
         expr = sp.And(sp.Or(P, Q), sp.Not(R))
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.6),
-            "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.4),
-            "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.3),
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+            "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.4),
+            "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
         compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -639,9 +639,9 @@ class TestComplexExpressions:
         expr = sp.Implies(sp.And(P, Q), R)
 
         predicates = {
-            "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
-            "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.8),
-            "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.6),
+            "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+            "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = compile_logic(

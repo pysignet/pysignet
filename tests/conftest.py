@@ -23,9 +23,9 @@ def simple_predicates() -> Dict[str, Predicate]:
         with fixed satisfaction values.
     """
     return {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
-        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
 
@@ -43,8 +43,8 @@ def neural_predicates() -> Dict[str, Predicate]:
     )
 
     return {
-        "P": Predicate("P", lambda x: model_p(x).squeeze(-1)),
-        "Q": Predicate("Q", lambda x: model_q(x).squeeze(-1)),
+        "P": Predicate( lambda x: model_p(x).squeeze(-1)),
+        "Q": Predicate( lambda x: model_q(x).squeeze(-1)),
     }
 
 
@@ -56,9 +56,9 @@ def dynamic_predicates() -> Dict[str, Predicate]:
         Dictionary of predicates that compute values based on input.
     """
     return {
-        "P": Predicate("P", lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate("Q", lambda x: torch.sigmoid(x.mean(dim=-1))),
-        "R": Predicate("R", lambda x: (x > 0).float().mean(dim=-1)),
+        "P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate( lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "R": Predicate( lambda x: (x > 0).float().mean(dim=-1)),
     }
 
 

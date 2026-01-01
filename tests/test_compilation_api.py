@@ -28,7 +28,7 @@ class TestCompileLogicBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         logic_loss = compile_logic(expr, predicates, mode='tnorm')
@@ -45,7 +45,7 @@ class TestCompileLogicBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -60,7 +60,7 @@ class TestCompileLogicBasics:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         # Should work without specifying mode (defaults to 'tnorm')
@@ -81,8 +81,8 @@ class TestCompileLogicTNormMode:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
@@ -99,8 +99,8 @@ class TestCompileLogicTNormMode:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -117,8 +117,8 @@ class TestCompileLogicTNormMode:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -136,8 +136,8 @@ class TestCompileLogicTNormMode:
         expr = sp.And(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         # Don't specify tnorm - should default to R-Product
@@ -161,7 +161,7 @@ class TestCompileLogicPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -179,7 +179,7 @@ class TestCompileLogicPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         logic_loss = compile_logic(expr, predicates, post_processing='log')
@@ -197,7 +197,7 @@ class TestCompileLogicPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         logic_loss = compile_logic(expr, predicates, post_processing='linear')
@@ -214,7 +214,7 @@ class TestCompileLogicPostProcessing:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.6)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
         }
 
         # Custom post-processing: square the violation
@@ -247,8 +247,8 @@ class TestCompileLogicUsability:
         logic_loss = compile_logic(
             expr,
             {
-                'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-                'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.6),
+                'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+                'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
             }
         )
 
@@ -269,7 +269,7 @@ class TestCompileLogicUsability:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -298,8 +298,8 @@ class TestCompileLogicUsability:
         expr = sp.Or(P, Q)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.3),
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -317,7 +317,7 @@ class TestCompileLogicUsability:
         expr = sp.Not(P)
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.4)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.4)
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -341,7 +341,7 @@ class TestCompileLogicErrorHandling:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         # Invalid mode should raise ValueError
@@ -356,7 +356,7 @@ class TestCompileLogicErrorHandling:
 
         # Missing predicate 'Q'
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         # Should raise error when trying to compile with missing predicate
@@ -370,7 +370,7 @@ class TestCompileLogicErrorHandling:
         expr = P
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.5)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
         }
 
         # Test mode error message
@@ -397,10 +397,10 @@ class TestCompileLogicWithComplexExpressions:
         )
 
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x.shape[0]) * 0.7),
-            'R': Predicate('R', lambda x: torch.ones(x.shape[0]) * 0.6),
-            'S': Predicate('S', lambda x: torch.ones(x.shape[0]) * 0.5),
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+            'R': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+            'S': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -423,7 +423,6 @@ class TestCompileLogicWithComplexExpressions:
 
         predicates = {
             f'P{i+1}': Predicate(
-                f'P{i+1}',
                 lambda x, val=0.9 - i*0.1: torch.ones(x.shape[0]) * val
             )
             for i in range(5)
@@ -445,7 +444,7 @@ class TestCompileLogicWithComplexExpressions:
         # Test with sp.true
         expr_true = sp.And(P, sp.true)
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x.shape[0]) * 0.7)
+            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
         }
 
         logic_loss_true = compile_logic(expr_true, predicates)
@@ -479,8 +478,8 @@ class TestCompileLogicInputHandling:
 
         # Both predicates use the same input tensor
         predicates = {
-            'P': Predicate('P', lambda x: (x[:, 0] > 0).float()),
-            'Q': Predicate('Q', lambda x: (x[:, 1] > 0).float()),
+            'P': Predicate( lambda x: (x[:, 0] > 0).float()),
+            'Q': Predicate( lambda x: (x[:, 1] > 0).float()),
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -504,8 +503,8 @@ class TestCompileLogicInputHandling:
 
         # Predicates explicitly select their inputs from the dict
         predicates = {
-            'P': Predicate('P', lambda x: torch.ones(x['input_p'].shape[0]) * 0.8),
-            'Q': Predicate('Q', lambda x: torch.ones(x['input_q'].shape[0]) * 0.6),
+            'P': Predicate( lambda x: torch.ones(x['input_p'].shape[0]) * 0.8),
+            'Q': Predicate( lambda x: torch.ones(x['input_q'].shape[0]) * 0.6),
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -540,9 +539,9 @@ class TestCompileLogicInputHandling:
             return pred_fn
 
         predicates = {
-            'P': Predicate('P', make_pred(0.9)),
-            'Q': Predicate('Q', make_pred(0.8)),
-            'R': Predicate('R', make_pred(0.7)),
+            'P': Predicate( make_pred(0.9)),
+            'Q': Predicate( make_pred(0.8)),
+            'R': Predicate( make_pred(0.7)),
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -582,7 +581,7 @@ class TestCompileLogicGradients:
                 return torch.sigmoid(self.linear(x).squeeze(-1))
 
         model = SimpleModel()
-        predicates = {'P': Predicate('P', model, is_model=True)}
+        predicates = {'P': Predicate( model, is_model=True)}
 
         logic_loss = compile_logic(expr, predicates)
 
@@ -614,7 +613,7 @@ class TestCompileLogicGradients:
                 return torch.sigmoid(self.weight * x.sum(-1))
 
         model = SimpleModel()
-        predicates = {'P': Predicate('P', model, is_model=True)}
+        predicates = {'P': Predicate( model, is_model=True)}
 
         logic_loss = compile_logic(expr, predicates)
 
@@ -645,11 +644,10 @@ class TestCompileLogicGradients:
 
         predicates = {
             'P': Predicate(
-                'P',
                 lambda x: torch.sigmoid(model_p(x).squeeze(-1)),
                 is_model=False  # Lambda, not a model
             ),
-            'Q': Predicate('Q', model_q, is_model=True),
+            'Q': Predicate(model_q, is_model=True),
         }
 
         logic_loss = compile_logic(expr, predicates)

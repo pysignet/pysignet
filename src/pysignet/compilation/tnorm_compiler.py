@@ -47,28 +47,50 @@ class TNormCompiler(LogicCompiler):
 
         Args:
             expr: SymPy logic expression (e.g., sp.And(P, sp.Or(Q, sp.Not(R))))
-            predicates: Dict mapping predicate names to Predicate objects
+            predicates: Dict mapping predicate names to Predicate objects.
+                       Raw callables (functions, nn.Modules) are automatically
+                       wrapped in Predicate objects.
 
         Returns:
             Callable that takes inputs and returns satisfaction tensor of
             shape (batch_size,) with values in [0, 1].
 
         Raises:
-            ValueError: If predicate names don't match dict keys
             ValueError: If symbols in expr have no corresponding predicates
+            TypeError: If predicate values are not callable or Predicate
         """
-        # Validate that predicate names match their dict keys
-        for key, pred in predicates.items():
-            if pred.name != key:
-                raise ValueError(
-                    f"Predicate name '{pred.name}' doesn't match dict key "
-                    f"'{key}'. Use consistent naming: predicates['{key}'] "
-                    f"should be Predicate('{key}', ...)."
+        # Auto-wrap raw callables in Predicate objects
+        wrapped_predicates: Dict[str, Predicate] = {}
+        for key, value in predicates.items():
+            if isinstance(value, Predicate):
+                # Already a Predicate, use as-is
+                wrapped_predicates[key] = value
+            elif callable(value):
+                # Raw callable (function, lambda, nn.Module) - auto-wrap
+                wrapped_predicates[key] = Predicate(value)
+            else:
+                # Not callable - raise helpful error
+                raise TypeError(
+                    f"Predicate '{key}' must be callable (function, lambda, "
+                    f"nn.Module) or a Predicate instance, got {type(value).__name__}"
                 )
+
+        # Assign names to predicates from dict keys
+        # Validate that predicates are not reused with different names
+        for key, pred in wrapped_predicates.items():
+            if pred.name is not None and pred.name != key:
+                raise ValueError(
+                    f"Predicate already has name '{pred.name}' but is being "
+                    f"registered with different key '{key}'. Each Predicate "
+                    f"instance can only be used with one name. Create a new "
+                    f"Predicate instance if you need the same function with a "
+                    f"different name."
+                )
+            pred.name = key
 
         # Verify all symbols have corresponding predicates
         symbols = self._extract_predicate_symbols(expr)
-        missing = symbols - set(predicates.keys())
+        missing = symbols - set(wrapped_predicates.keys())
         if missing:
             raise ValueError(
                 f"Missing predicates for symbols: {missing}"
@@ -86,7 +108,7 @@ class TNormCompiler(LogicCompiler):
             Returns:
                 Satisfaction tensor of shape (batch_size,) in [0, 1]
             """
-            return self._evaluate_expression(expr, inputs, predicates)
+            return self._evaluate_expression(expr, inputs, wrapped_predicates)
 
         return compiled_logic
 

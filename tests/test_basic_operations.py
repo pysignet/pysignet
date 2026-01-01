@@ -17,8 +17,8 @@ def test_basic_and() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -37,8 +37,8 @@ def test_basic_or() -> None:
     expr = sp.Or(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -56,7 +56,7 @@ def test_negation() -> None:
     P = sp.symbols("P")
     expr = sp.Not(P)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -72,8 +72,8 @@ def test_implication() -> None:
     expr = sp.Implies(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -93,8 +93,8 @@ def test_equivalence_operator() -> None:
     expr = sp.Equivalent(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -121,9 +121,9 @@ def test_complex_expression() -> None:
     expr = sp.And(sp.Or(P, Q), sp.Not(R))
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.5),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
-        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.3),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
     }
 
     logic_loss = compile_logic(expr, predicates)

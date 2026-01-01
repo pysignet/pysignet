@@ -29,8 +29,8 @@ def test_product_and() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -48,8 +48,8 @@ def test_product_or() -> None:
     expr = sp.Or(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -67,7 +67,7 @@ def test_product_not() -> None:
     P = sp.symbols("P")
     expr = sp.Not(P)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(10, 5)
@@ -84,8 +84,8 @@ def test_product_implies() -> None:
     expr = sp.Implies(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -105,8 +105,8 @@ def test_product_equivalent() -> None:
     expr = sp.Equivalent(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -134,8 +134,8 @@ def test_lukasiewicz_and() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -153,8 +153,8 @@ def test_lukasiewicz_or() -> None:
     expr = sp.Or(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -171,7 +171,7 @@ def test_lukasiewicz_not() -> None:
     P = sp.symbols("P")
     expr = sp.Not(P)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(10, 5)
@@ -188,8 +188,8 @@ def test_lukasiewicz_implies() -> None:
     expr = sp.Implies(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -209,8 +209,8 @@ def test_lukasiewicz_equivalent() -> None:
     expr = sp.Equivalent(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -238,8 +238,8 @@ def test_godel_and() -> None:
     expr = sp.And(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
@@ -257,8 +257,8 @@ def test_godel_or() -> None:
     expr = sp.Or(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
@@ -275,7 +275,7 @@ def test_godel_not() -> None:
     P = sp.symbols("P")
     expr = sp.Not(P)
 
-    predicates = {"P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(10, 5)
@@ -292,8 +292,8 @@ def test_godel_implies() -> None:
     expr = sp.Implies(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
@@ -313,8 +313,8 @@ def test_godel_equivalent() -> None:
     expr = sp.Equivalent(P, Q)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
@@ -342,9 +342,9 @@ def test_product_multi_and() -> None:
     expr = sp.And(P, Q, R)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
-        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -362,9 +362,9 @@ def test_lukasiewicz_multi_or() -> None:
     expr = sp.Or(P, Q, R)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.3),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.4),
-        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.4),
+        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
@@ -384,9 +384,9 @@ def test_godel_multi_and() -> None:
     expr = sp.And(P, Q, R)
 
     predicates = {
-        "P": Predicate("P", lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate("Q", lambda x: torch.ones(x.shape[0]) * 0.6),
-        "R": Predicate("R", lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
