@@ -8,6 +8,8 @@ import torch
 from .base import LogicCompiler
 from ..predicate import Predicate
 from ..tnorms import TNorm, RProductTNorm
+from ..context import EvaluationContext
+from ..multiclass import PredicateApplication
 
 
 class TNormCompiler(LogicCompiler):
@@ -96,6 +98,9 @@ class TNormCompiler(LogicCompiler):
                 f"Missing predicates for symbols: {missing}"
             )
 
+        # Validate predicate usage consistency (nullary vs unary)
+        self._validate_predicate_usage(expr)
+
         # Return a closure that evaluates the expression
         def compiled_logic(
             inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
@@ -108,12 +113,17 @@ class TNormCompiler(LogicCompiler):
             Returns:
                 Satisfaction tensor of shape (batch_size,) in [0, 1]
             """
-            return self._evaluate_expression(expr, inputs, wrapped_predicates)
+            # Create evaluation context for this evaluation
+            # Context manages caching to avoid redundant forward passes
+            ctx = EvaluationContext()
+            return self._evaluate_expression(expr, inputs, wrapped_predicates, ctx)
 
         return compiled_logic
 
     def _extract_predicate_symbols(self, expr: sp.Basic) -> Set[str]:
         """Extract all predicate symbols from a SymPy expression.
+
+        Handles both regular SymPy symbols and PredicateApplication nodes.
 
         Args:
             expr: SymPy expression to analyze
@@ -124,16 +134,77 @@ class TNormCompiler(LogicCompiler):
         if isinstance(expr, sp.Symbol):
             return {str(expr)}
 
+        if isinstance(expr, PredicateApplication):
+            return {expr.predicate_name}
+
         symbols: Set[str] = set()
         for arg in expr.args:
             symbols.update(self._extract_predicate_symbols(arg))
         return symbols
 
+    def _validate_predicate_usage(self, expr: sp.Basic) -> None:
+        """Validate that predicates are used with consistent arity.
+
+        Ensures that each predicate appears in the expression with the same
+        arity (number of arguments) throughout. For example:
+        - Nullary (arity 0): P, Q (used without arguments)
+        - Unary (arity 1): Digit(0), Digit(1) (used with one argument)
+        - Binary (arity 2): Rel(0, 1) (used with two arguments)
+
+        Args:
+            expr: SymPy expression to validate
+
+        Raises:
+            ValueError: If any predicate is used with inconsistent arity
+        """
+        from typing import Dict, Optional
+        predicate_arities: Dict[str, int] = {}
+
+        def collect_usage(e: sp.Basic) -> None:
+            """Recursively collect predicate usage and check arity consistency."""
+            if isinstance(e, sp.Symbol):
+                # Used as plain symbol (nullary - arity 0)
+                # But skip if it's inside a PredicateApplication's name
+                if not isinstance(e, PredicateApplication):
+                    name = str(e)
+                    if name in predicate_arities:
+                        if predicate_arities[name] != 0:
+                            raise ValueError(
+                                f"Predicate '{name}' used inconsistently: "
+                                f"found both arity 0 (nullary: {name}) and arity "
+                                f"{predicate_arities[name]} (n-ary: {name}(...)) "
+                                f"in the same expression."
+                            )
+                    else:
+                        predicate_arities[name] = 0
+
+            elif isinstance(e, PredicateApplication):
+                # Used with arguments (n-ary - arity > 0)
+                name = e.predicate_name
+                arity = len(e.application_args)
+
+                if name in predicate_arities:
+                    if predicate_arities[name] != arity:
+                        raise ValueError(
+                            f"Predicate '{name}' used inconsistently: "
+                            f"found both arity {predicate_arities[name]} and "
+                            f"arity {arity} in the same expression."
+                        )
+                else:
+                    predicate_arities[name] = arity
+
+            # Recurse into subexpressions
+            for arg in getattr(e, 'args', []):
+                collect_usage(arg)
+
+        collect_usage(expr)
+
     def _evaluate_expression(
         self,
         expr: sp.Basic,
         inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
-        predicates: Dict[str, Predicate]
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext
     ) -> torch.Tensor:
         """Recursively evaluate SymPy expression using t-norms.
 
@@ -141,10 +212,31 @@ class TNormCompiler(LogicCompiler):
             expr: SymPy expression to evaluate
             inputs: Single tensor or dict of tensors
             predicates: Dict of predicates
+            ctx: Evaluation context for caching
 
         Returns:
             Tensor of shape (batch_size,) with values in [0, 1]
         """
+        # Base case: PredicateApplication (multi-class predicate)
+        if isinstance(expr, PredicateApplication):
+            pred_name = expr.predicate_name
+            func = predicates[pred_name].func
+
+            # Create cache key based on function and inputs identity
+            cache_key = (id(func), id(inputs))
+
+            # Get or compute full output (cached to avoid redundant forward passes)
+            full_output = ctx.get_or_compute(cache_key, lambda: func(inputs))
+
+            # Extract the specific output index
+            index = expr.application_args[0]
+            if full_output.dim() == 1:
+                # Single output case - just return the tensor
+                return full_output
+            else:
+                # Multi-output case - extract the indexed column
+                return full_output[:, index]
+
         # Base case: predicate symbol (named neuron evaluation)
         if isinstance(expr, sp.Symbol):
             pred_name = str(expr)
@@ -186,39 +278,39 @@ class TNormCompiler(LogicCompiler):
         # Logical operators
         if isinstance(expr, sp.And):
             # Conjoin all arguments
-            result = self._evaluate_expression(expr.args[0], inputs, predicates)
+            result = self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
             for arg in expr.args[1:]:
                 result = self.tnorm.conjunction(
                     result,
-                    self._evaluate_expression(arg, inputs, predicates)
+                    self._evaluate_expression(arg, inputs, predicates, ctx)
                 )
             return result
 
         if isinstance(expr, sp.Or):
             # Disjoin all arguments
-            result = self._evaluate_expression(expr.args[0], inputs, predicates)
+            result = self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
             for arg in expr.args[1:]:
                 result = self.tnorm.disjunction(
                     result,
-                    self._evaluate_expression(arg, inputs, predicates)
+                    self._evaluate_expression(arg, inputs, predicates, ctx)
                 )
             return result
 
         if isinstance(expr, sp.Not):
             return self.tnorm.negation(
-                self._evaluate_expression(expr.args[0], inputs, predicates)
+                self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
             )
 
         if isinstance(expr, sp.Implies):
             return self.tnorm.implication(
-                self._evaluate_expression(expr.args[0], inputs, predicates),
-                self._evaluate_expression(expr.args[1], inputs, predicates)
+                self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
+                self._evaluate_expression(expr.args[1], inputs, predicates, ctx)
             )
 
         if isinstance(expr, sp.Equivalent):
             return self.tnorm.equivalence(
-                self._evaluate_expression(expr.args[0], inputs, predicates),
-                self._evaluate_expression(expr.args[1], inputs, predicates)
+                self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
+                self._evaluate_expression(expr.args[1], inputs, predicates, ctx)
             )
 
         raise ValueError(f"Unsupported expression type: {type(expr)}")
