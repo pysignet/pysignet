@@ -38,6 +38,9 @@ from .api import compile_logic
 from .multiclass import Symbol, PredicateSymbol, PredicateApplication
 from .context import EvaluationContext
 
+# FOL (First-Order Logic)
+from .fol import Variable
+
 # Other exports
 from .consistency import ConsistencyChecker
 from .tnorms import TNorm, RProductTNorm, SProductTNorm, LukasiewiczTNorm, GodelTNorm
@@ -54,6 +57,8 @@ __all__ = [
     "PredicateSymbol",
     "PredicateApplication",
     "EvaluationContext",
+    # FOL
+    "Variable",
     # Other
     "ConsistencyChecker",
     "TNorm",
