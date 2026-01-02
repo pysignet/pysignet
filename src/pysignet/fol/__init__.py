@@ -5,5 +5,7 @@ quantifiers, and binding.
 """
 
 from .variable import Variable
+from .extraction import extract_variables
+from .binding import Binding, ground
 
-__all__ = ["Variable"]
+__all__ = ["Variable", "extract_variables", "Binding", "ground"]

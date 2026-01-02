@@ -39,7 +39,7 @@ from .multiclass import Symbol, PredicateSymbol, PredicateApplication
 from .context import EvaluationContext
 
 # FOL (First-Order Logic)
-from .fol import Variable
+from .fol import Variable, extract_variables, Binding, ground
 
 # Other exports
 from .consistency import ConsistencyChecker
@@ -59,6 +59,9 @@ __all__ = [
     "EvaluationContext",
     # FOL
     "Variable",
+    "extract_variables",
+    "Binding",
+    "ground",
     # Other
     "ConsistencyChecker",
     "TNorm",

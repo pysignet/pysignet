@@ -10,6 +10,7 @@ from ..predicate import Predicate
 from ..tnorms import TNorm, RProductTNorm
 from ..context import EvaluationContext
 from ..multiclass import PredicateApplication
+from ..fol import extract_variables, Binding, ground
 
 
 class TNormCompiler(LogicCompiler):
@@ -101,6 +102,9 @@ class TNormCompiler(LogicCompiler):
         # Validate predicate usage consistency (nullary vs unary)
         self._validate_predicate_usage(expr)
 
+        # Extract free variables for FOL support
+        free_vars = extract_variables(expr)
+
         # Return a closure that evaluates the expression
         def compiled_logic(
             inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
@@ -116,7 +120,49 @@ class TNormCompiler(LogicCompiler):
             # Create evaluation context for this evaluation
             # Context manages caching to avoid redundant forward passes
             ctx = EvaluationContext()
-            return self._evaluate_expression(expr, inputs, wrapped_predicates, ctx)
+
+            # If no free variables, evaluate directly (propositional logic)
+            if len(free_vars) == 0:
+                return self._evaluate_expression(expr, inputs, wrapped_predicates, ctx)
+
+            # FOL: Universal quantification over batch dimensions
+            # ∀X∀Y...: φ(X, Y, ...) means conjunction over all batch indices
+            # Get batch size from inputs
+            if isinstance(inputs, dict):
+                sample_input = next(iter(inputs.values()))
+            else:
+                sample_input = inputs
+            batch_size = sample_input.shape[0]
+
+            # For each batch index, ground all variables to that index
+            # and evaluate the grounded expression
+            results = []
+            for batch_idx in range(batch_size):
+                # Create binding: all variables map to this batch index
+                binding = Binding({var: batch_idx for var in free_vars})
+
+                # Ground expression with this binding
+                grounded_expr = ground(expr, binding)
+
+                # Evaluate grounded expression
+                result = self._evaluate_expression(
+                    grounded_expr, inputs, wrapped_predicates, ctx
+                )
+                results.append(result)
+
+            # Stack results: (batch_size, batch_size) tensor
+            # results[i][j] = satisfaction when variables are bound to index i
+            #                 evaluated on batch element j
+            stacked = torch.stack(results, dim=0)
+
+            # Universal quantification: take conjunction along batch dimension
+            # For each batch element j, we want: ∀i: φ(i) evaluated at j
+            # This is conjunction over dimension 0
+            result = stacked[0]  # Start with first batch index
+            for i in range(1, batch_size):
+                result = self.tnorm.conjunction(result, stacked[i])
+
+            return result
 
         return compiled_logic
 

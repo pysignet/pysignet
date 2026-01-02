@@ -8,13 +8,21 @@ Usage:
     >>> P, Q, Digit = Symbol("P Q Digit")
     >>> expr = sp.And(P, Digit(0))  # P is nullary, Digit is unary
 
-This is the foundation for future full first-order logic (FOL) support in v0.3.
+    >>> # With FOL variables
+    >>> from pysignet.fol import Variable
+    >>> X = Variable("X")
+    >>> expr = Digit(X)  # Predicate application with variable
+
+This is the foundation for full first-order logic (FOL) support.
 """
 
-from typing import Tuple, Any, Union
+from typing import Tuple, Any, Union, TYPE_CHECKING
 
 import sympy as sp
 from sympy.logic.boolalg import Boolean
+
+if TYPE_CHECKING:
+    from .fol.variable import VariableSymbol
 
 
 def Symbol(names: str) -> Union["PredicateSymbol", Tuple["PredicateSymbol", ...]]:
@@ -100,33 +108,42 @@ class PredicateSymbol(sp.Symbol):
         uses __new__ (immutable), we don't override __init__.
     """
 
-    def __call__(self, *args: int) -> "PredicateApplication":
+    def __call__(
+        self, *args: Union[int, "VariableSymbol"]
+    ) -> "PredicateApplication":
         """Call with arguments to create a predicate application (n-ary).
 
         This creates a PredicateApplication AST node representing the
-        application of this predicate to concrete argument values.
+        application of this predicate to arguments (concrete values or variables).
 
         Args:
-            *args: Concrete argument values. The number of arguments determines
-                  the arity. For unary predicates, typically a single integer
-                  index (e.g., 0, 1, 2). For n-ary predicates, multiple args.
+            *args: Arguments can be:
+                  - Concrete values (int): e.g., Digit(0), Digit(1)
+                  - FOL variables: e.g., Digit(X) where X = Variable("X")
+                  - Mixed: e.g., P(X, 5, Y)
+                  The number of arguments determines the arity.
 
         Returns:
             PredicateApplication AST node that can be used in logical
             expressions with SymPy operators.
 
         Example:
+            >>> # Concrete arguments
             >>> Digit = Symbol("Digit")
-            >>> app = Digit(0)  # Unary application (arity 1)
-            >>> isinstance(app, PredicateApplication)
-            True
+            >>> app = Digit(0)  # Unary application with constant
             >>>
-            >>> # Use in expressions
-            >>> expr = sp.Or(Digit(0), Digit(1), Digit(2))
+            >>> # Variable arguments (FOL)
+            >>> from pysignet.fol import Variable
+            >>> X = Variable("X")
+            >>> app = Digit(X)  # Unary application with variable
             >>>
-            >>> # Future: n-ary predicates
+            >>> # Mixed arguments
+            >>> app = Digit(X, 5)  # Binary with variable and constant
+            >>>
+            >>> # N-ary predicates
             >>> Rel = Symbol("Rel")
-            >>> expr = Rel(0, 1)  # Binary application (arity 2)
+            >>> X, Y = Variable("X Y")
+            >>> expr = Rel(X, Y)  # Binary application (arity 2)
 
         Note:
             The compiler validates that each predicate is used with consistent
@@ -139,8 +156,9 @@ class PredicateApplication(Boolean):
     """AST node representing application of predicate to arguments.
 
     PredicateApplication represents the application of a PredicateSymbol
-    to concrete argument values. For example, Digit(0) creates a
-    PredicateApplication with predicate_name="Digit" and args=(0,).
+    to arguments (concrete values or FOL variables). For example, Digit(0)
+    creates a PredicateApplication with predicate_name="Digit" and args=(0,),
+    while Digit(X) creates one with args=(X,) where X is a Variable.
 
     The arity is determined by the number of arguments provided.
 
@@ -148,29 +166,43 @@ class PredicateApplication(Boolean):
     SymPy's logical operators (And, Or, Not, Implies, Equivalent).
 
     Example:
+        >>> # Concrete arguments
         >>> Digit = Symbol("Digit")
-        >>> app0 = Digit(0)  # Unary (arity 1)
-        >>> app1 = Digit(1)  # Unary (arity 1)
+        >>> app0 = Digit(0)  # Unary (arity 1) with constant
+        >>> app1 = Digit(1)  # Unary (arity 1) with constant
+        >>>
+        >>> # FOL variables
+        >>> from pysignet.fol import Variable
+        >>> X = Variable("X")
+        >>> app_var = Digit(X)  # Unary (arity 1) with variable
+        >>>
+        >>> # Mixed arguments
+        >>> app_mixed = Digit(X, 5)  # Binary (arity 2) mixed
         >>>
         >>> # Use with SymPy operators
-        >>> expr = sp.And(app0, app1)
+        >>> expr = sp.And(app0, app_var)
         >>> expr = sp.Or(app0, sp.Not(app1))
-        >>> expr = sp.Implies(app0, app1)
+        >>> expr = sp.Implies(app_var, app1)
         >>>
-        >>> # Future: n-ary predicates
+        >>> # N-ary predicates
         >>> Rel = Symbol("Rel")
-        >>> app = Rel(0, 1)  # Binary (arity 2)
+        >>> X, Y = Variable("X Y")
+        >>> app = Rel(X, Y)  # Binary (arity 2)
 
     Args:
         predicate_name: Name of the predicate being applied.
-        args: Tuple of concrete argument values.
+        args: Tuple of argument values (constants or variables).
 
     Attributes:
         predicate_name: Name of the predicate.
         application_args: Tuple of argument values (arity determined by length).
     """
 
-    def __new__(cls, predicate_name: str, args: Tuple[int, ...]) -> "PredicateApplication":
+    def __new__(
+        cls,
+        predicate_name: str,
+        args: Tuple[Union[int, "VariableSymbol"], ...],
+    ) -> "PredicateApplication":
         """Create a new PredicateApplication instance.
 
         SymPy's Boolean uses __new__ instead of __init__.
