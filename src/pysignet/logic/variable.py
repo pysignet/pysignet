@@ -22,6 +22,11 @@ class VariableSymbol(sp.Symbol):
     def __new__(cls, name: str):
         """Create a new VariableSymbol.
 
+        We use __new__ instead of __init__ because sp.Symbol is immutable
+        and uses __new__ for construction. We pass the name directly to
+        the parent's __new__ without setting any attributes afterward,
+        which preserves immutability.
+
         Args:
             name: The name of the variable (e.g., "X", "Y", "Z")
 

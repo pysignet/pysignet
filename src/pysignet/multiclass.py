@@ -104,8 +104,10 @@ class PredicateSymbol(sp.Symbol):
         >>> loss = compiled.loss(x)  # Only ONE forward pass for Digit!
 
     Note:
-        This is SymPy's Symbol with added __call__ support. Since sp.Symbol
-        uses __new__ (immutable), we don't override __init__.
+        This is SymPy's Symbol with added __call__ support. We don't override
+        __new__ or __init__ because sp.Symbol is immutable and handles all
+        initialization. We only add the __call__ method for creating
+        PredicateApplication instances.
     """
 
     def __call__(
@@ -198,26 +200,19 @@ class PredicateApplication(Boolean):
         application_args: Tuple of argument values (arity determined by length).
     """
 
-    def __new__(
-        cls,
+    def __init__(
+        self,
         predicate_name: str,
         args: Tuple[Union[int, "VariableSymbol"], ...],
-    ) -> "PredicateApplication":
-        """Create a new PredicateApplication instance.
-
-        SymPy's Boolean uses __new__ instead of __init__.
+    ) -> None:
+        """Initialize a new PredicateApplication instance.
 
         Args:
             predicate_name: Name of the predicate being applied.
             args: Tuple of concrete argument values.
-
-        Returns:
-            New PredicateApplication instance.
         """
-        obj = Boolean.__new__(cls)
-        obj.predicate_name = predicate_name
-        obj.application_args = args
-        return obj
+        self.predicate_name = predicate_name
+        self.application_args = args
 
     @property
     def args(self) -> Tuple:
