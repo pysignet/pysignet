@@ -8,7 +8,7 @@ import pytest
 import sympy as sp
 
 from pysignet import Symbol
-from pysignet.fol import Variable
+from pysignet.logic import Variable
 from pysignet.multiclass import PredicateApplication
 
 

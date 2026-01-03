@@ -28,7 +28,7 @@ def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
 
     Examples:
         >>> from pysignet import Symbol
-        >>> from pysignet.fol import Variable, extract_variables
+        >>> from pysignet.logic import Variable, extract_variables
         >>> import sympy as sp
         >>>
         >>> # Single variable

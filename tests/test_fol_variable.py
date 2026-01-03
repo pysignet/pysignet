@@ -13,7 +13,7 @@ class TestVariableCreation:
 
     def test_single_variable_creation(self):
         """Test creating a single variable."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
 
@@ -26,7 +26,7 @@ class TestVariableCreation:
 
     def test_multiple_variables_from_string(self):
         """Test creating multiple variables from space-separated string."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X, Y, Z = Variable("X Y Z")
 
@@ -42,7 +42,7 @@ class TestVariableCreation:
 
     def test_two_variables_from_string(self):
         """Test creating two variables."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X, Y = Variable("X Y")
 
@@ -51,7 +51,7 @@ class TestVariableCreation:
 
     def test_single_variable_returns_variable_not_tuple(self):
         """Test that single variable doesn't return a tuple."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
 
@@ -61,7 +61,7 @@ class TestVariableCreation:
 
     def test_variable_name_with_underscore(self):
         """Test variable names with underscores."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X_1, Y_2 = Variable("X_1 Y_2")
 
@@ -74,7 +74,7 @@ class TestVariableEquality:
 
     def test_variables_with_same_name_are_equal(self):
         """Test that variables with the same name are equal."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X1 = Variable("X")
         X2 = Variable("X")
@@ -83,7 +83,7 @@ class TestVariableEquality:
 
     def test_variables_with_different_names_not_equal(self):
         """Test that variables with different names are not equal."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
         Y = Variable("Y")
@@ -92,7 +92,7 @@ class TestVariableEquality:
 
     def test_variable_equality_from_same_call(self):
         """Test equality of variables from same creation call."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X1, Y1 = Variable("X Y")
         X2, Y2 = Variable("X Y")
@@ -103,7 +103,7 @@ class TestVariableEquality:
 
     def test_variable_hashing(self):
         """Test that variables can be hashed (for use in sets/dicts)."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
         Y = Variable("Y")
@@ -123,7 +123,7 @@ class TestVariableSymPyIntegration:
 
     def test_variable_in_sympy_expression(self):
         """Test that variables work in SymPy expressions."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X, Y = Variable("X Y")
 
@@ -135,7 +135,7 @@ class TestVariableSymPyIntegration:
 
     def test_variable_with_sympy_or(self):
         """Test variable with SymPy Or."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X, Y, Z = Variable("X Y Z")
 
@@ -144,7 +144,7 @@ class TestVariableSymPyIntegration:
 
     def test_variable_with_sympy_not(self):
         """Test variable with SymPy Not."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
 
@@ -153,7 +153,7 @@ class TestVariableSymPyIntegration:
 
     def test_variable_substitution(self):
         """Test that variables can be substituted in SymPy expressions."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X, Y = Variable("X Y")
 
@@ -170,14 +170,14 @@ class TestVariableRepr:
 
     def test_variable_str(self):
         """Test str() representation."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
         assert str(X) == "X"
 
     def test_variable_repr(self):
         """Test repr() representation."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("X")
         # SymPy symbols have repr same as str
@@ -189,28 +189,28 @@ class TestVariableEdgeCases:
 
     def test_empty_string_raises_error(self):
         """Test that empty string raises an error."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         with pytest.raises((ValueError, IndexError)):
             Variable("")
 
     def test_whitespace_only_raises_error(self):
         """Test that whitespace-only string raises an error."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         with pytest.raises((ValueError, IndexError)):
             Variable("   ")
 
     def test_single_name_many_spaces(self):
         """Test single variable name with extra spaces."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X = Variable("  X  ")
         assert str(X) == "X"
 
     def test_multiple_names_extra_spaces(self):
         """Test multiple variable names with extra spaces."""
-        from pysignet.fol import Variable
+        from pysignet.logic import Variable
 
         X, Y = Variable("  X   Y  ")
         assert str(X) == "X"

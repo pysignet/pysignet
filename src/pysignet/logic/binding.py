@@ -23,7 +23,7 @@ class Binding:
                   If not provided, creates an empty binding.
 
     Examples:
-        >>> from pysignet.fol import Variable, Binding
+        >>> from pysignet.logic import Variable, Binding
         >>> X, Y = Variable("X Y")
         >>>
         >>> # Create binding
@@ -136,7 +136,7 @@ def ground(
 
     Examples:
         >>> from pysignet import Symbol
-        >>> from pysignet.fol import Variable, Binding, ground
+        >>> from pysignet.logic import Variable, Binding, ground
         >>> import sympy as sp
         >>>
         >>> # Single predicate application

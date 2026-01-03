@@ -8,12 +8,12 @@ Usage:
     >>> P, Q, Digit = Symbol("P Q Digit")
     >>> expr = sp.And(P, Digit(0))  # P is nullary, Digit is unary
 
-    >>> # With FOL variables
-    >>> from pysignet.fol import Variable
+    >>> # With logic variables
+    >>> from pysignet.logic import Variable
     >>> X = Variable("X")
     >>> expr = Digit(X)  # Predicate application with variable
 
-This is the foundation for full first-order logic (FOL) support.
+This is the foundation for full first-order logic support.
 """
 
 from typing import Tuple, Any, Union, TYPE_CHECKING
@@ -22,7 +22,7 @@ import sympy as sp
 from sympy.logic.boolalg import Boolean
 
 if TYPE_CHECKING:
-    from .fol.variable import VariableSymbol
+    from .logic.variable import VariableSymbol
 
 
 def Symbol(names: str) -> Union["PredicateSymbol", Tuple["PredicateSymbol", ...]]:
@@ -119,7 +119,7 @@ class PredicateSymbol(sp.Symbol):
         Args:
             *args: Arguments can be:
                   - Concrete values (int): e.g., Digit(0), Digit(1)
-                  - FOL variables: e.g., Digit(X) where X = Variable("X")
+                  - Logic variables: e.g., Digit(X) where X = Variable("X")
                   - Mixed: e.g., P(X, 5, Y)
                   The number of arguments determines the arity.
 
@@ -132,8 +132,8 @@ class PredicateSymbol(sp.Symbol):
             >>> Digit = Symbol("Digit")
             >>> app = Digit(0)  # Unary application with constant
             >>>
-            >>> # Variable arguments (FOL)
-            >>> from pysignet.fol import Variable
+            >>> # Variable arguments
+            >>> from pysignet.logic import Variable
             >>> X = Variable("X")
             >>> app = Digit(X)  # Unary application with variable
             >>>
@@ -156,7 +156,7 @@ class PredicateApplication(Boolean):
     """AST node representing application of predicate to arguments.
 
     PredicateApplication represents the application of a PredicateSymbol
-    to arguments (concrete values or FOL variables). For example, Digit(0)
+    to arguments (concrete values or logic variables). For example, Digit(0)
     creates a PredicateApplication with predicate_name="Digit" and args=(0,),
     while Digit(X) creates one with args=(X,) where X is a Variable.
 
@@ -171,8 +171,8 @@ class PredicateApplication(Boolean):
         >>> app0 = Digit(0)  # Unary (arity 1) with constant
         >>> app1 = Digit(1)  # Unary (arity 1) with constant
         >>>
-        >>> # FOL variables
-        >>> from pysignet.fol import Variable
+        >>> # Logic variables
+        >>> from pysignet.logic import Variable
         >>> X = Variable("X")
         >>> app_var = Digit(X)  # Unary (arity 1) with variable
         >>>

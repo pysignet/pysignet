@@ -10,7 +10,7 @@ from ..predicate import Predicate
 from ..tnorms import TNorm, RProductTNorm
 from ..context import EvaluationContext
 from ..multiclass import PredicateApplication
-from ..fol import extract_variables, Binding, ground
+from ..logic import extract_variables, Binding, ground
 
 
 class TNormCompiler(LogicCompiler):

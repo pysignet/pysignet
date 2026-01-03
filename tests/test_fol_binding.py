@@ -9,7 +9,7 @@ import torch
 import sympy as sp
 
 from pysignet import Symbol
-from pysignet.fol import Variable, Binding, ground
+from pysignet.logic import Variable, Binding, ground
 from pysignet.multiclass import PredicateApplication
 
 

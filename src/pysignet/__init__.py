@@ -38,8 +38,8 @@ from .api import compile_logic
 from .multiclass import Symbol, PredicateSymbol, PredicateApplication
 from .context import EvaluationContext
 
-# FOL (First-Order Logic)
-from .fol import Variable, extract_variables, Binding, ground
+# Logic (First-Order Logic)
+from .logic import Variable, extract_variables, Binding, ground
 
 # Other exports
 from .consistency import ConsistencyChecker
@@ -57,7 +57,7 @@ __all__ = [
     "PredicateSymbol",
     "PredicateApplication",
     "EvaluationContext",
-    # FOL
+    # Logic
     "Variable",
     "extract_variables",
     "Binding",

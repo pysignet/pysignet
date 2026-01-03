@@ -8,7 +8,7 @@ import pytest
 import sympy as sp
 
 from pysignet import Symbol
-from pysignet.fol import Variable, extract_variables
+from pysignet.logic import Variable, extract_variables
 from pysignet.multiclass import PredicateApplication
 
 
@@ -245,7 +245,7 @@ class TestReturnType:
 
     def test_set_contains_variable_symbols(self):
         """Test that set contains VariableSymbol instances."""
-        from pysignet.fol.variable import VariableSymbol
+        from pysignet.logic.variable import VariableSymbol
 
         Digit = Symbol("Digit")
         X, Y = Variable("X Y")
