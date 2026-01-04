@@ -1,9 +1,11 @@
 """Linear Threshold Unit (LTU) based logic compilation strategy."""
 
 from typing import Callable, Dict, Union
+import warnings
 
 import sympy as sp
 import torch
+
 
 from .base import LogicCompiler
 from ..predicate import Predicate
@@ -24,6 +26,9 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     Args:
         mode: 'soft' (sigmoid, differentiable) or 'hard' (sign, non-differentiable)
               Default: 'soft'
+        alpha: Multiplier for sigmoid if mode = 'soft'. Default: 1.0
+              When alpha is large, the sigmoids become closer to thresholds
+              and have larger gradients around zero.
 
     Example:
         >>> compiler = LinearThresholdUnitCompiler(mode='soft')
@@ -31,21 +36,31 @@ class LinearThresholdUnitCompiler(LogicCompiler):
         >>> satisfaction = compiled(x)  # Returns tensor in [0, 1]
     """
 
-    def __init__(self, mode: str = 'soft') -> None:
+    # Configurable limit for multiplier to the sigmoid
+    WARN_ALPHA = 10.0
+
+    def __init__(self, mode: str = "soft", alpha: float = 1.0) -> None:
         """Initialize LinearThresholdUnitCompiler.
 
         Args:
             mode: 'soft' for sigmoid (differentiable) or 'hard' for sign
                   (non-differentiable). Default: 'soft'
+            alpha: Multiplier for sigmoid if mode = 'soft'. Default: 1.0
+                  When alpha is large, the sigmoids become closer to thresholds
+                  and have larger gradients around zero. Ignored when mode = "hard"
 
         Raises:
             ValueError: If mode is not 'soft' or 'hard'
         """
-        if mode not in ('soft', 'hard'):
-            raise ValueError(
-                f"mode must be 'soft' or 'hard', got '{mode}'"
+        if mode not in ("soft", "hard"):
+            raise ValueError(f"mode must be 'soft' or 'hard', got '{mode}'")
+        if mode == "soft" and alpha > self.WARN_ALPHA:
+            warnings.warn(
+                f"Parameter alpha = {alpha} is too large and may lead "
+                f"to unreliable gradients. Consider using smaller alpha."
             )
         self.mode = mode
+        self.alpha = alpha
 
     def compile(
         self,
@@ -143,10 +158,9 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             n = len(literals)
             threshold = n - 0.5
 
-            if self.mode == 'soft':
-                # Soft: sigmoid(k * (sum - threshold))
-                # Use k=10 for steepness
-                return torch.sigmoid(10.0 * (summed - threshold))
+            if self.mode == "soft":
+                # Soft: sigmoid(alpha * (sum - threshold))
+                return torch.sigmoid(self.alpha * (summed - threshold))
             else:
                 # Hard: sign(sum - threshold)
                 return ((summed - threshold) >= 0).float()
@@ -165,9 +179,9 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             # Threshold at 0.5
             threshold = 0.5
 
-            if self.mode == 'soft':
-                # Soft: sigmoid(k * (sum - threshold))
-                return torch.sigmoid(10.0 * (summed - threshold))
+            if self.mode == "soft":
+                # Soft: sigmoid(alpha * (sum - threshold))
+                return torch.sigmoid(self.alpha * (summed - threshold))
             else:
                 # Hard: sign(sum - threshold)
                 return ((summed - threshold) >= 0).float()
