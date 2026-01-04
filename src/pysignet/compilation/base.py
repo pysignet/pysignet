@@ -1,12 +1,18 @@
 """Base class for logic compilation strategies."""
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, Set
+import inspect
+import warnings
 
 import sympy as sp
 import torch
 
 from ..predicate import Predicate
+from ..multiclass import PredicateApplication
+from ..logic import extract_variables, extract_variables_from_application
+from ..logic.quantifier import Quantifier
+from ..logic.expansion import expand_quantifier
 
 
 class LogicCompiler(ABC):
@@ -19,7 +25,15 @@ class LogicCompiler(ABC):
 
     The compiled callable can be used directly or wrapped in a LogicLoss for
     loss computation.
+
+    Class Attributes:
+        MAX_DOMAIN_SIZE: Maximum allowed domain size for quantifiers (default: 1000)
+        WARN_DOMAIN_SIZE: Domain size threshold for warnings (default: 100)
     """
+
+    # Configurable domain size limits for quantifier expansion
+    MAX_DOMAIN_SIZE = 1000
+    WARN_DOMAIN_SIZE = 100
 
     @abstractmethod
     def compile(
@@ -41,3 +55,519 @@ class LogicCompiler(ABC):
             ValueError: If symbols in expr have no corresponding predicates
         """
         pass
+
+    def _wrap_and_validate_predicates(
+        self,
+        expr: sp.Basic,
+        predicates: Dict[str, Predicate]
+    ) -> Dict[str, Predicate]:
+        """Wrap, validate, and prepare predicates for compilation.
+
+        This method:
+        1. Auto-wraps raw callables in Predicate objects
+        2. Assigns names to predicates
+        3. Validates no predicate reuse with different names
+        4. Expands quantifiers
+        5. Extracts and validates symbols
+        6. Validates predicate usage consistency
+        7. Validates predicate arity
+
+        Args:
+            expr: SymPy expression to compile
+            predicates: Dict mapping predicate names to callables or Predicates
+
+        Returns:
+            Dict of wrapped and validated Predicate objects
+
+        Raises:
+            ValueError: If validation fails
+            TypeError: If predicate values are not callable
+        """
+        # Auto-wrap raw callables in Predicate objects
+        wrapped_predicates: Dict[str, Predicate] = {}
+        for key, value in predicates.items():
+            if isinstance(value, Predicate):
+                wrapped_predicates[key] = value
+            elif callable(value):
+                wrapped_predicates[key] = Predicate(value)
+            else:
+                raise TypeError(
+                    f"Predicate '{key}' must be callable (function, lambda, "
+                    f"nn.Module) or a Predicate instance, got {type(value).__name__}"
+                )
+
+        # Assign names and validate no reuse
+        for key, pred in wrapped_predicates.items():
+            if pred.name is not None and pred.name != key:
+                raise ValueError(
+                    f"Predicate already has name '{pred.name}' but is being "
+                    f"registered with different key '{key}'. Each Predicate "
+                    f"instance can only be used with one name. Create a new "
+                    f"Predicate instance if you need the same function with a "
+                    f"different name."
+                )
+            pred.name = key
+
+        # Expand quantifiers BEFORE symbol extraction
+        expanded_expr = self._expand_quantifiers(expr)
+
+        # Verify all symbols have corresponding predicates
+        symbols = self._extract_predicate_symbols(expanded_expr)
+        missing = symbols - set(wrapped_predicates.keys())
+        if missing:
+            raise ValueError(f"Missing predicates for symbols: {missing}")
+
+        # Validate predicate usage consistency
+        self._validate_predicate_usage(expanded_expr)
+
+        # Validate predicate arity
+        self._validate_predicate_arity(expanded_expr, wrapped_predicates)
+
+        return wrapped_predicates
+
+    def _expand_quantifiers(self, expr: sp.Basic) -> sp.Basic:
+        """Recursively expand all quantifiers in the expression.
+
+        Expands ForAll and Exists quantifiers into conjunctions and
+        disjunctions over their domains. Includes safeguards for large domains.
+
+        Args:
+            expr: Expression potentially containing quantifiers
+
+        Returns:
+            Expression with all quantifiers expanded
+
+        Raises:
+            ValueError: If domain size exceeds MAX_DOMAIN_SIZE
+        """
+        def _expand_recursive(node: sp.Basic) -> sp.Basic:
+            """Recursively expand quantifiers in the expression tree."""
+            if isinstance(node, Quantifier):
+                # Check domain size
+                domain_list = list(node.domain)
+                domain_size = len(domain_list)
+
+                if domain_size > self.MAX_DOMAIN_SIZE:
+                    raise ValueError(
+                        f"Domain too large ({domain_size} elements) in "
+                        f"{node.__class__.__name__}. Domain quantification is "
+                        f"intended for small symbolic sets (class labels, "
+                        f"discrete choices). Maximum allowed: {self.MAX_DOMAIN_SIZE}. "
+                        f"Consider restructuring your constraint or sampling "
+                        f"from the domain."
+                    )
+                elif domain_size > self.WARN_DOMAIN_SIZE:
+                    warnings.warn(
+                        f"Large domain ({domain_size} elements) in "
+                        f"{node.__class__.__name__} may impact performance. "
+                        f"Consider using smaller domains or restructuring.",
+                        UserWarning
+                    )
+
+                # Expand this quantifier
+                expanded = expand_quantifier(node)
+                # Recursively expand any nested quantifiers
+                return _expand_recursive(expanded)
+
+            # Recursive case: traverse children
+            if hasattr(node, 'args') and node.args:
+                expanded_children = [_expand_recursive(child) for child in node.args]
+                return node.func(*expanded_children)
+
+            # Leaf node
+            return node
+
+        return _expand_recursive(expr)
+
+    def _extract_predicate_symbols(self, expr: sp.Basic) -> Set[str]:
+        """Extract all predicate symbols from a SymPy expression.
+
+        Handles both regular SymPy symbols and PredicateApplication nodes.
+
+        Args:
+            expr: SymPy expression to analyze
+
+        Returns:
+            Set of symbol names (strings)
+        """
+        if isinstance(expr, sp.Symbol):
+            return {str(expr)}
+
+        if isinstance(expr, PredicateApplication):
+            return {expr.predicate_name}
+
+        symbols: Set[str] = set()
+        for arg in expr.args:
+            symbols.update(self._extract_predicate_symbols(arg))
+        return symbols
+
+    def _validate_predicate_usage(self, expr: sp.Basic) -> None:
+        """Validate that predicates are used with consistent arity.
+
+        Ensures each predicate appears with the same arity throughout.
+
+        Args:
+            expr: SymPy expression to validate
+
+        Raises:
+            ValueError: If any predicate is used with inconsistent arity
+        """
+        predicate_arities: Dict[str, int] = {}
+
+        def collect_usage(e: sp.Basic) -> None:
+            """Recursively collect predicate usage."""
+            if isinstance(e, sp.Symbol):
+                # Nullary (arity 0)
+                if not isinstance(e, PredicateApplication):
+                    name = str(e)
+                    if name in predicate_arities:
+                        if predicate_arities[name] != 0:
+                            raise ValueError(
+                                f"Predicate '{name}' used inconsistently: "
+                                f"found both arity 0 (nullary: {name}) and arity "
+                                f"{predicate_arities[name]} (n-ary: {name}(...)) "
+                                f"in the same expression."
+                            )
+                    else:
+                        predicate_arities[name] = 0
+
+            elif isinstance(e, PredicateApplication):
+                # N-ary (arity > 0)
+                name = e.predicate_name
+                arity = len(e.application_args)
+
+                if name in predicate_arities:
+                    if predicate_arities[name] != arity:
+                        raise ValueError(
+                            f"Predicate '{name}' used inconsistently: "
+                            f"found both arity {predicate_arities[name]} and "
+                            f"arity {arity} in the same expression."
+                        )
+                else:
+                    predicate_arities[name] = arity
+
+            # Recurse into subexpressions
+            for arg in getattr(e, 'args', []):
+                collect_usage(arg)
+
+        collect_usage(expr)
+
+    def _validate_predicate_arity(
+        self,
+        expr: sp.Basic,
+        predicates: Dict[str, Predicate]
+    ) -> None:
+        """Validate that predicate callables accept correct number of arguments.
+
+        For PredicateApplications with mixed variable/constant arguments,
+        validates that the callable accepts as many arguments as there are
+        distinct free variables.
+
+        Args:
+            expr: SymPy expression to validate
+            predicates: Dict of predicates to check
+
+        Raises:
+            ValueError: If any predicate has incorrect arity
+        """
+        def check_arity(e: sp.Basic) -> None:
+            """Recursively check arity for all PredicateApplications."""
+            if isinstance(e, PredicateApplication):
+                pred_name = e.predicate_name
+                predicate = predicates[pred_name]
+
+                # Extract distinct free variables
+                free_vars = extract_variables_from_application(e)
+                expected_arity = len(free_vars)
+
+                # Get callable signature
+                func = predicate.func
+                try:
+                    # Skip validation for nn.Module instances
+                    if isinstance(func, torch.nn.Module):
+                        pass
+                    else:
+                        # Regular callable
+                        sig = inspect.signature(func)
+
+                        # Count parameters
+                        params = [
+                            p for p in sig.parameters.values()
+                            if p.kind in (
+                                inspect.Parameter.POSITIONAL_ONLY,
+                                inspect.Parameter.POSITIONAL_OR_KEYWORD
+                            )
+                        ]
+
+                        # For bound methods, exclude 'self'
+                        if inspect.ismethod(func):
+                            params = params[1:]
+
+                        actual_arity = len(params)
+
+                        if actual_arity != expected_arity:
+                            var_names = ", ".join(str(v) for v in sorted(
+                                free_vars, key=str
+                            ))
+                            raise ValueError(
+                                f"Predicate '{pred_name}' arity mismatch: "
+                                f"application {e} has {expected_arity} free "
+                                f"variable(s) ({var_names}) but callable accepts "
+                                f"{actual_arity} argument(s). Callable signature "
+                                f"must match number of distinct free variables."
+                            )
+                except (ValueError, TypeError) as err:
+                    # Re-raise ValueError as-is
+                    if isinstance(err, ValueError):
+                        raise
+                    # For other cases, skip validation
+                    pass
+
+            # Recurse into subexpressions
+            for arg in getattr(e, 'args', []):
+                check_arity(arg)
+
+        check_arity(expr)
+
+    def _parse_predicate_application(
+        self,
+        app: PredicateApplication
+    ) -> tuple:
+        """Parse PredicateApplication into free variables and constants.
+
+        Extracts and deduplicates free variables, preserving order of first
+        appearance. Collects constants separately.
+
+        Args:
+            app: PredicateApplication to parse
+
+        Returns:
+            Tuple of (free_vars, constants) where:
+            - free_vars: List of unique VariableSymbol in order of first appearance
+            - constants: List of constant values (integers)
+
+        Example:
+            >>> P(X1, X2, 0, X1, 1)  # X1 appears twice
+            >>> _parse_predicate_application(app)
+            ([X1, X2], [0, 1])
+        """
+        from ..logic.variable import VariableSymbol
+
+        # Use dict to preserve order while deduplicating
+        free_vars_dict: Dict[str, 'VariableSymbol'] = {}
+        constants: list = []
+
+        for arg in app.application_args:
+            if isinstance(arg, VariableSymbol):
+                var_name = str(arg)
+                if var_name not in free_vars_dict:
+                    free_vars_dict[var_name] = arg
+            else:
+                # Constant argument
+                constants.append(arg)
+
+        free_vars = list(free_vars_dict.values())
+        return free_vars, constants
+
+    def _evaluate_predicate_application(
+        self,
+        app: PredicateApplication,
+        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        predicates: Dict[str, Predicate],
+        ctx
+    ) -> torch.Tensor:
+        """Evaluate PredicateApplication with mixed variable/constant arguments.
+
+        This method is completely compiler-agnostic and handles:
+        - Extracting free variables and constants
+        - Routing to appropriate handler based on variable count
+        - Backwards compatibility for old API (Digit(0) with tensor)
+        - Output channel selection for constants
+        - Caching via EvaluationContext
+
+        Args:
+            app: PredicateApplication to evaluate
+            inputs: Single tensor or dict of tensors
+            predicates: Dict of predicates
+            ctx: EvaluationContext for caching
+
+        Returns:
+            Tensor of shape (batch_size,) with values in [0, 1]
+        """
+        from ..logic.variable import VariableSymbol
+
+        pred_name = app.predicate_name
+        func = predicates[pred_name].func
+
+        # Parse application into free vars and constants
+        free_vars, constants = self._parse_predicate_application(app)
+
+        # Route based on number of free variables
+        if len(free_vars) == 0:
+            # No free variables
+            # Backwards compatibility: if constants and single tensor input,
+            # call model with input and select outputs
+            if len(constants) > 0 and not isinstance(inputs, dict):
+                # Old multi-class API: Digit(0) with tensor input
+                cache_key = (id(func), id(inputs))
+                full_output = ctx.get_or_compute(
+                    cache_key,
+                    lambda: func(inputs)
+                )
+
+                # Select output channels based on constants
+                result = full_output
+                for const in constants:
+                    if result.dim() == 1:
+                        break
+                    elif result.dim() == 2:
+                        result = result[:, const]
+                    else:
+                        result = result.select(dim=1, index=const)
+                return result
+            else:
+                # True nullary predicate
+                cache_key = (id(func), "nullary")
+                result = ctx.get_or_compute(cache_key, lambda: func())
+
+                # Convert to tensor if needed
+                if not isinstance(result, torch.Tensor):
+                    result = torch.tensor(result)
+
+                # Handle constants as output indices if present
+                if len(constants) > 0 and result.dim() > 0:
+                    for const in constants:
+                        if result.dim() == 0:
+                            break
+                        result = (result[const] if result.dim() == 1
+                                 else result[:, const])
+
+                return result
+
+        elif len(free_vars) == 1:
+            # Single free variable
+            var = free_vars[0]
+            var_name = str(var)
+
+            # Get input for this variable
+            if isinstance(inputs, dict):
+                if var_name not in inputs:
+                    raise ValueError(
+                        f"Missing input for variable '{var_name}'. "
+                        f"Expected key in input dict."
+                    )
+                var_input = inputs[var_name]
+            else:
+                # Single tensor input - use directly (convenience)
+                var_input = inputs
+
+            # Call predicate with single argument
+            cache_key = (id(func), id(var_input))
+            full_output = ctx.get_or_compute(
+                cache_key,
+                lambda: func(var_input)
+            )
+
+        else:
+            # Multiple free variables
+            # Must have dict inputs
+            if not isinstance(inputs, dict):
+                var_names = ", ".join(str(v) for v in free_vars)
+                raise ValueError(
+                    f"Predicate '{pred_name}' has multiple free variables "
+                    f"({var_names}) but received non-dict input. "
+                    f"Expected dict with keys for each variable."
+                )
+
+            # Extract inputs for each variable (in order of appearance)
+            var_inputs = []
+            for var in free_vars:
+                var_name = str(var)
+                if var_name not in inputs:
+                    raise ValueError(
+                        f"Missing input for variable '{var_name}'. "
+                        f"Expected key in input dict."
+                    )
+                var_inputs.append(inputs[var_name])
+
+            # Create cache key from function and input identities
+            cache_key = (id(func), tuple(id(inp) for inp in var_inputs))
+
+            # Call predicate with multiple arguments
+            full_output = ctx.get_or_compute(
+                cache_key,
+                lambda: func(*var_inputs)
+            )
+
+        # Handle constants as output indices
+        if len(constants) > 0:
+            # Multi-output predicate - select specific output channel(s)
+            result = full_output
+            for const in constants:
+                if result.dim() == 1:
+                    # Already a batch of scalars, can't index further
+                    break
+                elif result.dim() == 2:
+                    # Shape: (batch, num_outputs)
+                    # Select column for this constant
+                    result = result[:, const]
+                else:
+                    # Higher dimensional - index first non-batch dimension
+                    result = result.select(dim=1, index=const)
+            return result
+        else:
+            # No constants - return full output
+            # Squeeze if output is (batch, 1) instead of (batch,)
+            if full_output.dim() == 2 and full_output.shape[1] == 1:
+                return full_output.squeeze(-1)
+            return full_output
+
+    def _evaluate_symbol(
+        self,
+        symbol: sp.Symbol,
+        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        predicates: Dict[str, Predicate],
+        ctx
+    ) -> torch.Tensor:
+        """Evaluate nullary predicate symbol.
+
+        Args:
+            symbol: SymPy symbol representing nullary predicate
+            inputs: Single tensor or dict of tensors
+            predicates: Dict of predicates
+            ctx: EvaluationContext for caching
+
+        Returns:
+            Tensor of shape (batch_size,) with values in [0, 1]
+        """
+        pred_name = str(symbol)
+        predicate = predicates[pred_name]
+        return predicate(inputs)
+
+    def _evaluate_boolean_constant(
+        self,
+        const: sp.Basic,
+        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
+    ) -> torch.Tensor:
+        """Evaluate boolean constant (sp.true or sp.false).
+
+        Args:
+            const: sp.true or sp.false
+            inputs: Single tensor or dict of tensors (to determine batch size)
+
+        Returns:
+            Tensor of ones (true) or zeros (false) with shape (batch_size,)
+        """
+        # Determine batch size from inputs
+        if isinstance(inputs, dict):
+            sample_input = next(iter(inputs.values()))
+        else:
+            sample_input = inputs
+        batch_size = sample_input.shape[0]
+
+        if const == sp.true:
+            return torch.ones(batch_size, device=sample_input.device)
+        elif const == sp.false:
+            return torch.zeros(batch_size, device=sample_input.device)
+        else:
+            raise ValueError(f"Expected sp.true or sp.false, got {const}")

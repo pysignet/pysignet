@@ -77,3 +77,43 @@ def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
 
     _traverse(expr)
     return variables
+
+
+def extract_variables_from_application(
+    app: PredicateApplication
+) -> Set[VariableSymbol]:
+    """Extract free variables from a single PredicateApplication.
+
+    Args:
+        app: A PredicateApplication instance.
+
+    Returns:
+        Set of unique VariableSymbol instances in the application's arguments.
+
+    Examples:
+        >>> from pysignet import Symbol
+        >>> from pysignet.logic import Variable
+        >>>
+        >>> P = Symbol("P")
+        >>> X, Y = Variable("X Y")
+        >>>
+        >>> # Two variables
+        >>> app = P(X, Y, 0)
+        >>> vars = extract_variables_from_application(app)
+        >>> # vars = {X, Y}
+        >>>
+        >>> # One variable, multiple occurrences
+        >>> app = P(X, 0, X)
+        >>> vars = extract_variables_from_application(app)
+        >>> # vars = {X}
+        >>>
+        >>> # No variables
+        >>> app = P(0, 1, 2)
+        >>> vars = extract_variables_from_application(app)
+        >>> # vars = set()
+    """
+    variables: Set[VariableSymbol] = set()
+    for arg in app.application_args:
+        if isinstance(arg, VariableSymbol):
+            variables.add(arg)
+    return variables

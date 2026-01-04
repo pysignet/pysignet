@@ -5,7 +5,7 @@ quantifiers, and binding.
 """
 
 from .variable import Variable
-from .extraction import extract_variables
+from .extraction import extract_variables, extract_variables_from_application
 from .binding import Binding, ground
 from .quantifier import ForAll, Exists
 from .expansion import expand_quantifier
@@ -13,6 +13,7 @@ from .expansion import expand_quantifier
 __all__ = [
     "Variable",
     "extract_variables",
+    "extract_variables_from_application",
     "Binding",
     "ground",
     "ForAll",

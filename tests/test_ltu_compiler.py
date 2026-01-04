@@ -1,0 +1,335 @@
+"""Tests for LinearThresholdUnitCompiler.
+
+This module tests the LTU-based compilation strategy, which represents
+logical operations as linear threshold units.
+"""
+
+import pytest
+import torch
+import torch.nn as nn
+import sympy as sp
+
+from pysignet import Symbol, Variable, compile_logic
+from pysignet.compilation import LinearThresholdUnitCompiler
+
+
+class TestBasicOperations:
+    """Tests for basic logical operations using LTU compiler."""
+
+    def test_simple_conjunction_soft(self):
+        """Test AND operation with soft mode (sigmoid)."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P, Q)
+
+        # Fixed values for testing
+        p_model = lambda x: torch.full((x.shape[0],), 0.8)
+        q_model = lambda x: torch.full((x.shape[0],), 0.9)
+
+        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(4, 5)
+        result = compiled(x)
+
+        assert result.shape == (4,)
+        # With sigmoid threshold, high values should give high output
+        assert torch.all(result > 0.5)
+
+    def test_simple_disjunction_soft(self):
+        """Test OR operation with soft mode."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.Or(P, Q)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.1)
+        q_model = lambda x: torch.full((x.shape[0],), 0.2)
+
+        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(3, 5)
+        result = compiled(x)
+
+        assert result.shape == (3,)
+        # Sum is 0.3, threshold is 0.5, so should be < 0.5
+        assert torch.all(result < 0.5)
+
+    def test_negation(self):
+        """Test NOT operation."""
+        P = Symbol("P")
+
+        expr = sp.Not(P)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.7)
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"P": p_model})
+
+        x = torch.randn(2, 5)
+        result = compiled(x)
+
+        # 1 - 0.7 = 0.3
+        assert torch.allclose(result, torch.full((2,), 0.3))
+
+    def test_hard_mode_conjunction(self):
+        """Test AND with hard mode (step function)."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P, Q)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.8)
+        q_model = lambda x: torch.full((x.shape[0],), 0.9)
+
+        compiler = LinearThresholdUnitCompiler(mode='hard')
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(3, 5)
+        result = compiled(x)
+
+        # Sum is 1.7, threshold is 1.5, so output is 1.0
+        assert torch.allclose(result, torch.ones(3))
+
+    def test_hard_mode_disjunction(self):
+        """Test OR with hard mode."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.Or(P, Q)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.2)
+        q_model = lambda x: torch.full((x.shape[0],), 0.1)
+
+        compiler = LinearThresholdUnitCompiler(mode='hard')
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(3, 5)
+        result = compiled(x)
+
+        # Sum is 0.3, threshold is 0.5, so output is 0.0
+        assert torch.allclose(result, torch.zeros(3))
+
+
+class TestImplicationAndEquivalence:
+    """Tests for implication and equivalence."""
+
+    def test_implication(self):
+        """Test L => R compiles as (NOT L) OR R."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.Implies(P, Q)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.3)
+        q_model = lambda x: torch.full((x.shape[0],), 0.8)
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(2, 5)
+        result = compiled(x)
+
+        # (NOT 0.3) OR 0.8 = 0.7 OR 0.8
+        # Sum is 1.5, threshold is 0.5, so sigmoid(10*(1.5-0.5)) ~ 1.0
+        assert torch.all(result > 0.9)
+
+    def test_equivalence(self):
+        """Test L <=> R compiles as (L => R) AND (R => L)."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.Equivalent(P, Q)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.6)
+        q_model = lambda x: torch.full((x.shape[0],), 0.6)
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(2, 5)
+        result = compiled(x)
+
+        assert result.shape == (2,)
+        # Both implications should be satisfied
+        assert torch.all(result > 0.5)
+
+
+class TestWithVariables:
+    """Tests for expressions with FOL variables."""
+
+    def test_simple_variable_expression(self):
+        """Test expression with one variable."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        expr = P(X)
+
+        p_model = lambda x: torch.sigmoid(x.sum(dim=-1))
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"P": p_model})
+
+        x = torch.randn(4, 5)
+        result = compiled(x)
+
+        assert result.shape == (4,)
+        assert torch.all((result >= 0) & (result <= 1))
+
+    def test_two_variables_different_predicates(self):
+        """Test expression with two variables."""
+        X, Y = Variable("X Y")
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(X), Q(Y))
+
+        p_model = lambda x: torch.sigmoid(x.sum(dim=-1))
+        q_model = lambda y: torch.sigmoid(y.sum(dim=-1))
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(3, 5)
+        y = torch.randn(3, 4)
+        result = compiled({"X": x, "Y": y})
+
+        assert result.shape == (3,)
+
+
+class TestQuantifiers:
+    """Tests for quantifier expansion."""
+
+    def test_forall_expansion(self):
+        """Test ForAll quantifier expands to conjunction."""
+        from pysignet.logic import ForAll
+
+        X, Y = Variable("X Y")
+        Digit = Symbol("Digit")
+
+        expr = ForAll(Y, [0, 1, 2], Digit(X, Y))
+
+        model = nn.Sequential(nn.Linear(5, 10), nn.Softmax(dim=-1))
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"Digit": model})
+
+        x = torch.randn(3, 5)
+        result = compiled({"X": x})
+
+        assert result.shape == (3,)
+
+    def test_exists_expansion(self):
+        """Test Exists quantifier expands to disjunction."""
+        from pysignet.logic import Exists
+
+        X, Y = Variable("X Y")
+        Digit = Symbol("Digit")
+
+        expr = Exists(Y, [0, 1], Digit(X, Y))
+
+        model = nn.Sequential(nn.Linear(5, 10), nn.Softmax(dim=-1))
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"Digit": model})
+
+        x = torch.randn(4, 5)
+        result = compiled({"X": x})
+
+        assert result.shape == (4,)
+
+
+class TestGradientFlow:
+    """Tests for gradient flow (soft mode only)."""
+
+    def test_gradients_flow_soft_mode(self):
+        """Test gradients flow in soft mode."""
+        P = Symbol("P")
+
+        expr = sp.Not(P)
+
+        model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
+
+        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiled_fn = compiler.compile(expr, {"P": model})
+
+        # Wrap in LogicLoss for loss computation
+        from pysignet import LogicLoss
+        logic_loss = LogicLoss(compiled_fn, predicates={"P": model})
+
+        x = torch.randn(3, 5)
+        loss = logic_loss.loss(x)
+
+        loss.backward()
+
+        # Check gradients exist
+        for param in model.parameters():
+            assert param.grad is not None
+            assert not torch.isnan(param.grad).any()
+
+    def test_hard_mode_not_differentiable(self):
+        """Test that hard mode uses non-differentiable operations."""
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P, Q)
+
+        # Use requires_grad to test differentiability
+        p_model = lambda x: torch.full(
+            (x.shape[0],), 0.8, requires_grad=True
+        )
+        q_model = lambda x: torch.full(
+            (x.shape[0],), 0.9, requires_grad=True
+        )
+
+        compiler = LinearThresholdUnitCompiler(mode='hard')
+        compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
+
+        x = torch.randn(2, 5)
+        result = compiled(x)
+
+        # Result uses step function, so no grad_fn
+        assert result.grad_fn is None
+
+
+class TestEdgeCases:
+    """Tests for edge cases."""
+
+    def test_invalid_mode_raises_error(self):
+        """Test that invalid mode raises ValueError."""
+        with pytest.raises(ValueError, match="mode must be"):
+            LinearThresholdUnitCompiler(mode='invalid')
+
+    def test_boolean_constants(self):
+        """Test boolean constants work correctly."""
+        P = Symbol("P")
+
+        expr = sp.And(P, sp.true)
+
+        p_model = lambda x: torch.full((x.shape[0],), 0.7)
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(expr, {"P": p_model})
+
+        x = torch.randn(3, 5)
+        result = compiled(x)
+
+        # P AND TRUE should be high (sum 1.7, threshold 1.5)
+        assert torch.all(result > 0.5)
+
+    def test_multiple_disjuncts(self):
+        """Test disjunction with many terms."""
+        P1, P2, P3, P4 = Symbol("P1 P2 P3 P4")
+
+        expr = sp.Or(P1, P2, P3, P4)
+
+        p1_model = lambda x: torch.full((x.shape[0],), 0.1)
+        p2_model = lambda x: torch.full((x.shape[0],), 0.1)
+        p3_model = lambda x: torch.full((x.shape[0],), 0.1)
+        p4_model = lambda x: torch.full((x.shape[0],), 0.1)
+
+        compiler = LinearThresholdUnitCompiler()
+        compiled = compiler.compile(
+            expr,
+            {"P1": p1_model, "P2": p2_model, "P3": p3_model, "P4": p4_model}
+        )
+
+        x = torch.randn(2, 5)
+        result = compiled(x)
+
+        # Sum is 0.4, threshold is 0.5, so output < 0.5
+        assert torch.all(result < 0.5)

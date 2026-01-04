@@ -23,8 +23,8 @@ class TestBasicFOLCompilation:
         # Digit(X) - "for all X in batch, Digit(X)"
         expr = Digit(X)
 
-        # Digit classifier with 10 outputs
-        digit_model = lambda x: torch.softmax(torch.randn(x.shape[0], 10), dim=-1)
+        # Digit classifier - returns scalar satisfaction per batch element
+        digit_model = lambda x: torch.sigmoid(x.sum(dim=-1))
 
         logic_loss = compile_logic(expr, {"Digit": digit_model})
 
@@ -44,7 +44,7 @@ class TestBasicFOLCompilation:
         # Digit(X) ∧ Digit(Y) - should quantify over all X, Y pairs
         expr = sp.And(Digit(X), Digit(Y))
 
-        digit_model = lambda x: torch.softmax(torch.randn(x.shape[0], 10), dim=-1)
+        digit_model = lambda x: torch.sigmoid(x.sum(dim=-1))
 
         logic_loss = compile_logic(expr, {"Digit": digit_model})
 
@@ -108,17 +108,16 @@ class TestFOLBatchQuantification:
 
         expr = Rel(X, Y)
 
-        # Rel outputs different values for different batch indices
-        def rel_model(x):
-            batch_size = x.shape[0]
-            # Create matrix of satisfactions
-            # For testing: return tensor where value depends on batch index
-            return torch.arange(batch_size, dtype=torch.float32) / batch_size
+        # Binary predicate - accepts two arguments
+        def rel_model(x, y):
+            # Simple relation: satisfaction based on x and y
+            return torch.sigmoid(x.sum(dim=-1) + y.sum(dim=-1))
 
         logic_loss = compile_logic(expr, {"Rel": rel_model})
 
         x = torch.randn(3, 5)
-        result = logic_loss(x)
+        y = torch.randn(3, 4)
+        result = logic_loss({"X": x, "Y": y})
 
         assert result.shape == (3,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -128,13 +127,14 @@ class TestFOLMixedExpressions:
     """Test expressions mixing FOL variables with constants."""
 
     def test_mixed_variable_and_constant(self):
-        """Test expression with both variables and constants."""
+        """Test expression with variable and multi-class constant."""
         Digit = Symbol("Digit")
         X = Variable("X")
 
-        # Digit(X) ∧ Digit(0) - variable and constant
-        expr = sp.And(Digit(X), Digit(0))
+        # Digit(X, 0) - X is variable, 0 is class index
+        expr = Digit(X, 0)
 
+        # Multi-class digit classifier
         digit_model = lambda x: torch.softmax(torch.randn(x.shape[0], 10), dim=-1)
 
         logic_loss = compile_logic(expr, {"Digit": digit_model})
@@ -211,13 +211,12 @@ class TestFOLComplexExpressions:
         result = logic_loss(x)
 
         assert result.shape == (3,)
-        # ∀X: (P(X) ∨ Q(X)) is conjunction of ORs
+        # P(X) ∨ Q(X) for each batch element
         # Each OR gives ~0.58 (0.3 + 0.4 - 0.3*0.4 for product t-norm)
-        # Then we AND those together, which should give smaller value
         assert torch.all((result >= 0) & (result <= 1))
-        # The result should be less than a single OR since we're ANDing multiple ORs
+        # Result should be close to the OR value for each batch element
         single_or = 0.3 + 0.4 - 0.3 * 0.4  # Product t-norm OR
-        assert torch.all(result <= single_or)
+        assert torch.allclose(result, torch.full((3,), single_or), atol=1e-5)
 
 
 class TestFOLGradients:
@@ -316,11 +315,12 @@ class TestFOLWithDictInputs:
 
         expr = P(X)
 
-        p_model = lambda inputs: torch.sigmoid(torch.randn(inputs["data"].shape[0]))
+        p_model = lambda x: torch.sigmoid(x.sum(dim=-1))
 
         logic_loss = compile_logic(expr, {"P": p_model})
 
-        inputs = {"data": torch.randn(5, 10)}
+        # Dict input with variable name as key
+        inputs = {"X": torch.randn(5, 10)}
         result = logic_loss(inputs)
 
         assert result.shape == (5,)
