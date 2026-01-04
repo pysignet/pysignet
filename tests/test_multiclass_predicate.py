@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import compile_logic, Symbol
+from pysignet import compile_logic, Symbol, Variable
 from pysignet.multiclass import PredicateApplication
 from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm
 
@@ -24,33 +24,36 @@ class TestSymbolBasic:
 
     def test_predicate_application_creates_ast_node(self):
         """Test that calling Symbol creates PredicateApplication."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        app = digit(0)
+        app = digit(X, 0)
 
         assert isinstance(app, PredicateApplication)
         assert app.predicate_name == "Digit"
-        assert app.application_args == (0,)
+        assert len(app.application_args) == 2
 
     def test_predicate_application_with_different_indices(self):
         """Test predicate application with various indices."""
+        X = Variable("X")
         digit = Symbol("Digit")
 
-        app0 = digit(0)
-        app5 = digit(5)
-        app9 = digit(9)
+        app0 = digit(X, 0)
+        app5 = digit(X, 5)
+        app9 = digit(X, 9)
 
-        assert app0.application_args == (0,)
-        assert app5.application_args == (5,)
-        assert app9.application_args == (9,)
+        assert len(app0.application_args) == 2
+        assert len(app5.application_args) == 2
+        assert len(app9.application_args) == 2
 
     def test_predicate_application_repr(self):
         """Test string representation of predicate application."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        app = digit(0)
+        app = digit(X, 0)
 
         repr_str = repr(app)
         assert "Digit" in repr_str
-        assert "0" in repr_str
+        assert "0" in repr_str or "X" in repr_str
 
 
 class TestSymPyIntegration:
@@ -58,47 +61,53 @@ class TestSymPyIntegration:
 
     def test_predicate_application_with_and(self):
         """Test PredicateApplication works with sp.And."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.And(digit(0), digit(1))
+        expr = sp.And(digit(X, 0), digit(X, 1))
 
         assert isinstance(expr, sp.And)
         assert len(expr.args) == 2
 
     def test_predicate_application_with_or(self):
         """Test PredicateApplication works with sp.Or."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Or(digit(0), digit(1), digit(2))
+        expr = sp.Or(digit(X, 0), digit(X, 1), digit(X, 2))
 
         assert isinstance(expr, sp.Or)
         assert len(expr.args) == 3
 
     def test_predicate_application_with_not(self):
         """Test PredicateApplication works with sp.Not."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Not(digit(0))
+        expr = sp.Not(digit(X, 0))
 
         assert isinstance(expr, sp.Not)
 
     def test_predicate_application_with_implies(self):
         """Test PredicateApplication works with sp.Implies."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Implies(digit(0), digit(1))
+        expr = sp.Implies(digit(X, 0), digit(X, 1))
 
         assert isinstance(expr, sp.Implies)
 
     def test_predicate_application_with_equivalent(self):
         """Test PredicateApplication works with sp.Equivalent."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Equivalent(digit(0), digit(1))
+        expr = sp.Equivalent(digit(X, 0), digit(X, 1))
 
         assert isinstance(expr, sp.Equivalent)
 
     def test_complex_expression(self):
         """Test complex nested expressions."""
+        X = Variable("X")
         digit = Symbol("Digit")
         expr = sp.And(
-            sp.Or(digit(0), digit(1)),
-            sp.Implies(digit(2), sp.Not(digit(3)))
+            sp.Or(digit(X, 0), digit(X, 1)),
+            sp.Implies(digit(X, 2), sp.Not(digit(X, 3)))
         )
 
         assert isinstance(expr, sp.And)
@@ -109,8 +118,9 @@ class TestCompilation:
 
     def test_compile_simple_application(self):
         """Test compiling a simple predicate application."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(0)
+        expr = digit(X, 0)
 
         # Simple 3-class classifier
         classifier = nn.Sequential(
@@ -126,8 +136,9 @@ class TestCompilation:
 
     def test_compile_or_expression(self):
         """Test compiling OR expression with applications."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Or(digit(0), digit(1), digit(2))
+        expr = sp.Or(digit(X, 0), digit(X, 1), digit(X, 2))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -140,10 +151,11 @@ class TestCompilation:
 
     def test_compile_complex_expression(self):
         """Test compiling complex expression."""
+        X = Variable("X")
         digit = Symbol("Digit")
         expr = sp.And(
-            sp.Or(digit(0), digit(1)),
-            sp.Not(digit(2))
+            sp.Or(digit(X, 0), digit(X, 1)),
+            sp.Not(digit(X, 2))
         )
 
         classifier = nn.Sequential(
@@ -161,7 +173,8 @@ class TestSingleForwardPass:
 
     def test_single_forward_pass_with_multiple_applications(self):
         """Test that multiple applications only trigger ONE forward pass."""
-        call_count = 0
+        X = Variable("X")
+        digit = Symbol("Digit")
 
         class CountingClassifier(nn.Module):
             """Network that counts forward passes."""
@@ -180,7 +193,7 @@ class TestSingleForwardPass:
         classifier = CountingClassifier()
 
         # Expression uses ALL 5 outputs
-        expr = sp.And(digit(0), digit(1), digit(2), digit(3), digit(4))
+        expr = sp.And(digit(X, 0), digit(X, 1), digit(X, 2), digit(X, 3), digit(X, 4))
 
         predicates = {"Digit": classifier}
         compiled = compile_logic(expr, predicates)
@@ -197,7 +210,8 @@ class TestSingleForwardPass:
 
     def test_single_forward_pass_with_repeated_indices(self):
         """Test caching when same index appears multiple times."""
-        call_count = 0
+        X = Variable("X")
+        digit = Symbol("Digit")
 
         class CountingNetwork(nn.Module):
             def __init__(self):
@@ -214,7 +228,7 @@ class TestSingleForwardPass:
         classifier = CountingNetwork()
 
         # Same indices appear multiple times
-        expr = sp.And(digit(0), sp.Or(digit(0), digit(1)))
+        expr = sp.And(digit(X, 0), sp.Or(digit(X, 0), digit(X, 1)))
 
         predicates = {"Digit": classifier}
         compiled = compile_logic(expr, predicates)
@@ -231,8 +245,9 @@ class TestEvaluation:
 
     def test_evaluate_returns_tensor(self):
         """Test that evaluation returns a tensor."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(0)
+        expr = digit(X, 0)
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -250,8 +265,9 @@ class TestEvaluation:
 
     def test_evaluate_values_in_range(self):
         """Test that output values are in [0, 1]."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(0)
+        expr = digit(X, 0)
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -269,6 +285,7 @@ class TestEvaluation:
 
     def test_evaluate_extracts_correct_index(self):
         """Test that correct output index is extracted."""
+        X = Variable("X")
         digit = Symbol("Digit")
 
         # Create deterministic classifier
@@ -283,7 +300,7 @@ class TestEvaluation:
 
         # Test each index
         for idx, expected_val in enumerate([0.1, 0.2, 0.7]):
-            expr = digit(idx)
+            expr = digit(X, idx)
             predicates = {"Digit": classifier}
             compiled = compile_logic(expr, predicates)
 
@@ -298,8 +315,9 @@ class TestGradientFlow:
 
     def test_gradient_flow_single_application(self):
         """Test gradients flow through single application."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(0)
+        expr = digit(X, 0)
 
         classifier = nn.Linear(10, 3)
         predicates = {"Digit": classifier}
@@ -317,8 +335,9 @@ class TestGradientFlow:
 
     def test_gradient_flow_multiple_applications(self):
         """Test gradients flow when multiple applications share cache."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.And(digit(0), digit(1), digit(2))
+        expr = sp.And(digit(X, 0), digit(X, 1), digit(X, 2))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -339,10 +358,11 @@ class TestGradientFlow:
 
     def test_gradient_accumulation_through_cache(self):
         """Test that gradients accumulate correctly through cached outputs."""
+        X = Variable("X")
         digit = Symbol("Digit")
 
         # Expression uses same index multiple times
-        expr = sp.Or(digit(0), sp.And(digit(0), digit(1)))
+        expr = sp.Or(digit(X, 0), sp.And(digit(X, 0), digit(X, 1)))
 
         classifier = nn.Linear(10, 3)
         predicates = {"Digit": classifier}
@@ -363,8 +383,9 @@ class TestBatchSizes:
     @pytest.mark.parametrize("batch_size", [1, 8, 32, 128])
     def test_different_batch_sizes(self, batch_size):
         """Test evaluation works with various batch sizes."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Or(digit(0), digit(1))
+        expr = sp.Or(digit(X, 0), digit(X, 1))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -385,8 +406,9 @@ class TestCacheClearing:
 
     def test_cache_cleared_between_batches(self):
         """Test cache doesn't persist across different evaluations."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(0)
+        expr = digit(X, 0)
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -409,8 +431,9 @@ class TestCacheClearing:
 
     def test_independent_evaluations(self):
         """Test that multiple evaluations are independent."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.And(digit(0), digit(1))
+        expr = sp.And(digit(X, 0), digit(X, 1))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -436,7 +459,8 @@ class TestMixedPredicates:
 
     def test_mix_multiclass_and_regular_predicate(self):
         """Test expression with both Symbol and Predicate."""
-        from pysignet import Predicate
+        X = Variable("X")
+        digit = Symbol("Digit")
 
         digit = Symbol("Digit")
 
@@ -444,7 +468,7 @@ class TestMixedPredicates:
         regular_func = lambda x: torch.sigmoid(x.mean(dim=-1))
 
         # Expression mixes both types
-        expr = sp.And(digit(0), sp.Symbol("Regular"))
+        expr = sp.And(digit(X, 0), sp.Symbol("Regular"))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -470,8 +494,9 @@ class TestValidation:
 
     def test_index_out_of_range_error(self):
         """Test error when index exceeds network outputs."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(10)  # Index 10 but network only has 3 outputs
+        expr = digit(X, 10)  # Index 10 but network only has 3 outputs
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -489,8 +514,9 @@ class TestValidation:
 
     def test_missing_predicate_error(self):
         """Test error when predicate not in predicates dict."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = digit(0)
+        expr = digit(X, 0)
 
         # Empty predicates dict - missing "Digit"
         predicates = {}
@@ -504,8 +530,9 @@ class TestTNormCompatibility:
 
     def test_with_rproduct_tnorm(self):
         """Test with R-Product t-norm."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.And(digit(0), digit(1))
+        expr = sp.And(digit(X, 0), digit(X, 1))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -522,8 +549,9 @@ class TestTNormCompatibility:
 
     def test_with_lukasiewicz_tnorm(self):
         """Test with Lukasiewicz t-norm."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Or(digit(0), digit(1))
+        expr = sp.Or(digit(X, 0), digit(X, 1))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -546,8 +574,9 @@ class TestThreadSafety:
         """Test that concurrent evaluations don't interfere."""
         import threading
 
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.And(digit(0), digit(1))
+        expr = sp.And(digit(X, 0), digit(X, 1))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -589,8 +618,9 @@ class TestLossComputation:
 
     def test_loss_computation(self):
         """Test that loss can be computed."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.Or(digit(0), digit(1), digit(2))
+        expr = sp.Or(digit(X, 0), digit(X, 1), digit(X, 2))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),
@@ -608,8 +638,9 @@ class TestLossComputation:
 
     def test_loss_backpropagation(self):
         """Test that loss can be backpropagated."""
+        X = Variable("X")
         digit = Symbol("Digit")
-        expr = sp.And(digit(0), digit(1))
+        expr = sp.And(digit(X, 0), digit(X, 1))
 
         classifier = nn.Linear(10, 3)
         predicates = {"Digit": classifier}

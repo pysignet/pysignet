@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, Variable, compile_logic
 
 
 class TestSymbolAPI:
@@ -41,11 +41,13 @@ class TestSymbolAPI:
         assert len(expr.args) == 2
 
     def test_unary_usage_multiclass_predicates(self):
-        """Test using symbols as unary (multi-class predicates)."""
+        """Test using symbols with FOL variables and constants."""
         Digit = Symbol("Digit")
+        X = Variable("X")
 
-        # Used with arguments (unary)
-        expr = sp.Or(Digit(0), Digit(1), Digit(2))
+        # FOL interface: Digit(X, 0), Digit(X, 1), Digit(X, 2)
+        # X is variable, 0/1/2 are output channel constants
+        expr = sp.Or(Digit(X, 0), Digit(X, 1), Digit(X, 2))
 
         assert isinstance(expr, sp.Or)
         assert len(expr.args) == 3
@@ -53,11 +55,12 @@ class TestSymbolAPI:
     def test_mixed_nullary_and_unary(self):
         """Test mixing binary and multi-class predicates in same expression."""
         P, Q, Digit = Symbol("P Q Digit")
+        X = Variable("X")
 
-        # P and Q are nullary, Digit is unary
+        # P and Q are nullary, Digit uses FOL interface
         expr = sp.And(
             P,
-            sp.Or(Q, Digit(0))
+            sp.Or(Q, Digit(X, 0))
         )
 
         # Should compile without error
@@ -98,11 +101,12 @@ class TestSymbolAPI:
             compile_logic(expr, predicates)
 
     def test_validation_rejects_multiclass_without_args(self):
-        """Test validation when unary predicate also used without args."""
+        """Test validation when predicate used with different arities."""
         Digit = Symbol("Digit")
+        X = Variable("X")
 
-        # Digit used WITH args and WITHOUT args - INVALID!
-        expr = sp.And(Digit(0), Digit)
+        # Digit used WITH variable (arity 1) and WITHOUT args (arity 0) - INVALID!
+        expr = sp.And(Digit(X, 0), Digit)
 
         predicates = {
             "Digit": nn.Linear(10, 5)
@@ -132,13 +136,14 @@ class TestSymbolAPIUsagePatterns:
     """Test realistic usage patterns with Symbol API."""
 
     def test_mnist_10class_example(self):
-        """Test 10-class MNIST example."""
+        """Test 10-class MNIST example with FOL interface."""
         Digit = Symbol("Digit")
+        X = Variable("X")
 
-        # One-hot constraint: exactly one digit
+        # One-hot constraint using FOL interface: Digit(X, 0) OR ... OR Digit(X, 9)
         expr = sp.Or(
-            Digit(0), Digit(1), Digit(2), Digit(3), Digit(4),
-            Digit(5), Digit(6), Digit(7), Digit(8), Digit(9)
+            Digit(X, 0), Digit(X, 1), Digit(X, 2), Digit(X, 3), Digit(X, 4),
+            Digit(X, 5), Digit(X, 6), Digit(X, 7), Digit(X, 8), Digit(X, 9)
         )
 
         # Map to classifier
@@ -160,14 +165,15 @@ class TestSymbolAPIUsagePatterns:
 
     def test_mixed_binary_and_multiclass(self):
         """Test realistic mixing of binary and multi-class predicates."""
+        X = Variable("X")
         IsAdult, HasLicense, VehicleType = Symbol("IsAdult HasLicense VehicleType")
 
         # IsAdult and HasLicense are binary (nullary)
-        # VehicleType is multi-class (unary): 0=car, 1=motorcycle, 2=truck
+        # VehicleType is multi-class: 0=car, 1=motorcycle, 2=truck
 
         # Rule: Can drive car (type 0) if adult AND has license
         expr = sp.Implies(
-            VehicleType(0),
+            VehicleType(X, 0),
             sp.And(IsAdult, HasLicense)
         )
 
@@ -209,6 +215,7 @@ class TestSymbolAPIUsagePatterns:
 
     def test_all_multiclass_predicates(self):
         """Test all-multiclass case."""
+        X = Variable("X")
         Color, Shape = Symbol("Color Shape")
 
         # Color: 0=red, 1=green, 2=blue
@@ -216,8 +223,8 @@ class TestSymbolAPIUsagePatterns:
 
         # Red circles or green squares
         expr = sp.Or(
-            sp.And(Color(0), Shape(0)),
-            sp.And(Color(1), Shape(1))
+            sp.And(Color(X, 0), Shape(X, 0)),
+            sp.And(Color(X, 1), Shape(X, 1))
         )
 
         predicates = {

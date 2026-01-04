@@ -386,8 +386,8 @@ class TestRealWorldUsage:
 
         cache_key = (id(classifier), id(inputs))
 
-        # Simulate expression: AND(Digit(0), Digit(1), Digit(2))
-        # All three should share the same computation
+        # Simulate expression: AND(Digit(X,0), Digit(X,1), Digit(X,2))
+        # All three should share the same computation (same input X)
         full_output = ctx.get_or_compute(cache_key, evaluate_classifier)
         digit_0 = full_output[:, 0]
 

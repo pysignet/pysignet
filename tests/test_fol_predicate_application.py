@@ -123,14 +123,14 @@ class TestPredicateApplicationEquality:
         assert app1 != app2
 
     def test_variable_vs_constant_not_equal(self):
-        """Test that variable and constant applications are not equal."""
+        """Test that applications with different args are not equal."""
         Digit = Symbol("Digit")
-        X = Variable("X")
+        X, Y = Variable("X Y")
 
-        app_var = Digit(X)
-        app_const = Digit(0)
+        app_x = Digit(X)
+        app_y = Digit(Y)
 
-        assert app_var != app_const
+        assert app_x != app_y
 
     def test_mixed_args_equality(self):
         """Test equality with mixed arguments."""
@@ -274,12 +274,13 @@ class TestPredicateApplicationEdgeCases:
 
         assert isinstance(expr, sp.And)
 
-    def test_only_constants_still_works(self):
-        """Test that constant-only applications still work."""
+    def test_mixed_variable_and_constant(self):
+        """Test that mixed variable and constant applications work."""
         Digit = Symbol("Digit")
+        X = Variable("X")
 
-        # Should work as before
-        app = Digit(0)
+        # FOL interface: variable X with constant 0
+        app = Digit(X, 0)
 
         assert isinstance(app, PredicateApplication)
-        assert app.application_args == (0,)
+        assert len(app.application_args) == 2

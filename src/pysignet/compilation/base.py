@@ -404,45 +404,23 @@ class LogicCompiler(ABC):
 
         # Route based on number of free variables
         if len(free_vars) == 0:
-            # No free variables
-            # Backwards compatibility: if constants and single tensor input,
-            # call model with input and select outputs
-            if len(constants) > 0 and not isinstance(inputs, dict):
-                # Old multi-class API: Digit(0) with tensor input
-                cache_key = (id(func), id(inputs))
-                full_output = ctx.get_or_compute(
-                    cache_key,
-                    lambda: func(inputs)
-                )
+            # No free variables - true nullary predicate
+            cache_key = (id(func), "nullary")
+            result = ctx.get_or_compute(cache_key, lambda: func())
 
-                # Select output channels based on constants
-                result = full_output
+            # Convert to tensor if needed
+            if not isinstance(result, torch.Tensor):
+                result = torch.tensor(result)
+
+            # Handle constants as output indices if present
+            if len(constants) > 0 and result.dim() > 0:
                 for const in constants:
-                    if result.dim() == 1:
+                    if result.dim() == 0:
                         break
-                    elif result.dim() == 2:
-                        result = result[:, const]
-                    else:
-                        result = result.select(dim=1, index=const)
-                return result
-            else:
-                # True nullary predicate
-                cache_key = (id(func), "nullary")
-                result = ctx.get_or_compute(cache_key, lambda: func())
+                    result = (result[const] if result.dim() == 1
+                             else result[:, const])
 
-                # Convert to tensor if needed
-                if not isinstance(result, torch.Tensor):
-                    result = torch.tensor(result)
-
-                # Handle constants as output indices if present
-                if len(constants) > 0 and result.dim() > 0:
-                    for const in constants:
-                        if result.dim() == 0:
-                            break
-                        result = (result[const] if result.dim() == 1
-                                 else result[:, const])
-
-                return result
+            return result
 
         elif len(free_vars) == 1:
             # Single free variable

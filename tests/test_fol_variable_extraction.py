@@ -155,10 +155,10 @@ class TestEdgeCases:
 
     def test_extract_from_constant_only_predicate(self):
         """Test extraction from predicate with only constant args."""
-        Digit = Symbol("Digit")
+        R = Symbol("R")
 
-        # Digit(0) - no variables
-        expr = Digit(0)
+        # R(0) - no variables, just constant
+        expr = R(0)
         variables = extract_variables(expr)
 
         assert len(variables) == 0
