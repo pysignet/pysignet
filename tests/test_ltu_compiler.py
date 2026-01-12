@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic
+from pysignet import Symbol, Variable, compile_logic, LogicLoss
 from pysignet.compilation import LinearThresholdUnitCompiler
 
 
@@ -18,9 +18,10 @@ class TestBasicOperations:
 
     def test_simple_conjunction_soft(self):
         """Test AND operation with soft mode (sigmoid)."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.And(P, Q)
+        expr = sp.And(P(X), Q(X))
 
         # Fixed values for testing
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
@@ -38,9 +39,10 @@ class TestBasicOperations:
 
     def test_simple_disjunction_soft(self):
         """Test OR operation with soft mode."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.Or(P, Q)
+        expr = sp.Or(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.1)
         q_model = lambda x: torch.full((x.shape[0],), 0.2)
@@ -57,9 +59,10 @@ class TestBasicOperations:
 
     def test_negation(self):
         """Test NOT operation."""
+        X = Variable("X")
         P = Symbol("P")
 
-        expr = sp.Not(P)
+        expr = sp.Not(P(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.7)
 
@@ -74,9 +77,10 @@ class TestBasicOperations:
 
     def test_hard_mode_conjunction(self):
         """Test AND with hard mode (step function)."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.And(P, Q)
+        expr = sp.And(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
         q_model = lambda x: torch.full((x.shape[0],), 0.9)
@@ -92,9 +96,10 @@ class TestBasicOperations:
 
     def test_hard_mode_disjunction(self):
         """Test OR with hard mode."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.Or(P, Q)
+        expr = sp.Or(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.2)
         q_model = lambda x: torch.full((x.shape[0],), 0.1)
@@ -114,9 +119,10 @@ class TestImplicationAndEquivalence:
 
     def test_implication(self):
         """Test L => R compiles as (NOT L) OR R."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.Implies(P, Q)
+        expr = sp.Implies(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.3)
         q_model = lambda x: torch.full((x.shape[0],), 0.8)
@@ -128,14 +134,15 @@ class TestImplicationAndEquivalence:
         result = compiled(x)
 
         # (NOT 0.3) OR 0.8 = 0.7 OR 0.8
-        # Sum is 1.5, threshold is 0.5, so sigmoid(10*(1.5-0.5)) ~ 1.0
-        assert torch.all(result > 0.9)
+        # Sum is 1.5, threshold is 0.5, so sigmoid(1.0*(1.5-0.5)) = sigmoid(1.0) = 0.7311
+        assert torch.allclose(result, torch.full((2,), 0.7311), atol=1e-4)
 
     def test_equivalence(self):
         """Test L <=> R compiles as (L => R) AND (R => L)."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.Equivalent(P, Q)
+        expr = sp.Equivalent(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.6)
         q_model = lambda x: torch.full((x.shape[0],), 0.6)
@@ -147,8 +154,10 @@ class TestImplicationAndEquivalence:
         result = compiled(x)
 
         assert result.shape == (2,)
-        # Both implications should be satisfied
-        assert torch.all(result > 0.5)
+        # (P => Q) AND (Q => P)
+        # Each implication: (NOT 0.6) OR 0.6 = 0.4 OR 0.6 -> sigmoid(0.5) = 0.6225
+        # AND of two 0.6225 values: sum=1.245, threshold=1.5 -> sigmoid(-0.255) = 0.4366
+        assert torch.allclose(result, torch.full((2,), 0.4366), atol=1e-4)
 
 
 class TestWithVariables:
@@ -239,9 +248,10 @@ class TestGradientFlow:
 
     def test_gradients_flow_soft_mode(self):
         """Test gradients flow in soft mode."""
+        X = Variable("X")
         P = Symbol("P")
 
-        expr = sp.Not(P)
+        expr = sp.Not(P(X))
 
         model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
 
@@ -249,7 +259,6 @@ class TestGradientFlow:
         compiled_fn = compiler.compile(expr, {"P": model})
 
         # Wrap in LogicLoss for loss computation
-        from pysignet import LogicLoss
         logic_loss = LogicLoss(compiled_fn, predicates={"P": model})
 
         x = torch.randn(3, 5)
@@ -264,9 +273,10 @@ class TestGradientFlow:
 
     def test_hard_mode_not_differentiable(self):
         """Test that hard mode uses non-differentiable operations."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        expr = sp.And(P, Q)
+        expr = sp.And(P(X), Q(X))
 
         # Use requires_grad to test differentiability
         p_model = lambda x: torch.full(
@@ -296,9 +306,10 @@ class TestEdgeCases:
 
     def test_boolean_constants(self):
         """Test boolean constants work correctly."""
+        X = Variable("X")
         P = Symbol("P")
 
-        expr = sp.And(P, sp.true)
+        expr = sp.And(P(X), sp.true)
 
         p_model = lambda x: torch.full((x.shape[0],), 0.7)
 
@@ -313,9 +324,10 @@ class TestEdgeCases:
 
     def test_multiple_disjuncts(self):
         """Test disjunction with many terms."""
+        X = Variable("X")
         P1, P2, P3, P4 = Symbol("P1 P2 P3 P4")
 
-        expr = sp.Or(P1, P2, P3, P4)
+        expr = sp.Or(P1(X), P2(X), P3(X), P4(X))
 
         p1_model = lambda x: torch.full((x.shape[0],), 0.1)
         p2_model = lambda x: torch.full((x.shape[0],), 0.1)

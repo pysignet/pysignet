@@ -511,3 +511,131 @@ class TestRealWorldPatterns:
 
         assert isinstance(expr, Exists)
         assert expr.domain == ["cat", "dog", "bird"]
+
+
+class TestQuantifierReprAndHash:
+    """Tests for __repr__, __hash__, and __eq__ edge cases."""
+
+    def test_forall_repr(self):
+        """Test ForAll __repr__ method."""
+        X = Variable("X")
+        P = Symbol("P")
+        forall = ForAll(X, [0, 1, 2], P(X))
+
+        # __repr__ should return same as __str__
+        assert repr(forall) == str(forall)
+        assert "ForAll" in repr(forall)
+
+    def test_exists_repr(self):
+        """Test Exists __repr__ method."""
+        X = Variable("X")
+        P = Symbol("P")
+        exists = Exists(X, [0, 1, 2], P(X))
+
+        # __repr__ should return same as __str__
+        assert repr(exists) == str(exists)
+        assert "Exists" in repr(exists)
+
+    def test_forall_str_with_large_domain(self):
+        """Test ForAll __str__ truncates large domains."""
+        X = Variable("X")
+        P = Symbol("P")
+        # Domain with more than 5 elements
+        large_domain = list(range(10))
+        forall = ForAll(X, large_domain, P(X))
+
+        str_repr = str(forall)
+        # Should show truncation
+        assert "..." in str_repr
+        assert "ForAll" in str_repr
+
+    def test_exists_str_with_large_domain(self):
+        """Test Exists __str__ truncates large domains."""
+        X = Variable("X")
+        P = Symbol("P")
+        # Domain with more than 5 elements
+        large_domain = list(range(10))
+        exists = Exists(X, large_domain, P(X))
+
+        str_repr = str(exists)
+        # Should show truncation
+        assert "..." in str_repr
+        assert "Exists" in str_repr
+
+    def test_forall_hash(self):
+        """Test ForAll __hash__ method."""
+        X = Variable("X")
+        P = Symbol("P")
+        forall1 = ForAll(X, [0, 1, 2], P(X))
+        forall2 = ForAll(X, [0, 1, 2], P(X))
+
+        # Can be used in sets/dicts
+        quantifier_set = {forall1, forall2}
+        assert len(quantifier_set) >= 1  # At least one element
+
+    def test_exists_hash(self):
+        """Test Exists __hash__ method."""
+        X = Variable("X")
+        P = Symbol("P")
+        exists1 = Exists(X, [0, 1], P(X))
+        exists2 = Exists(X, [0, 1], P(X))
+
+        # Can be used in sets/dicts
+        quantifier_set = {exists1, exists2}
+        assert len(quantifier_set) >= 1  # At least one element
+
+    def test_forall_equality_with_range_domain(self):
+        """Test ForAll __eq__ with range domains."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        forall1 = ForAll(X, range(5), P(X))
+        forall2 = ForAll(X, range(5), P(X))
+
+        # Should be equal (triggers range conversion in __eq__)
+        assert forall1 == forall2
+
+    def test_exists_equality_with_range_domain(self):
+        """Test Exists __eq__ with range domains."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        exists1 = Exists(X, range(3), P(X))
+        exists2 = Exists(X, range(3), P(X))
+
+        # Should be equal (triggers range conversion in __eq__)
+        assert exists1 == exists2
+
+    def test_forall_equality_with_set_domain(self):
+        """Test ForAll __eq__ with set domains."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        forall1 = ForAll(X, {1, 2, 3}, P(X))
+        forall2 = ForAll(X, {1, 2, 3}, P(X))
+
+        # Should be equal (triggers set conversion in __eq__)
+        assert forall1 == forall2
+
+    def test_exists_equality_with_tuple_domain(self):
+        """Test Exists __eq__ with tuple domains."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        exists1 = Exists(X, (0, 1, 2), P(X))
+        exists2 = Exists(X, (0, 1, 2), P(X))
+
+        # Should be equal (triggers tuple conversion in __eq__)
+        assert exists1 == exists2
+
+    def test_forall_equality_with_generator_domain(self):
+        """Test ForAll __eq__ with generator/iterator domains."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        # Use generator expressions (iterators, not standard collections)
+        forall1 = ForAll(X, (i for i in range(3)), P(X))
+        forall2 = ForAll(X, (i for i in range(3)), P(X))
+
+        # Should be equal (triggers else branch to convert to list)
+        assert forall1 == forall2

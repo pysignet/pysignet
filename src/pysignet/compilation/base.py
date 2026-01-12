@@ -271,14 +271,19 @@ class LogicCompiler(ABC):
             ValueError: If any predicate has incorrect arity
         """
         def check_arity(e: sp.Basic) -> None:
-            """Recursively check arity for all PredicateApplications."""
+            """Recursively check arity for PredicateApplications and Symbols."""
+            from ..logic.variable import VariableSymbol
+
             if isinstance(e, PredicateApplication):
                 pred_name = e.predicate_name
                 predicate = predicates[pred_name]
 
-                # Extract distinct free variables
+                # Count total arguments (free variables + constants)
+                # The callable must accept all arguments, not just free ones
+                expected_arity = len(e.application_args)
+
+                # Extract distinct free variables for error messages
                 free_vars = extract_variables_from_application(e)
-                expected_arity = len(free_vars)
 
                 # Get callable signature
                 func = predicate.func
@@ -308,13 +313,15 @@ class LogicCompiler(ABC):
                         if actual_arity != expected_arity:
                             var_names = ", ".join(str(v) for v in sorted(
                                 free_vars, key=str
-                            ))
+                            )) if free_vars else "none"
+                            num_constants = expected_arity - len(free_vars)
                             raise ValueError(
                                 f"Predicate '{pred_name}' arity mismatch: "
-                                f"application {e} has {expected_arity} free "
-                                f"variable(s) ({var_names}) but callable accepts "
-                                f"{actual_arity} argument(s). Callable signature "
-                                f"must match number of distinct free variables."
+                                f"application {e} has {expected_arity} argument(s) "
+                                f"({len(free_vars)} free variable(s): {var_names}, "
+                                f"{num_constants} constant(s)) but callable accepts "
+                                f"{actual_arity} argument(s). Callable signature must "
+                                f"match total number of arguments."
                             )
                 except (ValueError, TypeError) as err:
                     # Re-raise ValueError as-is
@@ -322,6 +329,61 @@ class LogicCompiler(ABC):
                         raise
                     # For other cases, skip validation
                     pass
+
+            elif isinstance(e, sp.Symbol):
+                # Check nullary predicates (Symbol used without arguments)
+                # Exclude VariableSymbol and built-in constants
+                if (not isinstance(e, VariableSymbol) and
+                    e not in (sp.true, sp.false) and
+                    str(e) in predicates):
+
+                    pred_name = str(e)
+                    predicate = predicates[pred_name]
+
+                    # Nullary predicates can accept 0 or 1 argument:
+                    # - 0 args: truly constant (lambda: torch.tensor(0.9))
+                    # - 1 arg: needs batch input (lambda x: torch.full((x.shape[0],), 0.9))
+                    # Both are valid for nullary usage
+
+                    func = predicate.func
+                    try:
+                        # Skip validation for nn.Module instances
+                        if isinstance(func, torch.nn.Module):
+                            pass
+                        else:
+                            # Regular callable
+                            sig = inspect.signature(func)
+
+                            # Count parameters
+                            params = [
+                                p for p in sig.parameters.values()
+                                if p.kind in (
+                                    inspect.Parameter.POSITIONAL_ONLY,
+                                    inspect.Parameter.POSITIONAL_OR_KEYWORD
+                                )
+                            ]
+
+                            # For bound methods, exclude 'self'
+                            if inspect.ismethod(func):
+                                params = params[1:]
+
+                            actual_arity = len(params)
+
+                            # Nullary allows 0 or 1 argument
+                            if actual_arity not in (0, 1):
+                                raise ValueError(
+                                    f"Predicate '{pred_name}' arity mismatch: "
+                                    f"nullary usage '{e}' (no arguments) requires "
+                                    f"callable with 0 or 1 argument(s) (for batch input), "
+                                    f"but callable accepts {actual_arity} argument(s). "
+                                    f"Use '{pred_name}(X, Y, ...)' for multi-argument predicates."
+                                )
+                    except (ValueError, TypeError) as err:
+                        # Re-raise ValueError as-is
+                        if isinstance(err, ValueError):
+                            raise
+                        # For other cases, skip validation
+                        pass
 
             # Recurse into subexpressions
             for arg in getattr(e, 'args', []):
@@ -397,16 +459,60 @@ class LogicCompiler(ABC):
         from ..logic.variable import VariableSymbol
 
         pred_name = app.predicate_name
-        func = predicates[pred_name].func
+        predicate = predicates[pred_name]
+        func = predicate.func
 
         # Parse application into free vars and constants
         free_vars, constants = self._parse_predicate_application(app)
 
+        # Determine how to handle constants:
+        # - nn.Module: Use constants as output indices (old behavior for multiclass)
+        # - Regular callables: Pass constants as arguments (new FOL behavior)
+        is_module = isinstance(func, torch.nn.Module)
+
+        if not is_module and len(constants) > 0:
+            # FOL semantics: Pass ALL arguments (free vars + constants) to callable
+            # Build args in the order they appear in application_args
+            from ..logic.variable import VariableSymbol
+
+            call_args = []
+            for arg in app.application_args:
+                if isinstance(arg, VariableSymbol):
+                    # Free variable - get from inputs
+                    var_name = str(arg)
+                    if isinstance(inputs, dict):
+                        if var_name not in inputs:
+                            raise ValueError(
+                                f"Missing input for variable '{var_name}'. "
+                                f"Expected key in input dict."
+                            )
+                        call_args.append(inputs[var_name])
+                    else:
+                        # Single tensor input (only valid if single free var)
+                        if len(free_vars) > 1:
+                            var_names = ", ".join(str(v) for v in free_vars)
+                            raise ValueError(
+                                f"Predicate '{pred_name}' has multiple free variables "
+                                f"({var_names}) but received non-dict input."
+                            )
+                        call_args.append(inputs)
+                else:
+                    # Constant - pass as-is
+                    call_args.append(arg)
+
+            # Call with all arguments (using predicate for clamping)
+            cache_key = (id(func), tuple(
+                id(a) if isinstance(a, torch.Tensor) else a for a in call_args
+            ))
+            result = ctx.get_or_compute(cache_key, lambda: predicate(*call_args))
+            return result
+
+        # Handle nn.Module or no-constants case (old behavior)
         # Route based on number of free variables
         if len(free_vars) == 0:
             # No free variables - true nullary predicate
             cache_key = (id(func), "nullary")
-            result = ctx.get_or_compute(cache_key, lambda: func())
+            result = ctx.get_or_compute(cache_key, lambda: predicate())
 
             # Convert to tensor if needed
             if not isinstance(result, torch.Tensor):
@@ -439,11 +545,11 @@ class LogicCompiler(ABC):
                 # Single tensor input - use directly (convenience)
                 var_input = inputs
 
-            # Call predicate with single argument
+            # Call predicate with single argument (using predicate for clamping)
             cache_key = (id(func), id(var_input))
             full_output = ctx.get_or_compute(
                 cache_key,
-                lambda: func(var_input)
+                lambda: predicate(var_input)
             )
 
         else:
@@ -471,13 +577,13 @@ class LogicCompiler(ABC):
             # Create cache key from function and input identities
             cache_key = (id(func), tuple(id(inp) for inp in var_inputs))
 
-            # Call predicate with multiple arguments
+            # Call predicate with multiple arguments (using predicate for clamping)
             full_output = ctx.get_or_compute(
                 cache_key,
-                lambda: func(*var_inputs)
+                lambda: predicate(*var_inputs)
             )
 
-        # Handle constants as output indices
+        # Handle constants as output indices (nn.Module or no FOL constants)
         if len(constants) > 0:
             # Multi-output predicate - select specific output channel(s)
             result = full_output

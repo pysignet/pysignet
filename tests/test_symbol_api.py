@@ -31,11 +31,12 @@ class TestSymbolAPI:
         assert str(Digit) == "Digit"
 
     def test_nullary_usage_binary_predicates(self):
-        """Test using symbols as nullary (binary predicates)."""
+        """Test using symbols as nullary."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
         # Used directly without arguments (nullary)
-        expr = sp.And(P, Q)
+        expr = sp.And(P(X), Q(X))
 
         assert isinstance(expr, sp.And)
         assert len(expr.args) == 2
@@ -58,24 +59,14 @@ class TestSymbolAPI:
         X = Variable("X")
 
         # P and Q are nullary, Digit uses FOL interface
-        expr = sp.And(
-            P,
-            sp.Or(Q, Digit(X, 0))
-        )
+        expr = sp.And(P(X), sp.Or(Q(X), Digit(X, 0)))
 
         # Should compile without error
         binary_model_p = lambda x: torch.sigmoid(x.mean(dim=-1))
         binary_model_q = lambda x: torch.sigmoid(x.sum(dim=-1))
-        multiclass = nn.Sequential(
-            nn.Linear(10, 3),
-            nn.Softmax(dim=-1)
-        )
+        multiclass = nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1))
 
-        predicates = {
-            "P": binary_model_p,
-            "Q": binary_model_q,
-            "Digit": multiclass
-        }
+        predicates = {"P": binary_model_p, "Q": binary_model_q, "Digit": multiclass}
 
         compiled = compile_logic(expr, predicates)
 
@@ -87,17 +78,17 @@ class TestSymbolAPI:
 
     def test_validation_rejects_inconsistent_usage(self):
         """Test that validation rejects predicate used both ways."""
+        X = Variable("X")
         P, Digit = Symbol("P Digit")
 
         # P used both as nullary AND unary - INVALID!
-        expr = sp.And(P, P(0))
+        # P(X) has 1 free var, P(0) has 0 free vars - inconsistent!
+        expr = sp.And(P(X), P(X, 0))
 
-        predicates = {
-            "P": nn.Linear(10, 3)
-        }
+        predicates = {"P": lambda x: torch.sigmoid(x)}
 
         # Should raise ValueError at compile time
-        with pytest.raises(ValueError, match="used inconsistently"):
+        with pytest.raises(ValueError, match="Predicate 'P' used inconsistently"):
             compile_logic(expr, predicates)
 
     def test_validation_rejects_multiclass_without_args(self):
@@ -106,11 +97,9 @@ class TestSymbolAPI:
         X = Variable("X")
 
         # Digit used WITH variable (arity 1) and WITHOUT args (arity 0) - INVALID!
-        expr = sp.And(Digit(X, 0), Digit)
+        expr = sp.And(Digit(X, 0), Digit(X))
 
-        predicates = {
-            "Digit": nn.Linear(10, 5)
-        }
+        predicates = {"Digit": nn.Linear(10, 5)}
 
         # Should raise ValueError
         with pytest.raises(ValueError, match="used inconsistently"):
@@ -124,13 +113,12 @@ class TestSymbolAPI:
         # This tests that we track actual arity, not just "has arguments"
         expr = sp.And(Rel(0), Rel(0, 1))
 
-        predicates = {
-            "Rel": nn.Linear(10, 3)
-        }
+        predicates = {"Rel": nn.Linear(10, 3)}
 
         # Should raise ValueError about inconsistent arity
         with pytest.raises(ValueError, match="used inconsistently"):
             compile_logic(expr, predicates)
+
 
 class TestSymbolAPIUsagePatterns:
     """Test realistic usage patterns with Symbol API."""
@@ -142,16 +130,21 @@ class TestSymbolAPIUsagePatterns:
 
         # One-hot constraint using FOL interface: Digit(X, 0) OR ... OR Digit(X, 9)
         expr = sp.Or(
-            Digit(X, 0), Digit(X, 1), Digit(X, 2), Digit(X, 3), Digit(X, 4),
-            Digit(X, 5), Digit(X, 6), Digit(X, 7), Digit(X, 8), Digit(X, 9)
+            Digit(X, 0),
+            Digit(X, 1),
+            Digit(X, 2),
+            Digit(X, 3),
+            Digit(X, 4),
+            Digit(X, 5),
+            Digit(X, 6),
+            Digit(X, 7),
+            Digit(X, 8),
+            Digit(X, 9),
         )
 
         # Map to classifier
         digit_classifier = nn.Sequential(
-            nn.Linear(784, 128),
-            nn.ReLU(),
-            nn.Linear(128, 10),
-            nn.Softmax(dim=-1)
+            nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10), nn.Softmax(dim=-1)
         )
 
         predicates = {"Digit": digit_classifier}
@@ -172,19 +165,13 @@ class TestSymbolAPIUsagePatterns:
         # VehicleType is multi-class: 0=car, 1=motorcycle, 2=truck
 
         # Rule: Can drive car (type 0) if adult AND has license
-        expr = sp.Implies(
-            VehicleType(X, 0),
-            sp.And(IsAdult, HasLicense)
-        )
+        expr = sp.Implies(VehicleType(X, 0), sp.And(IsAdult(X), HasLicense(X)))
 
         # Map to models - same dict structure!
         predicates = {
             "IsAdult": lambda x: (x[:, 0] > 18).float(),
             "HasLicense": lambda x: (x[:, 1] > 0.5).float(),
-            "VehicleType": nn.Sequential(
-                nn.Linear(10, 3),
-                nn.Softmax(dim=-1)
-            )
+            "VehicleType": nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1)),
         }
 
         compiled = compile_logic(expr, predicates)
@@ -196,14 +183,15 @@ class TestSymbolAPIUsagePatterns:
 
     def test_all_binary_predicates(self):
         """Test that all-binary case still works perfectly."""
+        X = Variable("X")
         P, Q, R = Symbol("P Q R")
 
-        expr = sp.And(P, sp.Or(Q, sp.Not(R)))
+        expr = sp.And(P(X), sp.Or(Q(X), sp.Not(R(X))))
 
         predicates = {
             "P": lambda x: torch.sigmoid(x[:, 0]),
             "Q": lambda x: torch.sigmoid(x[:, 1]),
-            "R": lambda x: torch.sigmoid(x[:, 2])
+            "R": lambda x: torch.sigmoid(x[:, 2]),
         }
 
         compiled = compile_logic(expr, predicates)
@@ -222,14 +210,11 @@ class TestSymbolAPIUsagePatterns:
         # Shape: 0=circle, 1=square, 2=triangle
 
         # Red circles or green squares
-        expr = sp.Or(
-            sp.And(Color(X, 0), Shape(X, 0)),
-            sp.And(Color(X, 1), Shape(X, 1))
-        )
+        expr = sp.Or(sp.And(Color(X, 0), Shape(X, 0)), sp.And(Color(X, 1), Shape(X, 1)))
 
         predicates = {
             "Color": nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1)),
-            "Shape": nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1))
+            "Shape": nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1)),
         }
 
         compiled = compile_logic(expr, predicates)

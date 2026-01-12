@@ -415,3 +415,36 @@ class TestRealWorldPatterns:
             for i in [0, 2, 4, 6, 8]
         ])
         assert expanded == expected
+
+
+class TestInternalHelpers:
+    """Tests for internal _substitute_variable helper function."""
+
+    def test_substitute_variable_in_nested_quantifier_shadowing(self):
+        """Variable substitution stops at quantifier that shadows the variable."""
+        from pysignet.logic.expansion import _substitute_variable
+
+        X, Y = Variable("X Y")
+        P = Symbol("P")
+
+        # Nested quantifier where inner binds X (shadows outer X)
+        inner = ForAll(X, [1, 2], P(X))  # This X is bound by ForAll
+
+        # Try to substitute X -> 5 in the ForAll expression
+        # Should NOT substitute inside because ForAll binds X
+        result = _substitute_variable(inner, X, 5)
+
+        # Result should be unchanged (ForAll blocks substitution)
+        assert result == inner
+
+    def test_substitute_variable_in_leaf(self):
+        """Variable substitution works on leaf variable."""
+        from pysignet.logic.expansion import _substitute_variable
+
+        X = Variable("X")
+
+        # Substitute X with 5 where X is a leaf
+        result = _substitute_variable(X, X, 5)
+
+        # Should return the value
+        assert result == 5

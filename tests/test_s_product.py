@@ -17,7 +17,14 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import compile_logic, Predicate, RProductTNorm, SProductTNorm
+from pysignet import (
+    Predicate,
+    RProductTNorm,
+    SProductTNorm,
+    Symbol,
+    Variable,
+    compile_logic,
+)
 
 
 def test_s_product_implication_formula() -> None:
@@ -146,16 +153,15 @@ def test_s_product_self_consistency() -> None:
     Note: S-Product may not be self-consistent for all formulas,
     but P <-> P should still evaluate to 1.
     """
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Equivalent(P, P)
+    P = Symbol("P")
+    expr = sp.Equivalent(P(X), P(X))
 
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
         predicates = {
-            "P": Predicate(
-                lambda x, val=p_value: torch.ones(x.shape[0]) * val
-            )
+            "P": Predicate(lambda x, val=p_value: torch.ones(x.shape[0]) * val)
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -168,16 +174,15 @@ def test_s_product_self_consistency() -> None:
 
 def test_s_product_implication_tautology() -> None:
     """Test S-Product satisfies P -> P = 1 for all P."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Implies(P, P)
+    P = Symbol("P")
+    expr = sp.Implies(P(X), P(X))
 
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
         predicates = {
-            "P": Predicate(
-                lambda x, val=p_value: torch.ones(x.shape[0]) * val
-            )
+            "P": Predicate(lambda x, val=p_value: torch.ones(x.shape[0]) * val)
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -214,15 +219,18 @@ def test_s_product_implication_tautology() -> None:
 def test_s_product_gradient_flow_implication() -> None:
     """Test gradients flow through S-Product implication."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate(lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -244,17 +252,19 @@ def test_s_product_gradient_flow_implication() -> None:
 def test_s_product_gradient_flow_complex() -> None:
     """Test gradients flow through complex expression with S-Product."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Implies(P, Q), sp.Implies(Q, R))
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), R(X)))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
     model_r = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
-        "R": Predicate( lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
+        "P": Predicate(lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "R": Predicate(lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -280,12 +290,15 @@ def test_s_product_gradient_flow_complex() -> None:
 def test_s_product_with_batch_dimensions() -> None:
     """Test S-Product works correctly with different batch sizes."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -302,52 +315,37 @@ def test_s_product_with_batch_dimensions() -> None:
 
 def test_s_product_implication_with_constants() -> None:
     """Test S-Product implication with boolean constants."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
+    P = Symbol("P")
 
-    predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-    }
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     x = torch.randn(5, 3)
 
     # true -> P: 1 - 1 + 1*0.7 = 0.7
-    expr_true_p = sp.Implies(sp.true, P)
-    logic_loss_true_p = compile_logic(
-        expr_true_p, predicates, tnorm=SProductTNorm()
-    )
+    expr_true_p = sp.Implies(sp.true, P(X))
+    logic_loss_true_p = compile_logic(expr_true_p, predicates, tnorm=SProductTNorm())
     satisfaction_true_p = logic_loss_true_p(x)
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
     # false -> P: 1 - 0 + 0*P = 1
-    expr_false_p = sp.Implies(sp.false, P)
-    logic_loss_false_p = compile_logic(
-        expr_false_p, predicates, tnorm=SProductTNorm()
-    )
+    expr_false_p = sp.Implies(sp.false, P(X))
+    logic_loss_false_p = compile_logic(expr_false_p, predicates, tnorm=SProductTNorm())
     satisfaction_false_p = logic_loss_false_p(x)
-    assert torch.allclose(
-        satisfaction_false_p, torch.tensor(1.0), atol=1e-5
-    )
+    assert torch.allclose(satisfaction_false_p, torch.tensor(1.0), atol=1e-5)
 
     # P -> true: 1 - 0.7 + 0.7*1 = 0.3 + 0.7 = 1.0
-    expr_p_true = sp.Implies(P, sp.true)
-    logic_loss_p_true = compile_logic(
-        expr_p_true, predicates, tnorm=SProductTNorm()
-    )
+    expr_p_true = sp.Implies(P(X), sp.true)
+    logic_loss_p_true = compile_logic(expr_p_true, predicates, tnorm=SProductTNorm())
     satisfaction_p_true = logic_loss_p_true(x)
-    assert torch.allclose(
-        satisfaction_p_true, torch.tensor(1.0), atol=1e-5
-    )
+    assert torch.allclose(satisfaction_p_true, torch.tensor(1.0), atol=1e-5)
 
     # P -> false: 1 - 0.7 + 0.7*0 = 0.3
-    expr_p_false = sp.Implies(P, sp.false)
-    logic_loss_p_false = compile_logic(
-        expr_p_false, predicates, tnorm=SProductTNorm()
-    )
+    expr_p_false = sp.Implies(P(X), sp.false)
+    logic_loss_p_false = compile_logic(expr_p_false, predicates, tnorm=SProductTNorm())
     satisfaction_p_false = logic_loss_p_false(x)
-    assert torch.allclose(
-        satisfaction_p_false, torch.tensor(0.3), atol=1e-5
-    )
+    assert torch.allclose(satisfaction_p_false, torch.tensor(0.3), atol=1e-5)
 
 
 def test_s_product_equivalent_decomposition() -> None:
@@ -355,32 +353,31 @@ def test_s_product_equivalent_decomposition() -> None:
 
     Tests: (P<->Q) = (P->Q)∧(Q->P).
     """
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
+    P, Q = Symbol("P Q")
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     x = torch.randn(10, 5)
 
     # Test P <-> Q
-    expr_equiv = sp.Equivalent(P, Q)
+    expr_equiv = sp.Equivalent(P(X), Q(X))
     logic_loss_equiv = compile_logic(expr_equiv, predicates, tnorm=SProductTNorm())
     satisfaction_equiv = logic_loss_equiv(x)
 
     # Test (P->Q) AND (Q->P)
-    expr_decomposed = sp.And(sp.Implies(P, Q), sp.Implies(Q, P))
+    expr_decomposed = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), P(X)))
     logic_loss_decomposed = compile_logic(
         expr_decomposed, predicates, tnorm=SProductTNorm()
     )
     satisfaction_decomposed = logic_loss_decomposed(x)
 
     # Should be equal
-    assert torch.allclose(
-        satisfaction_equiv, satisfaction_decomposed, atol=1e-5
-    )
+    assert torch.allclose(satisfaction_equiv, satisfaction_decomposed, atol=1e-5)
 
 
 def test_s_product_cross_entropy_equivalence() -> None:
@@ -390,20 +387,19 @@ def test_s_product_cross_entropy_equivalence() -> None:
     should behave like cross-entropy loss.
     """
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P  # Just the predicate itself
+    X, Y = Variable("X Y")
+
+    P = Symbol("P")
+
+    expr = P(X, Y)  # Just the predicate itself
 
     # Test with hard labels (0 and 1)
     for label in [0.0, 1.0]:
-        predicates = {
-            "P": Predicate(
-                lambda x, val=label: torch.ones(x.shape[0]) * val
-            )
-        }
+        predicates = {"P": Predicate(lambda x, y: torch.ones(x.shape[0]) * y)}
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(10, 5)
-        satisfaction = logic_loss(x)
+        satisfaction = logic_loss({"X": x, "Y": label})
 
         # Satisfaction should match the label
         assert torch.allclose(satisfaction, torch.tensor(label))
@@ -411,14 +407,15 @@ def test_s_product_cross_entropy_equivalence() -> None:
 
 def test_s_product_modus_ponens() -> None:
     """Test S-Product with modus ponens: (P ∧ (P → Q)) → Q."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
+    P, Q = Symbol("P Q")
     # Modus ponens: ((P AND (P -> Q)) -> Q) should have high satisfaction
-    expr = sp.Implies(sp.And(P, sp.Implies(P, Q)), Q)
+    expr = sp.Implies(sp.And(P(X), sp.Implies(P(X), Q(X))), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
@@ -432,19 +429,20 @@ def test_s_product_modus_ponens() -> None:
 
 def test_s_product_de_morgans_laws() -> None:
     """Test S-Product satisfies De Morgan's laws."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
+    P, Q = Symbol("P Q")
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     x = torch.randn(10, 5)
 
     # NOT(P AND Q) = NOT(P) OR NOT(Q)
-    expr1 = sp.Not(sp.And(P, Q))
-    expr2 = sp.Or(sp.Not(P), sp.Not(Q))
+    expr1 = sp.Not(sp.And(P(X), Q(X)))
+    expr2 = sp.Or(sp.Not(P(X)), sp.Not(Q(X)))
 
     logic_loss1 = compile_logic(expr1, predicates, tnorm=SProductTNorm())
     logic_loss2 = compile_logic(expr2, predicates, tnorm=SProductTNorm())
@@ -455,8 +453,8 @@ def test_s_product_de_morgans_laws() -> None:
     assert torch.allclose(satisfaction1, satisfaction2, atol=1e-5)
 
     # NOT(P OR Q) = NOT(P) AND NOT(Q)
-    expr3 = sp.Not(sp.Or(P, Q))
-    expr4 = sp.And(sp.Not(P), sp.Not(Q))
+    expr3 = sp.Not(sp.Or(P(X), Q(X)))
+    expr4 = sp.And(sp.Not(P(X)), sp.Not(Q(X)))
 
     logic_loss3 = compile_logic(expr3, predicates, tnorm=SProductTNorm())
     logic_loss4 = compile_logic(expr4, predicates, tnorm=SProductTNorm())
@@ -470,12 +468,15 @@ def test_s_product_de_morgans_laws() -> None:
 def test_s_product_numerical_stability() -> None:
     """Test S-Product doesn't produce NaN or Inf."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())

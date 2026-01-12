@@ -8,14 +8,17 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import compile_logic, Predicate
+from pysignet import Symbol, Variable, compile_logic, Predicate
 
 
 def test_deterministic_predicate() -> None:
     """Test deterministic (non-model) predicate."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     def deterministic_func(x: torch.Tensor) -> torch.Tensor:
         """Deterministic predicate function."""
@@ -52,8 +55,11 @@ def test_function_predicate_auto_detection() -> None:
 def test_get_trainable_parameters() -> None:
     """Test getting trainable parameters from models."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
 
@@ -73,8 +79,11 @@ def test_get_trainable_parameters() -> None:
 def test_get_trainable_parameters_no_models() -> None:
     """Test get_trainable_parameters with no model predicates."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -91,8 +100,11 @@ def test_get_trainable_parameters_no_models() -> None:
 def test_non_tensor_predicate_return() -> None:
     """Test predicate that returns non-tensor (float)."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     # Predicate that returns a Python float (will be converted to tensor)
     predicates = {"P": Predicate( lambda x: 0.75)}
@@ -109,8 +121,11 @@ def test_non_tensor_predicate_return() -> None:
 def test_predicate_clamping_above_one() -> None:
     """Test that predicates returning values >1 are clamped to [0,1]."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     # Predicate that returns values > 1
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 2.5)}
@@ -127,8 +142,11 @@ def test_predicate_clamping_above_one() -> None:
 def test_predicate_clamping_below_zero() -> None:
     """Test that predicates returning values <0 are clamped to [0,1]."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     # Predicate that returns values < 0
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * -1.5)}
@@ -145,8 +163,11 @@ def test_predicate_clamping_below_zero() -> None:
 def test_predicate_with_neural_network() -> None:
     """Test predicate wrapping a neural network."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     # Create a simple neural network
     model = nn.Sequential(
@@ -168,8 +189,10 @@ def test_predicate_with_neural_network() -> None:
 def test_predicate_with_multiple_models() -> None:
     """Test multiple model-based predicates."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Or(P, Q), R)
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(sp.Or(P(X), Q(X)), R(X))
 
     model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
     model_q = nn.Sequential(nn.Linear(5, 3), nn.ReLU(), nn.Linear(3, 1),
@@ -195,8 +218,11 @@ def test_predicate_with_multiple_models() -> None:
 def test_predicate_name_attribute() -> None:
     """Test that predicate name is assigned by compiler."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     predicate_p = Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)
     predicate_q = Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)
@@ -251,8 +277,11 @@ def test_predicate_explicit_is_model_flag() -> None:
 def test_predicate_name_assignment_from_dict_key() -> None:
     """Test that predicate names are assigned from dict keys."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     predicate = Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)
 

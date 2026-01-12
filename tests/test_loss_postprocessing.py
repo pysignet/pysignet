@@ -13,6 +13,8 @@ import torch.nn as nn
 import sympy as sp
 
 from pysignet import (
+    Symbol,
+    Variable,
     compile_logic,
     Predicate,
     RProductTNorm,
@@ -27,9 +29,10 @@ class TestRProductPostProcessing:
 
     def test_r_product_log_loss(self) -> None:
         """Test R-Product uses -log(satisfaction) for loss."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -52,9 +55,10 @@ class TestRProductPostProcessing:
 
     def test_r_product_log_loss_with_mean_reduction(self) -> None:
         """Test R-Product log loss with mean reduction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.5, 0.8, 0.2]))
@@ -71,9 +75,10 @@ class TestRProductPostProcessing:
 
     def test_r_product_log_loss_numerical_stability(self) -> None:
         """Test R-Product handles near-zero satisfaction without NaN."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Very low satisfaction values
         predicates = {
@@ -97,9 +102,10 @@ class TestSProductPostProcessing:
 
     def test_s_product_log_loss(self) -> None:
         """Test S-Product uses -log(satisfaction) for loss."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols("P Q")
-        expr = sp.Implies(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.Implies(P(X), Q(X))
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -122,9 +128,10 @@ class TestLukasiewiczPostProcessing:
 
     def test_lukasiewicz_linear_loss(self) -> None:
         """Test Lukasiewicz uses 1 - satisfaction for loss."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
@@ -145,9 +152,10 @@ class TestLukasiewiczPostProcessing:
 
     def test_lukasiewicz_linear_loss_with_sum_reduction(self) -> None:
         """Test Lukasiewicz linear loss with sum reduction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.3, 0.7, 0.9]))
@@ -174,9 +182,10 @@ class TestGodelPostProcessing:
         NOTE: The semantics for Gödel post-processing are still TBD.
         This test documents current behavior (1 - satisfaction).
         """
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -200,9 +209,10 @@ class TestCustomPostProcessing:
 
     def test_custom_postprocessing_callable(self) -> None:
         """Test custom post-processing function."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {"P": Predicate( lambda x: torch.tensor([0.8, 0.6]))}
 
@@ -222,9 +232,10 @@ class TestCustomPostProcessing:
 
     def test_custom_postprocessing_with_gradients(self) -> None:
         """Test custom post-processing preserves gradients."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         model = nn.Linear(5, 1)
         predicates = {
@@ -254,9 +265,10 @@ class TestPostProcessingDifferentiability:
 
     def test_log_postprocessing_gradients_flow(self) -> None:
         """Test gradients flow through -log post-processing."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         model = nn.Linear(5, 1)
         predicates = {
@@ -280,9 +292,10 @@ class TestPostProcessingDifferentiability:
 
     def test_linear_postprocessing_gradients_flow(self) -> None:
         """Test gradients flow through linear (1-x) post-processing."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         model = nn.Linear(5, 1)
         predicates = {
@@ -311,9 +324,10 @@ class TestBoundaryValues:
 
     def test_perfect_satisfaction(self) -> None:
         """Test loss when satisfaction = 1.0."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]))
@@ -336,9 +350,10 @@ class TestBoundaryValues:
 
     def test_zero_satisfaction(self) -> None:
         """Test loss when satisfaction = 0.0 (or very close)."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Use very small but non-zero to avoid log(0)
         predicates = {
@@ -363,9 +378,10 @@ class TestBoundaryValues:
 
     def test_mid_range_satisfaction(self) -> None:
         """Test loss with satisfaction = 0.5."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
@@ -398,9 +414,10 @@ class TestReductionModes:
     )
     def test_mean_reduction(self, tnorm_class) -> None:
         """Test mean reduction across all t-norms."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.3, 0.6, 0.9]))
@@ -422,9 +439,10 @@ class TestReductionModes:
     )
     def test_sum_reduction(self, tnorm_class) -> None:
         """Test sum reduction across all t-norms."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.3, 0.6, 0.9]))
@@ -446,9 +464,10 @@ class TestReductionModes:
     )
     def test_none_reduction(self, tnorm_class) -> None:
         """Test no reduction (returns per-sample loss)."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         batch_size = 7
         predicates = {
@@ -486,9 +505,10 @@ class TestCombinedPostProcessingAndReduction:
     )
     def test_all_combinations(self, tnorm_class, reduction) -> None:
         """Test all t-norm and reduction combinations work correctly."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
             "P": Predicate( lambda x: torch.rand(x.shape[0])),
@@ -519,9 +539,10 @@ class TestPostProcessingParameterOverride:
 
     def test_override_r_product_to_linear(self) -> None:
         """Test overriding R-Product's default log to linear."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.8]))
@@ -545,9 +566,10 @@ class TestPostProcessingParameterOverride:
 
     def test_override_lukasiewicz_to_log(self) -> None:
         """Test overriding Lukasiewicz's default linear to log."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.6]))
@@ -571,9 +593,10 @@ class TestPostProcessingParameterOverride:
 
     def test_invalid_postprocessing_raises_error(self) -> None:
         """Test that invalid post_processing raises ValueError."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.5]))
@@ -588,9 +611,10 @@ class TestPostProcessingParameterOverride:
 
     def test_none_uses_tnorm_recommendation(self) -> None:
         """Test that post_processing=None uses t-norm's recommendation."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols("P")
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         predicates = {
             "P": Predicate( lambda x: torch.tensor([0.7]))
@@ -612,9 +636,10 @@ class TestComplexExpressions:
 
     def test_complex_expression_with_r_product(self) -> None:
         """Test -log post-processing with complex expression."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q, R = sp.symbols("P Q R")
-        expr = sp.And(sp.Or(P, Q), sp.Not(R))
+        P, Q, R = Symbol("P Q R")
+        expr = sp.And(sp.Or(P(X), Q(X)), sp.Not(R(X)))
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
@@ -634,9 +659,10 @@ class TestComplexExpressions:
 
     def test_complex_expression_with_lukasiewicz(self) -> None:
         """Test linear post-processing with complex expression."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q, R = sp.symbols("P Q R")
-        expr = sp.Implies(sp.And(P, Q), R)
+        P, Q, R = Symbol("P Q R")
+        expr = sp.Implies(sp.And(P(X), Q(X)), R(X))
 
         predicates = {
             "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),

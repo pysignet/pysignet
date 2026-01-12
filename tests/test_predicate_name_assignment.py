@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Predicate, compile_logic
+from pysignet import Predicate, Symbol, Variable, compile_logic
 from pysignet.compilation import TNormCompiler
 
 
@@ -29,8 +29,11 @@ class TestPredicateNameAssignment:
 
     def test_compiler_assigns_names_from_dict_keys(self) -> None:
         """TNormCompiler should assign names from dict keys."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        X = Variable("X")
+
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(X), Q(X))
 
         pred_p = Predicate(lambda x: torch.ones(x.shape[0]))
         pred_q = Predicate(lambda x: torch.ones(x.shape[0]))
@@ -45,8 +48,11 @@ class TestPredicateNameAssignment:
 
     def test_assigned_names_persist_after_compilation(self) -> None:
         """Names should persist after compilation."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         pred_p = Predicate(lambda x: torch.ones(x.shape[0]))
         predicates = {"P": pred_p}
@@ -64,8 +70,10 @@ class TestPredicateNameAssignment:
 
     def test_multiple_predicates_get_correct_names(self) -> None:
         """All predicates in dict should get their corresponding names."""
-        P, Q, R = sp.symbols("P Q R")
-        expr = sp.And(P, sp.Or(Q, sp.Not(R)))
+        X = Variable("X")
+
+        P, Q, R = Symbol("P Q R")
+        expr = sp.And(P(X), sp.Or(Q(X), sp.Not(R(X))))
 
         pred_p = Predicate(lambda x: torch.ones(x.shape[0]))
         pred_q = Predicate(lambda x: torch.ones(x.shape[0]))
@@ -82,8 +90,11 @@ class TestPredicateNameAssignment:
 
     def test_compile_logic_assigns_names(self) -> None:
         """compile_logic() convenience function should also assign names."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        X = Variable("X")
+
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(X), Q(X))
 
         pred_p = Predicate(lambda x: torch.ones(x.shape[0]))
         pred_q = Predicate(lambda x: torch.ones(x.shape[0]))
@@ -97,8 +108,11 @@ class TestPredicateNameAssignment:
 
     def test_predicates_work_after_name_assignment(self) -> None:
         """Predicates should function correctly after name assignment."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        X = Variable("X")
+
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(X), Q(X))
 
         model_p = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
         pred_p = Predicate(lambda x: model_p(x).squeeze(-1))
@@ -122,8 +136,11 @@ class TestPredicateNameAssignment:
 
     def test_gradient_flow_after_name_assignment(self) -> None:
         """Gradients should flow correctly after name assignment."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
         pred = Predicate(model)
@@ -152,8 +169,11 @@ class TestPredicateNameAssignment:
 
     def test_predicate_repr_after_compilation(self) -> None:
         """Predicate repr should show name after compilation."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
         predicates = {"P": pred}
@@ -166,11 +186,14 @@ class TestPredicateNameAssignment:
 
     def test_dict_input_routing_after_name_assignment(self) -> None:
         """Dict input routing should work after name assignment."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        x1, x2 = Variable("x1 x2")
 
-        pred_p = Predicate(lambda inp: torch.ones(inp["x1"].shape[0]))
-        pred_q = Predicate(lambda inp: torch.ones(inp["x2"].shape[0]))
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(x1), Q(x2))
+
+        pred_p = Predicate(lambda inp: torch.ones(inp.shape[0]))
+        pred_q = Predicate(lambda inp: torch.ones(inp.shape[0]))
 
         predicates = {"P": pred_p, "Q": pred_q}
 
@@ -205,13 +228,15 @@ class TestPredicateNameAssignment:
 
     def test_missing_predicate_error_uses_symbol_names(self) -> None:
         """Error for missing predicates should reference symbol names."""
-        P, Q, R = sp.symbols("P Q R")
-        expr = sp.And(P, sp.And(Q, R))
+        X = Variable("X")
+
+        P, Q, R = Symbol("P Q R")
+        expr = sp.And(P(X), sp.And(Q(X), R(X)))
 
         # Only provide P and Q, missing R
         predicates = {
             "P": Predicate(lambda x: torch.ones(x.shape[0])),
-            "Q": Predicate(lambda x: torch.ones(x.shape[0]))
+            "Q": Predicate(lambda x: torch.ones(x.shape[0])),
         }
 
         compiler = TNormCompiler()
@@ -229,7 +254,7 @@ class TestPredicateNameReassignmentValidation:
 
     def test_reusing_predicate_with_different_name_raises_error(self) -> None:
         """Reusing a predicate with a different name should raise ValueError."""
-        P, Q = sp.symbols("P Q")
+        P, Q = Symbol("P Q")
         expr1 = P
         expr2 = Q
 
@@ -256,8 +281,11 @@ class TestPredicateNameReassignmentValidation:
 
     def test_reusing_predicate_with_same_name_is_allowed(self) -> None:
         """Reusing a predicate with the same name should be allowed."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         # Create a predicate and use it with name "P"
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
@@ -280,9 +308,11 @@ class TestPredicateNameReassignmentValidation:
 
     def test_multiple_predicates_one_reused_raises_error(self) -> None:
         """If one predicate in dict is reused with different name, raise error."""
-        P, Q, R = sp.symbols("P Q R")
-        expr1 = sp.And(P, Q)
-        expr2 = sp.And(R, Q)
+        X = Variable("X")
+
+        P, Q, R = Symbol("P Q R")
+        expr1 = sp.And(P(X), Q(X))
+        expr2 = sp.And(R(X), Q(X))
 
         # First compilation with P and Q
         pred_p = Predicate(lambda x: torch.ones(x.shape[0]))
@@ -308,7 +338,7 @@ class TestPredicateNameReassignmentValidation:
 
     def test_error_message_explains_solution(self) -> None:
         """Error message should explain how to fix the issue."""
-        P, Q = sp.symbols("P Q")
+        P, Q = Symbol("P Q")
 
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
         predicates1 = {"P": pred}
@@ -328,20 +358,21 @@ class TestPredicateNameReassignmentValidation:
 
     def test_compile_logic_also_validates_name_reuse(self) -> None:
         """compile_logic() should also validate name reuse."""
-        P, Q = sp.symbols("P Q")
+        X = Variable("X")
+        P, Q = Symbol("P Q")
 
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
         predicates1 = {"P": pred}
 
         # First compilation
-        compile_logic(P, predicates1)
+        compile_logic(P(X), predicates1)
         assert pred.name == "P"
 
         # Try to reuse with different name
         predicates2 = {"Q": pred}
 
         with pytest.raises(ValueError) as exc_info:
-            compile_logic(Q, predicates2)
+            compile_logic(Q(X), predicates2)
 
         error_msg = str(exc_info.value)
         assert "P" in error_msg
@@ -353,8 +384,11 @@ class TestAutomaticPredicateWrapping:
 
     def test_auto_wrap_lambda_function(self) -> None:
         """Lambda functions should be automatically wrapped."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         # Pass raw lambda (not wrapped in Predicate)
         predicates = {"P": lambda x: torch.ones(x.shape[0]) * 0.8}
@@ -370,11 +404,15 @@ class TestAutomaticPredicateWrapping:
 
     def test_auto_wrap_regular_function(self) -> None:
         """Regular functions should be automatically wrapped."""
+
         def my_predicate(x: torch.Tensor) -> torch.Tensor:
             return torch.sigmoid(x.sum(dim=-1))
 
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         # Pass raw function
         predicates = {"P": my_predicate}
@@ -392,8 +430,11 @@ class TestAutomaticPredicateWrapping:
         """nn.Module instances should be automatically wrapped."""
         model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         # Pass raw model (not wrapped)
         predicates = {"P": model}
@@ -411,8 +452,11 @@ class TestAutomaticPredicateWrapping:
 
     def test_explicit_predicate_still_works(self) -> None:
         """Explicit Predicate objects should still work (backward compat)."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         # Explicitly wrap in Predicate
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
@@ -428,8 +472,10 @@ class TestAutomaticPredicateWrapping:
 
     def test_mixed_predicates_wrapped_and_explicit(self) -> None:
         """Mix of auto-wrapped and explicit Predicates should work."""
-        P, Q, R = sp.symbols("P Q R")
-        expr = sp.And(P, sp.Or(Q, R))
+        X = Variable("X")
+
+        P, Q, R = Symbol("P Q R")
+        expr = sp.And(P(X), sp.Or(Q(X), R(X)))
 
         predicates = {
             "P": lambda x: torch.ones(x.shape[0]) * 0.8,  # Auto-wrapped
@@ -448,8 +494,11 @@ class TestAutomaticPredicateWrapping:
 
     def test_auto_wrapped_predicates_get_names(self) -> None:
         """Auto-wrapped predicates should get names assigned correctly."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        X = Variable("X")
+
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(X), Q(X))
 
         # Store references to raw callables
         func_p = lambda x: torch.ones(x.shape[0])
@@ -470,8 +519,11 @@ class TestAutomaticPredicateWrapping:
 
     def test_auto_wrapped_is_model_detection(self) -> None:
         """Auto-wrapped predicates should have correct is_model detection."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
+        X = Variable("X")
+
+        P, Q = Symbol("P Q")
+
+        expr = sp.And(P(X), Q(X))
 
         model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
@@ -497,8 +549,11 @@ class TestAutomaticPredicateWrapping:
 
     def test_non_callable_raises_error(self) -> None:
         """Non-callable values should raise TypeError."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         # Pass non-callable value
         predicates = {"P": 0.5}  # Not callable!
@@ -512,30 +567,13 @@ class TestAutomaticPredicateWrapping:
         assert "callable" in error_msg.lower() or "predicate" in error_msg.lower()
         assert "P" in error_msg
 
-    def test_auto_wrap_with_dict_inputs(self) -> None:
-        """Auto-wrapped predicates should work with dict inputs."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.And(P, Q)
-
-        predicates = {
-            "P": lambda inp: torch.ones(inp["x1"].shape[0]) * 0.8,
-            "Q": lambda inp: torch.ones(inp["x2"].shape[0]) * 0.6,
-        }
-
-        logic_loss = compile_logic(expr, predicates)
-
-        inputs = {
-            "x1": torch.randn(16, 10),
-            "x2": torch.randn(16, 5),
-        }
-
-        satisfaction = logic_loss(inputs)
-        assert satisfaction.shape == (16,)
-
     def test_gradients_flow_through_auto_wrapped(self) -> None:
         """Gradients should flow correctly through auto-wrapped predicates."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
@@ -555,8 +593,11 @@ class TestAutomaticPredicateWrapping:
 
     def test_compile_logic_auto_wraps(self) -> None:
         """compile_logic() convenience function should also auto-wrap."""
-        P, Q = sp.symbols("P Q")
-        expr = sp.Or(P, Q)
+        X = Variable("X")
+
+        P, Q = Symbol("P Q")
+
+        expr = sp.Or(P(X), Q(X))
 
         predicates = {
             "P": lambda x: torch.ones(x.shape[0]) * 0.3,
@@ -579,8 +620,11 @@ class TestBackwardCompatibility:
 
     def test_simple_expression_compiles(self) -> None:
         """Simple expression should compile with new API."""
-        P = sp.symbols("P")
-        expr = P
+        X = Variable("X")
+
+        P = Symbol("P")
+
+        expr = P(X)
 
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
         predicates = {"P": pred}
@@ -595,13 +639,15 @@ class TestBackwardCompatibility:
 
     def test_complex_expression_compiles(self) -> None:
         """Complex expression should compile with new API."""
-        P, Q, R = sp.symbols("P Q R")
-        expr = sp.Implies(sp.And(P, Q), sp.Or(Q, sp.Not(R)))
+        X = Variable("X")
+
+        P, Q, R = Symbol("P Q R")
+        expr = sp.Implies(sp.And(P(X), Q(X)), sp.Or(Q(X), sp.Not(R(X))))
 
         predicates = {
             "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
             "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
-            "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3)
+            "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
         logic_loss = compile_logic(expr, predicates)

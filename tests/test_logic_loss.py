@@ -4,30 +4,25 @@ This module tests the LogicLoss class which wraps compiled logic and provides
 loss computation with configurable post-processing and reduction modes.
 """
 
-import sympy as sp
 import torch
 import torch.nn as nn
 import pytest
 
 # Import from current location (will be moved to neural_logic later)
-from pysignet import Predicate, TNormCompiler, LogicLoss
-from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm
+from pysignet import LogicLoss, Predicate, Symbol, TNormCompiler, Variable
 
 
-# Note: LogicLoss doesn't exist yet - these are the tests we'll
-# implement against
 class TestLogicLossBasics:
     """Test basic LogicLoss functionality."""
 
     def test_logic_loss_initialization(self) -> None:
         """Test LogicLoss can wrap compiled logic."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         # Compile and wrap in LogicLoss
         compiler = TNormCompiler()
@@ -36,17 +31,16 @@ class TestLogicLossBasics:
 
         assert logic_loss.compiled_logic is compiled
         assert logic_loss.predicates is predicates
-        assert logic_loss.default_post_processing == 'linear'
+        assert logic_loss.default_post_processing == "linear"
 
     def test_logic_loss_call_returns_satisfaction(self) -> None:
         """Test that calling LogicLoss returns satisfaction values."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -64,13 +58,12 @@ class TestLogicLossBasics:
 
     def test_logic_loss_loss_method_returns_scalar(self) -> None:
         """Test that loss() method returns loss values."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -91,17 +84,16 @@ class TestLogicLossPostProcessing:
 
     def test_post_processing_log(self) -> None:
         """Test post_processing='log' applies -log(satisfaction)."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='log')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="log")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
@@ -112,17 +104,16 @@ class TestLogicLossPostProcessing:
 
     def test_post_processing_linear(self) -> None:
         """Test post_processing='linear' applies 1 - satisfaction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
@@ -137,13 +128,12 @@ class TestLogicLossPostProcessing:
 
     def test_post_processing_custom_callable(self) -> None:
         """Test custom post-processing function."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
         # Custom post-processing: square the violation
         def custom_postprocessing(satisfaction):
@@ -151,8 +141,9 @@ class TestLogicLossPostProcessing:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates,
-                               post_processing=custom_postprocessing)
+        logic_loss = LogicLoss(
+            compiled, predicates, post_processing=custom_postprocessing
+        )
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
@@ -162,18 +153,16 @@ class TestLogicLossPostProcessing:
 
     def test_invalid_post_processing_raises_error(self) -> None:
         """Test invalid post-processing mode raises ValueError."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates,
-                               post_processing='invalid_mode')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="invalid_mode")
 
         x = torch.randn(10, 5)
 
@@ -187,20 +176,19 @@ class TestLogicLossReductionModes:
 
     def test_reduction_mean(self) -> None:
         """Test reduction='mean' averages over batch."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
 
         # Should return scalar (mean of per-sample losses)
         assert isinstance(loss, torch.Tensor)
@@ -210,20 +198,19 @@ class TestLogicLossReductionModes:
 
     def test_reduction_sum(self) -> None:
         """Test reduction='sum' sums over batch."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='sum')
+        loss = logic_loss.loss(x, reduction="sum")
 
         # Should return scalar (sum of per-sample losses)
         assert isinstance(loss, torch.Tensor)
@@ -233,20 +220,19 @@ class TestLogicLossReductionModes:
 
     def test_reduction_none(self) -> None:
         """Test reduction='none' returns per-sample losses."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='none')
+        loss = logic_loss.loss(x, reduction="none")
 
         # Should return per-sample losses
         assert isinstance(loss, torch.Tensor)
@@ -256,13 +242,12 @@ class TestLogicLossReductionModes:
 
     def test_invalid_reduction_raises_error(self) -> None:
         """Test invalid reduction mode raises ValueError."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -272,7 +257,7 @@ class TestLogicLossReductionModes:
 
         # Should raise ValueError for invalid reduction mode
         with pytest.raises(ValueError, match="Unknown reduction"):
-            logic_loss.loss(x, reduction='invalid_mode')
+            logic_loss.loss(x, reduction="invalid_mode")
 
 
 class TestLogicLossCombinedPostProcessingAndReduction:
@@ -280,20 +265,19 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
     def test_log_postprocessing_mean_reduction(self) -> None:
         """Test log post-processing with mean reduction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='log')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="log")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
 
         # Log post-processing: -log(0.5), mean reduction
         expected_loss = -torch.log(torch.tensor(0.5))
@@ -303,20 +287,19 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
     def test_linear_postprocessing_sum_reduction(self) -> None:
         """Test linear post-processing with sum reduction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='sum')
+        loss = logic_loss.loss(x, reduction="sum")
 
         # Linear post-processing: 1 - 0.7 = 0.3, sum over batch of 10 = 3.0
         assert isinstance(loss, torch.Tensor)
@@ -325,31 +308,29 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
     def test_all_combinations_valid(self) -> None:
         """Test all valid combinations of post-processing and reduction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
         # Test all combinations
-        post_processings = ['linear', 'log']
-        reductions = ['mean', 'sum', 'none']
+        post_processings = ["linear", "log"]
+        reductions = ["mean", "sum", "none"]
 
         for post_proc in post_processings:
             for reduction in reductions:
-                logic_loss = LogicLoss(compiled, predicates,
-                                       post_processing=post_proc)
+                logic_loss = LogicLoss(compiled, predicates, post_processing=post_proc)
                 x = torch.randn(10, 5)
                 loss = logic_loss.loss(x, reduction=reduction)
 
                 # Verify loss is computed without error
                 assert isinstance(loss, torch.Tensor)
-                if reduction == 'none':
+                if reduction == "none":
                     assert loss.shape == (10,)
                 else:
                     assert loss.shape == ()  # Scalar
@@ -360,9 +341,10 @@ class TestLogicLossGradientFlow:
 
     def test_gradients_flow_through_satisfaction(self) -> None:
         """Test gradients flow when calling LogicLoss()."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Create a simple model as predicate
         class SimpleModel(nn.Module):
@@ -375,9 +357,7 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        predicates = {
-            'P': Predicate( model)
-        }
+        predicates = {"P": Predicate(model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -396,9 +376,10 @@ class TestLogicLossGradientFlow:
 
     def test_gradients_flow_through_loss(self) -> None:
         """Test gradients flow through loss() method."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Create a simple model as predicate
         class SimpleModel(nn.Module):
@@ -410,16 +391,14 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        predicates = {
-            'P': Predicate( model)
-        }
+        predicates = {"P": Predicate(model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
 
         # Backprop through loss
         loss.backward()
@@ -430,9 +409,10 @@ class TestLogicLossGradientFlow:
 
     def test_gradients_with_log_postprocessing(self) -> None:
         """Test gradients with log post-processing."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Create a simple model as predicate
         class SimpleModel(nn.Module):
@@ -444,16 +424,14 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        predicates = {
-            'P': Predicate( model)
-        }
+        predicates = {"P": Predicate(model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='log')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="log")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
 
         # Backprop through log post-processing
         loss.backward()
@@ -464,9 +442,10 @@ class TestLogicLossGradientFlow:
 
     def test_gradients_with_linear_postprocessing(self) -> None:
         """Test gradients with linear post-processing."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Create a simple model as predicate
         class SimpleModel(nn.Module):
@@ -478,16 +457,14 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        predicates = {
-            'P': Predicate( model)
-        }
+        predicates = {"P": Predicate(model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
 
         # Backprop through linear post-processing
         loss.backward()
@@ -502,9 +479,10 @@ class TestLogicLossTrainableParameters:
 
     def test_get_trainable_parameters_with_models(self) -> None:
         """Test extracting parameters from model-based predicates."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = P & Q
+        P, Q = Symbol("P Q")
+        expr = P(X) & Q(X)
 
         # Create two simple models
         class SimpleModel(nn.Module):
@@ -518,10 +496,7 @@ class TestLogicLossTrainableParameters:
         model_p = SimpleModel()
         model_q = SimpleModel()
 
-        predicates = {
-            'P': Predicate( model_p),
-            'Q': Predicate( model_q)
-        }
+        predicates = {"P": Predicate(model_p), "Q": Predicate(model_q)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -538,14 +513,13 @@ class TestLogicLossTrainableParameters:
 
     def test_get_trainable_parameters_no_models(self) -> None:
         """Test with no model-based predicates returns empty list."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Use lambda function (no trainable parameters)
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -560,9 +534,10 @@ class TestLogicLossTrainableParameters:
 
     def test_parameters_can_be_optimized(self) -> None:
         """Test extracted parameters can be used with optimizer."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Create a simple model
         class SimpleModel(nn.Module):
@@ -574,13 +549,11 @@ class TestLogicLossTrainableParameters:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        predicates = {
-            'P': Predicate( model)
-        }
+        predicates = {"P": Predicate(model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         # Create optimizer with extracted parameters
         params = logic_loss.get_trainable_parameters()
@@ -588,7 +561,7 @@ class TestLogicLossTrainableParameters:
 
         # Run one optimization step
         x = torch.randn(10, 5)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -602,62 +575,56 @@ class TestLogicLossBoundaryConditions:
 
     def test_perfect_satisfaction_zero_loss(self) -> None:
         """Test satisfaction=1.0 gives loss~0 (with log handling)."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Predicate always returns 1.0 (perfect satisfaction)
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]))
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]))}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
         # Test with linear post-processing
-        logic_loss_linear = LogicLoss(compiled, predicates,
-                                      post_processing='linear')
+        logic_loss_linear = LogicLoss(compiled, predicates, post_processing="linear")
         x = torch.randn(10, 5)
-        loss_linear = logic_loss_linear.loss(x, reduction='mean')
+        loss_linear = logic_loss_linear.loss(x, reduction="mean")
 
         # Linear: loss = 1 - 1 = 0
         assert torch.allclose(loss_linear, torch.tensor(0.0), atol=1e-5)
 
         # Test with log post-processing (log(1) = 0)
-        logic_loss_log = LogicLoss(compiled, predicates,
-                                   post_processing='log')
-        loss_log = logic_loss_log.loss(x, reduction='mean')
+        logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+        loss_log = logic_loss_log.loss(x, reduction="mean")
 
         # Log: loss = -log(1) = 0
         assert torch.allclose(loss_log, torch.tensor(0.0), atol=1e-5)
 
     def test_zero_satisfaction_high_loss(self) -> None:
         """Test satisfaction=0.0 gives high loss."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Predicate returns very small value (near 0)
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 1e-7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 1e-7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
         # Test with linear post-processing
-        logic_loss_linear = LogicLoss(compiled, predicates,
-                                      post_processing='linear')
+        logic_loss_linear = LogicLoss(compiled, predicates, post_processing="linear")
         x = torch.randn(10, 5)
-        loss_linear = logic_loss_linear.loss(x, reduction='mean')
+        loss_linear = logic_loss_linear.loss(x, reduction="mean")
 
         # Linear: loss = 1 - 1e-7 ≈ 1
         assert torch.allclose(loss_linear, torch.tensor(1.0), atol=1e-5)
 
         # Test with log post-processing (log should give large positive value)
-        logic_loss_log = LogicLoss(compiled, predicates,
-                                   post_processing='log')
-        loss_log = logic_loss_log.loss(x, reduction='mean')
+        logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+        loss_log = logic_loss_log.loss(x, reduction="mean")
 
         # Log: loss = -log(1e-7) is large and positive
         expected_log_loss = -torch.log(torch.tensor(1e-7))
@@ -666,26 +633,28 @@ class TestLogicLossBoundaryConditions:
 
     def test_numerical_stability_near_zero(self) -> None:
         """Test numerical stability when satisfaction near 0."""
+        X, Y = Variable("X Y")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X, Y)
 
         # Test various small values
         small_values = [1e-6, 1e-7, 1e-8]
 
         for val in small_values:
-            predicates = {
-                'P': Predicate( lambda x, v=val: torch.ones(x.shape[0]) * v)
-            }
+            predicates = {"P": Predicate(lambda x, v: torch.ones(x.shape[0]) * v)}
 
             compiler = TNormCompiler()
             compiled = compiler.compile(expr, predicates)
 
             # Linear post-processing should be stable
-            logic_loss_linear = LogicLoss(compiled, predicates,
-                                          post_processing='linear')
-            x = torch.randn(10, 5)
-            loss_linear = logic_loss_linear.loss(x, reduction='mean')
+            logic_loss_linear = LogicLoss(
+                compiled,
+                predicates,
+                post_processing="linear",
+            )
+            x = {"X": torch.randn(10, 5), "Y": val}
+            loss_linear = logic_loss_linear.loss(x, reduction="mean")
 
             # Should not produce NaN or inf
             assert not torch.isnan(loss_linear)
@@ -693,9 +662,8 @@ class TestLogicLossBoundaryConditions:
             assert loss_linear >= 0.0
 
             # Log post-processing should also be stable (though large)
-            logic_loss_log = LogicLoss(compiled, predicates,
-                                       post_processing='log')
-            loss_log = logic_loss_log.loss(x, reduction='mean')
+            logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+            loss_log = logic_loss_log.loss(x, reduction="mean")
 
             # Should not produce NaN (inf is possible for very small values)
             assert not torch.isnan(loss_log)
@@ -703,26 +671,26 @@ class TestLogicLossBoundaryConditions:
 
     def test_numerical_stability_near_one(self) -> None:
         """Test numerical stability when satisfaction near 1."""
+        X, Y = Variable("X Y")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X, Y)
 
         # Test various values close to 1
         near_one_values = [0.999999, 0.9999999, 0.99999999]
 
         for val in near_one_values:
-            predicates = {
-                'P': Predicate( lambda x, v=val: torch.ones(x.shape[0]) * v)
-            }
+            predicates = {"P": Predicate(lambda x, v: torch.ones(x.shape[0]) * v)}
 
             compiler = TNormCompiler()
             compiled = compiler.compile(expr, predicates)
 
             # Linear post-processing should be stable
-            logic_loss_linear = LogicLoss(compiled, predicates,
-                                          post_processing='linear')
-            x = torch.randn(10, 5)
-            loss_linear = logic_loss_linear.loss(x, reduction='mean')
+            logic_loss_linear = LogicLoss(
+                compiled, predicates, post_processing="linear"
+            )
+            x = {"X": torch.randn(10, 5), "Y": val}
+            loss_linear = logic_loss_linear.loss(x, reduction="mean")
 
             # Should not produce NaN or inf
             assert not torch.isnan(loss_linear)
@@ -731,9 +699,8 @@ class TestLogicLossBoundaryConditions:
             assert loss_linear < 1.0
 
             # Log post-processing should also be stable
-            logic_loss_log = LogicLoss(compiled, predicates,
-                                       post_processing='log')
-            loss_log = logic_loss_log.loss(x, reduction='mean')
+            logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+            loss_log = logic_loss_log.loss(x, reduction="mean")
 
             # Should not produce NaN or inf
             assert not torch.isnan(loss_log)
@@ -746,24 +713,25 @@ class TestLogicLossInputHandling:
 
     def test_logic_loss_with_single_tensor_input(self) -> None:
         """Test with single tensor input."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = P & Q
+        P, Q = Symbol("P Q")
+        expr = P(X) & Q(X)
 
         # Both predicates receive the same input tensor
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
         }
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         # Single tensor input
         x = torch.randn(10, 5)
         satisfaction = logic_loss(x)
-        loss = logic_loss.loss(x, reduction='mean')
+        loss = logic_loss.loss(x, reduction="mean")
 
         # Should work without errors
         assert isinstance(satisfaction, torch.Tensor)
@@ -773,27 +741,25 @@ class TestLogicLossInputHandling:
 
     def test_logic_loss_with_dict_input(self) -> None:
         """Test with dict input."""
+        X, Y = Variable("X Y")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = P & Q
+        P, Q = Symbol("P Q")
+        expr = P(X) & Q(Y)
 
         # Each predicate receives different input
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x["q_data"].shape[0]) * 0.7)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
         }
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         # Dict input with different tensors for P and Q
-        inputs = {
-            'p_data': torch.randn(10, 5),
-            'q_data': torch.randn(10, 3)
-        }
+        inputs = {"X": torch.randn(10, 5), "Y": torch.randn(10, 3)}
         satisfaction = logic_loss(inputs)
-        loss = logic_loss.loss(inputs, reduction='mean')
+        loss = logic_loss.loss(inputs, reduction="mean")
 
         # Should work without errors
         assert isinstance(satisfaction, torch.Tensor)
@@ -803,17 +769,16 @@ class TestLogicLossInputHandling:
 
     def test_logic_loss_with_varying_batch_sizes(self) -> None:
         """Test with different batch sizes."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing='linear')
+        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
 
         # Test with different batch sizes
         batch_sizes = [1, 5, 10, 32, 100]
@@ -821,9 +786,9 @@ class TestLogicLossInputHandling:
         for batch_size in batch_sizes:
             x = torch.randn(batch_size, 5)
             satisfaction = logic_loss(x)
-            loss_none = logic_loss.loss(x, reduction='none')
-            loss_mean = logic_loss.loss(x, reduction='mean')
-            loss_sum = logic_loss.loss(x, reduction='sum')
+            loss_none = logic_loss.loss(x, reduction="none")
+            loss_mean = logic_loss.loss(x, reduction="mean")
+            loss_sum = logic_loss.loss(x, reduction="sum")
 
             # Check shapes
             assert satisfaction.shape == (batch_size,)
@@ -836,6 +801,4 @@ class TestLogicLossInputHandling:
             expected_per_sample = torch.ones(batch_size) * 0.3
             assert torch.allclose(loss_none, expected_per_sample, atol=1e-5)
             assert torch.allclose(loss_mean, torch.tensor(0.3), atol=1e-5)
-            assert torch.allclose(loss_sum,
-                                  torch.tensor(0.3 * batch_size),
-                                  atol=1e-5)
+            assert torch.allclose(loss_sum, torch.tensor(0.3 * batch_size), atol=1e-5)

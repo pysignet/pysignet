@@ -7,14 +7,20 @@ ensuring they work correctly with the default RProductTNorm.
 import sympy as sp
 import torch
 
-from pysignet import compile_logic, Predicate
+from pysignet import (
+    Predicate,
+    Symbol,
+    Variable,
+    compile_logic
+)
 
 
 def test_basic_and() -> None:
     """Test basic AND operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -33,8 +39,9 @@ def test_basic_and() -> None:
 def test_basic_or() -> None:
     """Test basic OR operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Or(P, Q)
+    X = Variable("X")
+    P, Q = Symbol("P Q")
+    expr = sp.Or(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -53,8 +60,9 @@ def test_basic_or() -> None:
 def test_negation() -> None:
     """Test NOT operation."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Not(P)
+    X = Variable("X")
+    P = Symbol("P")
+    expr = sp.Not(P(X))
 
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
@@ -68,8 +76,9 @@ def test_negation() -> None:
 def test_implication() -> None:
     """Test IMPLIES operation with R-Product (default)."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+    P, Q = Symbol("P Q")
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -89,8 +98,9 @@ def test_implication() -> None:
 def test_equivalence_operator() -> None:
     """Test EQUIVALENCE (biconditional) operator with R-Product (default)."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Equivalent(P, Q)
+    X = Variable("X")
+    P, Q = Symbol("P Q")
+    expr = sp.Equivalent(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -117,8 +127,9 @@ def test_equivalence_operator() -> None:
 def test_complex_expression() -> None:
     """Test complex nested expression."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Or(P, Q), sp.Not(R))
+    X = Variable("X")
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(sp.Or(P(X), Q(X)), sp.Not(R(X)))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),

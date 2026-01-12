@@ -22,19 +22,19 @@ class TestMixedArgumentArityValidation:
     """Tests for arity validation with mixed arguments."""
 
     def test_two_variables_one_constant_valid(self):
-        """P(X1, X2, 0) with 2-argument callable is valid."""
+        """P(X1, X2, 0) with 3-argument callable is valid."""
         X1, X2 = Variable("X1 X2")
         P = Symbol("P")
 
         expr = P(X1, X2, 0)
 
-        # Callable accepts 2 arguments (for X1 and X2)
-        def binary_pred(x1, x2):
+        # Callable accepts 3 arguments (X1, X2, and constant 0)
+        def ternary_pred(x1, x2, const):
             # Simple function for testing
-            return torch.sigmoid(x1.sum(dim=-1) + x2.sum(dim=-1))
+            return torch.sigmoid(x1.sum(dim=-1) + x2.sum(dim=-1) + const)
 
         # Should compile successfully
-        predicates = {"P": binary_pred}
+        predicates = {"P": ternary_pred}
         compiled = compile_logic(expr, predicates)
 
         # Evaluate
@@ -49,34 +49,34 @@ class TestMixedArgumentArityValidation:
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_two_variables_one_constant_invalid_arity(self):
-        """P(X1, X2, 0) with 1-argument callable raises error."""
+        """P(X1, X2, 0) with 2-argument callable raises error."""
         X1, X2 = Variable("X1 X2")
         P = Symbol("P")
 
         expr = P(X1, X2, 0)
 
-        # Callable only accepts 1 argument (WRONG - should accept 2)
-        def unary_pred(x):
-            return torch.sigmoid(x.sum(dim=-1))
+        # Callable only accepts 2 arguments (WRONG - should accept 3)
+        def binary_pred(x1, x2):
+            return torch.sigmoid(x1.sum(dim=-1) + x2.sum(dim=-1))
 
-        predicates = {"P": unary_pred}
+        predicates = {"P": binary_pred}
 
         # Should raise ValueError about arity mismatch
         with pytest.raises(ValueError, match="arity"):
             compile_logic(expr, predicates)
 
     def test_one_variable_one_constant_valid(self):
-        """P(X, 0) with 1-argument callable is valid."""
+        """P(X, 0) with 2-argument callable is valid."""
         X = Variable("X")
         P = Symbol("P")
 
         expr = P(X, 0)
 
-        # Callable accepts 1 argument
-        def unary_pred(x):
-            return torch.sigmoid(x.sum(dim=-1))
+        # Callable accepts 2 arguments (X and constant)
+        def binary_pred(x, const):
+            return torch.sigmoid(x.sum(dim=-1) + const)
 
-        predicates = {"P": unary_pred}
+        predicates = {"P": binary_pred}
         compiled = compile_logic(expr, predicates)
 
         # Evaluate
@@ -88,19 +88,19 @@ class TestMixedArgumentArityValidation:
         assert result.shape == (batch_size,)
 
     def test_three_variables_two_constants_valid(self):
-        """P(X1, X2, X3, 0, 1) with 3-argument callable is valid."""
+        """P(X1, X2, X3, 0, 1) with 5-argument callable is valid."""
         X1, X2, X3 = Variable("X1 X2 X3")
         P = Symbol("P")
 
         expr = P(X1, X2, X3, 0, 1)
 
-        # Callable accepts 3 arguments
-        def ternary_pred(x1, x2, x3):
+        # Callable accepts 5 arguments (3 variables + 2 constants)
+        def five_arg_pred(x1, x2, x3, c1, c2):
             return torch.sigmoid(
-                x1.sum(dim=-1) + x2.sum(dim=-1) + x3.sum(dim=-1)
+                x1.sum(dim=-1) + x2.sum(dim=-1) + x3.sum(dim=-1) + c1 + c2
             )
 
-        predicates = {"P": ternary_pred}
+        predicates = {"P": five_arg_pred}
         compiled = compile_logic(expr, predicates)
 
         # Evaluate
@@ -114,17 +114,17 @@ class TestMixedArgumentArityValidation:
         assert result.shape == (batch_size,)
 
     def test_variables_interleaved_with_constants(self):
-        """P(X1, 0, X2, 1) with 2-argument callable is valid."""
+        """P(X1, 0, X2, 1) with 4-argument callable is valid."""
         X1, X2 = Variable("X1 X2")
         P = Symbol("P")
 
         expr = P(X1, 0, X2, 1)
 
-        # Callable accepts 2 arguments (order matches variable order)
-        def binary_pred(x1, x2):
-            return torch.sigmoid(x1.sum(dim=-1) + x2.sum(dim=-1))
+        # Callable accepts 4 arguments (X1, constant 0, X2, constant 1)
+        def quaternary_pred(x1, c1, x2, c2):
+            return torch.sigmoid(x1.sum(dim=-1) + x2.sum(dim=-1) + c1 + c2)
 
-        predicates = {"P": binary_pred}
+        predicates = {"P": quaternary_pred}
         compiled = compile_logic(expr, predicates)
 
         # Evaluate
@@ -230,32 +230,35 @@ class TestEdgeCases:
 
         expr = P(0, 1, 2)
 
-        # Callable accepts 0 arguments (no variables)
-        def nullary_pred():
-            return torch.tensor(0.7)
+        # Callable accepts 3 arguments (the 3 constants)
+        def ternary_pred(c1, c2, c3):
+            # Returns value in [0, 1] range based on constants
+            return torch.tensor(0.1 * (c1 + c2 + c3))
 
-        predicates = {"P": nullary_pred}
+        predicates = {"P": ternary_pred}
         compiled = compile_logic(expr, predicates)
 
-        # Evaluate without inputs
+        # Evaluate without free variable inputs
         result = compiled({})
 
-        # No variables -> scalar output
+        # No free variables -> scalar output
         assert result.shape == ()
-        assert torch.isclose(result, torch.tensor(0.7))
+        # Should be 0.1 * (0 + 1 + 2) = 0.3
+        assert torch.isclose(result, torch.tensor(0.3))
 
     def test_duplicate_variables_counted_once(self):
-        """P(X, X, 0) with duplicate variable still requires 1-arg callable."""
+        """P(X, X, 0) with duplicate variable requires 3-arg callable."""
         X = Variable("X")
         P = Symbol("P")
 
         expr = P(X, X, 0)
 
-        # Callable should accept 1 argument (X appears twice but counts once)
-        def unary_pred(x):
-            return torch.sigmoid(x.sum(dim=-1))
+        # Callable accepts 3 arguments (X, X, and constant 0)
+        # X appears twice so gets passed twice
+        def ternary_pred(x1, x2, const):
+            return torch.sigmoid(x1.sum(dim=-1) + x2.sum(dim=-1) + const)
 
-        predicates = {"P": unary_pred}
+        predicates = {"P": ternary_pred}
         compiled = compile_logic(expr, predicates)
 
         # Evaluate
@@ -332,3 +335,61 @@ class TestGradientFlow:
         for param in model.parameters():
             assert param.grad is not None
             assert not torch.isnan(param.grad).any()
+
+
+class TestArityValidationErrors:
+    """Tests for arity validation error paths."""
+
+    def test_inconsistent_arity_nullary_vs_nary(self):
+        """Error when predicate used as both nullary and n-ary."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        # P used both as nullary (P) and unary (P(X)) in same expression
+        import sympy as sp
+        expr = sp.And(P, P(X))  # INCONSISTENT!
+
+        predicates = {"P": lambda x: torch.sigmoid(x.sum(dim=-1))}
+
+        with pytest.raises(ValueError, match="used inconsistently"):
+            compile_logic(expr, predicates)
+
+    def test_nullary_arity_mismatch_too_many_args(self):
+        """Error when nullary predicate callable takes 2+ arguments."""
+        P = Symbol("P")
+
+        # P used as nullary (no arguments)
+        expr = P
+
+        # But callable takes 2 arguments - ERROR!
+        predicates = {"P": lambda x, y: torch.tensor(0.5)}
+
+        with pytest.raises(ValueError, match="nullary usage"):
+            compile_logic(expr, predicates)
+
+    def test_arity_validation_with_nn_module(self):
+        """nn.Module predicates skip detailed arity validation."""
+        X = Variable("X")
+        P = Symbol("P")
+
+        expr = P(X)
+
+        # nn.Module - arity validation is lenient
+        class SimpleModule(nn.Module):
+            def forward(self, x):
+                return torch.sigmoid(x.sum(dim=-1))
+
+        model = SimpleModule()
+        predicates = {"P": model}
+
+        # Should compile successfully (nn.Module validation skipped)
+        compiled = compile_logic(expr, predicates)
+
+        batch_size = 3
+        x = torch.randn(batch_size, 5)
+        result = compiled({"X": x})
+
+        assert result.shape == (batch_size,)
+
+    # TODO: Bound method arity validation needs work - inspect.ismethod
+    # detection is unreliable. Defer until arity validation refactoring.

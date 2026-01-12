@@ -10,6 +10,8 @@ import torch.nn as nn
 
 from pysignet import (
     compile_logic,
+    Symbol,
+    Variable,
     Predicate,
     RProductTNorm,
     LukasiewiczTNorm,
@@ -20,11 +22,12 @@ from pysignet import (
 def test_basic_gradient_flow() -> None:
     """Test that gradients flow through the loss."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+    P = Symbol("P")
+    expr = P(X)
 
     model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-    predicates = {"P": Predicate( lambda x: model(x).squeeze(-1))}
+    predicates = {"P": Predicate(lambda x: model(x).squeeze(-1))}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -41,15 +44,16 @@ def test_basic_gradient_flow() -> None:
 def test_gradient_flow_and() -> None:
     """Test gradient flow through AND operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate(lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -71,8 +75,11 @@ def test_gradient_flow_and() -> None:
 def test_gradient_flow_or() -> None:
     """Test gradient flow through OR operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Or(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Or(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -99,8 +106,11 @@ def test_gradient_flow_or() -> None:
 def test_gradient_flow_not() -> None:
     """Test gradient flow through NOT operation."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Not(P)
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = sp.Not(P(X))
 
     model = nn.Linear(5, 1)
     predicates = {
@@ -122,8 +132,11 @@ def test_gradient_flow_not() -> None:
 def test_gradient_flow_implies() -> None:
     """Test gradient flow through IMPLIES operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -150,8 +163,11 @@ def test_gradient_flow_implies() -> None:
 def test_gradient_flow_equivalent() -> None:
     """Test gradient flow through EQUIVALENT operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Equivalent(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Equivalent(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -178,8 +194,11 @@ def test_gradient_flow_equivalent() -> None:
 def test_gradient_flow_complex_expression() -> None:
     """Test gradient flow through complex nested expression."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Or(P, Q), sp.Not(R))
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+
+    expr = sp.And(sp.Or(P(X), Q(X)), sp.Not(R(X)))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -211,8 +230,11 @@ def test_gradient_flow_complex_expression() -> None:
 def test_gradient_flow_product_tnorm() -> None:
     """Test gradient flow with R-Product t-norm."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -239,8 +261,11 @@ def test_gradient_flow_product_tnorm() -> None:
 def test_gradient_flow_lukasiewicz_tnorm() -> None:
     """Test gradient flow with Łukasiewicz t-norm."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -267,8 +292,11 @@ def test_gradient_flow_lukasiewicz_tnorm() -> None:
 def test_gradient_flow_godel_tnorm() -> None:
     """Test gradient flow with Gödel t-norm."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -295,8 +323,11 @@ def test_gradient_flow_godel_tnorm() -> None:
 def test_gradient_accumulation() -> None:
     """Test gradient accumulation across multiple backward passes."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     model = nn.Linear(5, 1)
     predicates = {
@@ -331,8 +362,11 @@ def test_gradient_accumulation() -> None:
 def test_gradient_zero() -> None:
     """Test that zero_grad works correctly."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     model = nn.Linear(5, 1)
     predicates = {
@@ -363,8 +397,11 @@ def test_gradient_zero() -> None:
 def test_gradient_no_nan_or_inf() -> None:
     """Test that gradients don't contain NaN or Inf."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Or(P, Q), sp.Not(R))
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+
+    expr = sp.And(sp.Or(P(X), Q(X)), sp.Not(R(X)))
 
     model_p = nn.Linear(5, 10)
     model_q = nn.Linear(5, 10)
@@ -399,8 +436,11 @@ def test_gradient_no_nan_or_inf() -> None:
 def test_get_trainable_parameters_for_optimization() -> None:
     """Test using get_trainable_parameters with an optimizer."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
 
@@ -431,8 +471,11 @@ def test_get_trainable_parameters_for_optimization() -> None:
 def test_gradient_with_multiple_models() -> None:
     """Test gradient flow with multiple neural network predicates."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     # Different architectures
     model_p = nn.Sequential(nn.Linear(5, 10), nn.ReLU(), nn.Linear(10, 1),
@@ -461,8 +504,11 @@ def test_gradient_with_multiple_models() -> None:
 def test_gradient_independent_of_batch_size() -> None:
     """Test that gradient computation works for different batch sizes."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = P(X)
 
     predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 

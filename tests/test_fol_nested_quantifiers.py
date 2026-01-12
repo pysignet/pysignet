@@ -5,7 +5,6 @@ end-to-end through the compilation and evaluation pipeline, with proper
 variable scoping and gradient flow.
 """
 
-import pytest
 import torch
 import torch.nn as nn
 import sympy as sp
@@ -78,10 +77,7 @@ class TestForAllForAllNesting:
         # Q has 1 free var (Y): 2 outputs
         q_model = nn.Sequential(nn.Linear(5, 2), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {
-            "P": p_model,
-            "Q": q_model
-        })
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 5)
         result = compiled(x)
@@ -100,8 +96,8 @@ class TestForAllForAllNesting:
         # Only 1*1 = 1 combination
         model = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
-        def model_func(inputs):
-            return model(inputs).squeeze(-1)
+        def model_func(inputs, y, z):
+            return model(inputs).squeeze(-1) + y + z
 
         compiled = compile_logic(expr, {"P": model_func})
 
@@ -170,10 +166,7 @@ class TestExistsExistsNesting:
         # Q: 1 free var (Z) = 2 outputs
         q_model = nn.Sequential(nn.Linear(5, 2), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {
-            "P": p_model,
-            "Q": q_model
-        })
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 5)
         result = compiled(x)
@@ -240,10 +233,7 @@ class TestMixedQuantifierNesting:
         # Q: 1 free var (Z) = 2 outputs
         q_model = nn.Sequential(nn.Linear(4, 2), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {
-            "P": p_model,
-            "Q": q_model
-        })
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(2, 4)
         result = compiled(x)
@@ -263,13 +253,10 @@ class TestMixedQuantifierNesting:
         p_model = nn.Sequential(nn.Linear(3, 2), nn.Softmax(dim=-1))
         q_model = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
-        def q_func(inputs):
-            return q_model(inputs).squeeze(-1)
+        def q_func(inputs, z):
+            return q_model(inputs).squeeze(-1) * z
 
-        compiled = compile_logic(expr, {
-            "P": p_model,
-            "Q": q_func
-        })
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_func})
 
         x = torch.randn(2, 3)
         result = compiled(x)
@@ -556,10 +543,7 @@ class TestRealWorldPatterns:
         def prime_func(inputs):
             return prime_model(inputs).squeeze(-1)
 
-        compiled = compile_logic(expr, {
-            "Digit": digit_model,
-            "Prime": prime_func
-        })
+        compiled = compile_logic(expr, {"Digit": digit_model, "Prime": prime_func})
 
         x = torch.randn(3, 8)
         result = compiled(x)
@@ -644,8 +628,8 @@ class TestEdgeCases:
         # Only 1 combination
         model = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
-        def model_func(inputs):
-            return model(inputs).squeeze(-1)
+        def model_func(inputs, y, z):
+            return model(inputs).squeeze(-1) * y * z
 
         compiled = compile_logic(expr, {"P": model_func})
 

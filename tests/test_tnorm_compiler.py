@@ -10,7 +10,7 @@ import torch.nn as nn
 import pytest
 
 # Import from current location (will be moved to pysignet later)
-from pysignet import Predicate, TNormCompiler
+from pysignet import Predicate, Symbol, TNormCompiler, Variable
 from pysignet.tnorms import (
     RProductTNorm,
     SProductTNorm,
@@ -34,13 +34,12 @@ class TestTNormCompilerBasics:
 
     def test_compile_returns_callable(self) -> None:
         """Test that compile() returns a callable."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -50,13 +49,14 @@ class TestTNormCompilerBasics:
 
     def test_compiled_logic_returns_satisfaction_tensor(self) -> None:
         """Test compiled logic returns satisfaction values in [0,1]."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler()
@@ -75,13 +75,12 @@ class TestTNormCompilerBasics:
 
     def test_compiled_logic_preserves_batch_dimension(self) -> None:
         """Test compiled logic handles batches correctly."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))
-        }
+        predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -98,13 +97,14 @@ class TestTNormCompilerOperators:
 
     def test_compile_and_operator(self) -> None:
         """Test compilation of AND operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler()
@@ -118,13 +118,14 @@ class TestTNormCompilerOperators:
 
     def test_compile_or_operator(self) -> None:
         """Test compilation of OR operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.Or(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.Or(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler()
@@ -138,13 +139,12 @@ class TestTNormCompilerOperators:
 
     def test_compile_not_operator(self) -> None:
         """Test compilation of NOT operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = sp.Not(P)
+        P = Symbol("P")
+        expr = sp.Not(P(X))
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.3)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -157,13 +157,14 @@ class TestTNormCompilerOperators:
 
     def test_compile_implies_operator(self) -> None:
         """Test compilation of IMPLIES operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.Implies(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.Implies(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler(tnorm=RProductTNorm())
@@ -177,13 +178,14 @@ class TestTNormCompilerOperators:
 
     def test_compile_equivalent_operator(self) -> None:
         """Test compilation of EQUIVALENT operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.Equivalent(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.Equivalent(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
         }
 
         compiler = TNormCompiler()
@@ -197,14 +199,15 @@ class TestTNormCompilerOperators:
 
     def test_compile_complex_expression(self) -> None:
         """Test compilation of complex nested expressions."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q, R = sp.symbols('P Q R')
-        expr = sp.And(P, sp.Or(Q, sp.Not(R)))
+        P, Q, R = Symbol("P Q R")
+        expr = sp.And(P(X), sp.Or(Q(X), sp.Not(R(X))))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.9),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
-            'R': Predicate( lambda x: torch.ones(x.shape[0]) * 0.3)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.9),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
+            "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
         compiler = TNormCompiler()
@@ -225,13 +228,14 @@ class TestTNormCompilerWithDifferentTNorms:
 
     def test_compile_with_r_product_tnorm(self) -> None:
         """Test compilation using R-Product t-norm."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler(tnorm=RProductTNorm())
@@ -245,13 +249,14 @@ class TestTNormCompilerWithDifferentTNorms:
 
     def test_compile_with_s_product_tnorm(self) -> None:
         """Test compilation using S-Product t-norm."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler(tnorm=SProductTNorm())
@@ -265,13 +270,14 @@ class TestTNormCompilerWithDifferentTNorms:
 
     def test_compile_with_lukasiewicz_tnorm(self) -> None:
         """Test compilation using Lukasiewicz t-norm."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler(tnorm=LukasiewiczTNorm())
@@ -285,13 +291,14 @@ class TestTNormCompilerWithDifferentTNorms:
 
     def test_compile_with_godel_tnorm(self) -> None:
         """Test compilation using Godel t-norm."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler(tnorm=GodelTNorm())
@@ -305,13 +312,14 @@ class TestTNormCompilerWithDifferentTNorms:
 
     def test_different_tnorms_produce_different_results(self) -> None:
         """Test that different t-norms produce different satisfaction."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         x = torch.randn(10, 5)
@@ -337,13 +345,14 @@ class TestTNormCompilerGradients:
 
     def test_gradients_flow_through_compiled_logic(self) -> None:
         """Test gradients flow from compiled logic to predicates."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
         # Create a simple neural network predicate
         model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-        predicates = {'P': Predicate( model)}
+        predicates = {"P": Predicate(model)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -360,17 +369,15 @@ class TestTNormCompilerGradients:
 
     def test_gradients_with_and_operator(self) -> None:
         """Test gradients flow through AND operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         # Create neural network predicates
         model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-        predicates = {
-            'P': Predicate( model_p),
-            'Q': Predicate( model_q)
-        }
+        predicates = {"P": Predicate(model_p), "Q": Predicate(model_q)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -388,17 +395,15 @@ class TestTNormCompilerGradients:
 
     def test_gradients_with_or_operator(self) -> None:
         """Test gradients flow through OR operator."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.Or(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.Or(P(X), Q(X))
 
         # Create neural network predicates
         model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
-        predicates = {
-            'P': Predicate( model_p),
-            'Q': Predicate( model_q)
-        }
+        predicates = {"P": Predicate(model_p), "Q": Predicate(model_q)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -416,18 +421,19 @@ class TestTNormCompilerGradients:
 
     def test_gradients_with_complex_expression(self) -> None:
         """Test gradients flow through complex expressions."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q, R = sp.symbols('P Q R')
-        expr = sp.And(P, sp.Or(Q, sp.Not(R)))
+        P, Q, R = Symbol("P Q R")
+        expr = sp.And(P(X), sp.Or(Q(X), sp.Not(R(X))))
 
         # Create neural network predicates
         model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_q = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_r = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {
-            'P': Predicate( model_p),
-            'Q': Predicate( model_q),
-            'R': Predicate( model_r)
+            "P": Predicate(model_p),
+            "Q": Predicate(model_q),
+            "R": Predicate(model_r),
         }
 
         compiler = TNormCompiler()
@@ -448,10 +454,11 @@ class TestTNormCompilerGradients:
 
     def test_no_gradient_vanishing(self) -> None:
         """Test gradients don't vanish in deep expressions."""
+        X = Variable("X")
         # pylint: disable=invalid-name
         # Create deeply nested expression: ((P AND Q) AND (R AND S))
-        P, Q, R, S = sp.symbols('P Q R S')
-        expr = sp.And(sp.And(P, Q), sp.And(R, S))
+        P, Q, R, S = Symbol("P Q R S")
+        expr = sp.And(sp.And(P(X), Q(X)), sp.And(R(X), S(X)))
 
         # Create neural network predicates
         model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
@@ -459,10 +466,10 @@ class TestTNormCompilerGradients:
         model_r = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         model_s = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {
-            'P': Predicate( model_p),
-            'Q': Predicate( model_q),
-            'R': Predicate( model_r),
-            'S': Predicate( model_s)
+            "P": Predicate(model_p),
+            "Q": Predicate(model_q),
+            "R": Predicate(model_r),
+            "S": Predicate(model_s),
         }
 
         compiler = TNormCompiler()
@@ -486,13 +493,14 @@ class TestTNormCompilerInputHandling:
 
     def test_compiled_logic_with_single_tensor_input(self) -> None:
         """Test compiled logic with single tensor (shared input)."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler()
@@ -507,54 +515,29 @@ class TestTNormCompilerInputHandling:
         assert torch.allclose(result, torch.tensor(0.48), atol=1e-5)
 
     def test_compiled_logic_with_dict_input(self) -> None:
-        """Test compiled logic with dict of tensors (per-predicate)."""
+        """Test compiled logic with dict of tensors (variable-based routing)."""
+        X = Variable("X")
+        Y = Variable("Y")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(Y))
 
-        # Predicates that use their inputs differently
+        # Predicates receive tensors (compiler routes by variable name)
         predicates = {
-            'P': Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-            'Q': Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1)))
+            "P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1))),
+            "Q": Predicate(lambda y: torch.sigmoid(y.mean(dim=-1))),
         }
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
-        # Dict input with different tensors for each predicate
+        # Dict input with keys matching variable names
         x_p = torch.randn(10, 5)
         x_q = torch.randn(10, 3)
-        inputs = {'p_data': x_p, 'q_data': x_q}
+        inputs = {"X": x_p, "Y": x_q}
 
         result = compiled(inputs)
 
-        assert isinstance(result, torch.Tensor)
-        assert result.shape == (10,)
-
-    def test_compiled_logic_with_mixed_input_types(self) -> None:
-        """Test dict input with some predicates sharing data."""
-        # pylint: disable=invalid-name
-        P, Q, R = sp.symbols('P Q R')
-        expr = sp.And(sp.And(P, Q), R)
-
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x["p_data"].shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x["q_data"].shape[0]) * 0.6),
-            'R': Predicate( lambda x: torch.ones(x["shared_data"].shape[0]) * 0.9)
-        }
-
-        compiler = TNormCompiler()
-        compiled = compiler.compile(expr, predicates)
-
-        # Dict with specific inputs for P and Q, shared data for R
-        x_p = torch.randn(10, 5)
-        x_q = torch.randn(10, 3)
-        x_shared = torch.randn(10, 7)
-        inputs = {'p_data': x_p, 'q_data': x_q, 'shared_data': x_shared}
-
-        result = compiled(inputs)
-
-        # R should use the shared data input
         assert isinstance(result, torch.Tensor)
         assert result.shape == (10,)
 
@@ -564,13 +547,14 @@ class TestTNormCompilerReusability:
 
     def test_compiled_logic_reusable_across_batches(self) -> None:
         """Test same compiled logic can be called multiple times."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler()
@@ -584,13 +568,12 @@ class TestTNormCompilerReusability:
 
     def test_compiled_logic_with_different_batch_sizes(self) -> None:
         """Test compiled logic handles varying batch sizes."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = P
+        P = Symbol("P")
+        expr = P(X)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -604,14 +587,15 @@ class TestTNormCompilerReusability:
 
     def test_multiple_compilations_independent(self) -> None:
         """Test multiple compilations don't interfere with each other."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr1 = sp.And(P, Q)
-        expr2 = sp.Or(P, Q)
+        P, Q = Symbol("P Q")
+        expr1 = sp.And(P(X), Q(X))
+        expr2 = sp.Or(P(X), Q(X))
 
         predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-            'Q': Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)
+            "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+            "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
         compiler = TNormCompiler()
@@ -632,13 +616,12 @@ class TestTNormCompilerBooleanConstants:
 
     def test_compile_with_true_constant(self) -> None:
         """Test compilation with sp.true constant."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = sp.And(P, sp.true)
+        P = Symbol("P")
+        expr = sp.And(P(X), sp.true)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -651,13 +634,12 @@ class TestTNormCompilerBooleanConstants:
 
     def test_compile_with_false_constant(self) -> None:
         """Test compilation with sp.false constant."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        expr = sp.And(P, sp.false)
+        P = Symbol("P")
+        expr = sp.And(P(X), sp.false)
 
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -699,7 +681,7 @@ class TestTNormCompilerBooleanConstants:
         compiler = TNormCompiler()
         compiled_true = compiler.compile(expr_true, {})
 
-        inputs = {'input1': torch.randn(10, 5), 'input2': torch.randn(10, 3)}
+        inputs = {"input1": torch.randn(10, 5), "input2": torch.randn(10, 3)}
         result = compiled_true(inputs)
         assert result.shape == (10,)
         assert torch.allclose(result, torch.ones(10), atol=1e-5)
@@ -718,14 +700,13 @@ class TestTNormCompilerErrorHandling:
 
     def test_missing_predicate_raises_error(self) -> None:
         """Test error when symbol has no corresponding predicate."""
+        X = Variable("X")
         # pylint: disable=invalid-name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
 
         # Only provide predicate for P, not Q
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
-        }
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8)}
 
         compiler = TNormCompiler()
 
@@ -733,33 +714,14 @@ class TestTNormCompilerErrorHandling:
         with pytest.raises(ValueError, match="Missing predicates for symbols"):
             compiler.compile(expr, predicates)
 
-    def test_unsupported_expression_raises_error(self) -> None:
-        """Test error for unsupported SymPy expression types."""
-        # pylint: disable=invalid-name
-        P = sp.symbols('P')
-        # Use an unsupported SymPy expression (mathematical, not logical)
-        expr = sp.sin(P)  # Sine function is not a logical operator
-
-        predicates = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
-        }
-
-        compiler = TNormCompiler()
-
-        # Should raise ValueError about unsupported expression
-        with pytest.raises(ValueError, match="Unsupported expression type"):
-            compiled = compiler.compile(expr, predicates)
-            # Try to call it to trigger evaluation
-            x = torch.randn(10, 5)
-            compiled(x)
-
     def test_clear_error_messages(self) -> None:
         """Test error messages are informative."""
+        X = Variable("X")
         # pylint: disable=invalid-name
         # Test 1: Missing predicate error includes symbol name
-        P, Q = sp.symbols('P Q')
-        expr = sp.And(P, Q)
-        predicates = {'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)}
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
+        predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8)}
 
         compiler = TNormCompiler()
 
@@ -767,17 +729,18 @@ class TestTNormCompilerErrorHandling:
             compiler.compile(expr, predicates)
         except ValueError as e:
             error_msg = str(e)
-            assert 'Q' in error_msg  # Missing symbol should be mentioned
-            assert 'Missing' in error_msg or 'missing' in error_msg
+            assert "Q" in error_msg  # Missing symbol should be mentioned
+            assert "Missing" in error_msg or "missing" in error_msg
 
         # Test 2: Predicate name mismatch error
         predicates_mismatch = {
-            'P': Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)
+            "WrongName": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8)
         }
 
         try:
-            compiler.compile(P, predicates_mismatch)
+            compiler.compile(P(X), predicates_mismatch)
         except ValueError as e:
             error_msg = str(e)
-            assert 'WrongName' in error_msg
-            assert 'P' in error_msg
+            # Should mention the missing predicate name 'P'
+            assert "P" in error_msg
+            assert "Missing" in error_msg or "missing" in error_msg

@@ -7,16 +7,17 @@ error conditions, and boundary scenarios.
 import sympy as sp
 import torch
 
-from pysignet import compile_logic, Predicate
+from pysignet import Predicate, Symbol, Variable, compile_logic
 
 
 def test_empty_batch() -> None:
     """Test handling of empty batches (batch_size=0)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(0, 5)  # Empty batch
@@ -28,13 +29,14 @@ def test_empty_batch() -> None:
 
 def test_single_element_batch() -> None:
     """Test handling of single-element batches."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -47,11 +49,12 @@ def test_single_element_batch() -> None:
 
 def test_very_large_batch() -> None:
     """Test handling of very large batches (10000+ elements)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.mean(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10000, 5)
@@ -64,11 +67,12 @@ def test_very_large_batch() -> None:
 
 def test_nan_handling() -> None:
     """Test handling of NaN values in inputs."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.tensor([[float("nan"), 1.0, 2.0]])
@@ -84,11 +88,12 @@ def test_nan_handling() -> None:
 
 def test_inf_handling() -> None:
     """Test handling of Inf values in inputs."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -109,12 +114,13 @@ def test_inf_handling() -> None:
 
 def test_missing_predicate_raises_error() -> None:
     """Test that missing predicates raise ValueError."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(X))
 
     # Only provide predicate for P, not Q
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     try:
         compile_logic(expr, predicates)
@@ -126,32 +132,27 @@ def test_missing_predicate_raises_error() -> None:
 
 def test_unsupported_expression_raises_error() -> None:
     """Test that unsupported SymPy expressions raise ValueError."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
+    P = Symbol("P")
 
     # Use an unsupported operation
-    expr = P + P  # Arithmetic, not logic
-
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)}
-
-    logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
-
     try:
-        logic_loss(x)
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Unsupported expression type" in str(e)
+        expr = P(X) + P(X)  # Arithmetic, not logic
+        assert False, "Should have raised TypeError"
+    except TypeError as e:
+        assert "unsupported operand type" in str(e)
 
 
 def test_zero_dimension_input() -> None:
     """Test handling of inputs with zero features."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
     # Predicate that doesn't depend on input dimension
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 0)  # 5 samples, 0 features
@@ -163,13 +164,14 @@ def test_zero_dimension_input() -> None:
 
 def test_very_small_values() -> None:
     """Test handling of very small predicate values (near 0)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 1e-10),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 1e-10),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 1e-10),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 1e-10),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -184,13 +186,14 @@ def test_very_small_values() -> None:
 
 def test_values_near_one() -> None:
     """Test handling of predicate values very close to 1."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.9999999),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.9999999),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.9999999),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.9999999),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -205,19 +208,21 @@ def test_values_near_one() -> None:
 
 def test_deeply_nested_expression() -> None:
     """Test handling of deeply nested logical expressions."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q, R, S = sp.symbols("P Q R S")
+    P, Q, R, S = Symbol("P Q R S")
 
     # Create a deeply nested expression
     expr = sp.And(
-        sp.Or(sp.And(P, Q), sp.Not(R)), sp.Implies(S, sp.Or(P, sp.Not(Q)))
+        sp.Or(sp.And(P(X), Q(X)), sp.Not(R(X))),
+        sp.Implies(S(X), sp.Or(P(X), sp.Not(Q(X)))),
     )
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
-        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
-        "S": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
+        "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
+        "S": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -233,7 +238,7 @@ def test_deeply_nested_expression() -> None:
 def test_many_predicates() -> None:
     """Test handling expressions with many predicates."""
     # pylint: disable=invalid-name
-    symbols_list = sp.symbols("P Q R S T U V W X Y Z")
+    symbols_list = Symbol("P Q R S T U V W X Y Z")
 
     # Create expression using all predicates
     expr = sp.And(*symbols_list[:10])
@@ -255,11 +260,12 @@ def test_many_predicates() -> None:
 
 def test_single_predicate_expression() -> None:
     """Test expression with single predicate (no operators)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P  # Just the symbol itself
+    P = Symbol("P")
+    expr = P(X)  # Just the symbol itself
 
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.75)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.75)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -271,11 +277,12 @@ def test_single_predicate_expression() -> None:
 
 def test_mixed_batch_dimensions() -> None:
     """Test with varying batch sizes across calls."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
 

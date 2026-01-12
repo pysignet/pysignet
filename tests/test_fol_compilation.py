@@ -134,8 +134,8 @@ class TestFOLMixedExpressions:
         # Digit(X, 0) - X is variable, 0 is class index
         expr = Digit(X, 0)
 
-        # Multi-class digit classifier
-        digit_model = lambda x: torch.softmax(torch.randn(x.shape[0], 10), dim=-1)
+        # Multi-class digit classifier - binary predicate (x, class_index)
+        digit_model = lambda x, y: torch.softmax(torch.randn(x.shape[0], 10), dim=-1)[:, y]
 
         logic_loss = compile_logic(expr, {"Digit": digit_model})
 

@@ -16,7 +16,13 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import compile_logic, Predicate, RProductTNorm
+from pysignet import (
+    Predicate,
+    RProductTNorm,
+    Symbol,
+    Variable,
+    compile_logic
+)
 
 
 def test_r_product_implication_when_antecedent_less() -> None:
@@ -146,9 +152,10 @@ def test_r_product_self_consistency() -> None:
     This is Proposition 1 from the paper: R-Product satisfies
     self-consistency for all formulas.
     """
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Equivalent(P, P)
+    P = Symbol("P")
+    expr = sp.Equivalent(P(X), P(X))
 
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
@@ -168,9 +175,10 @@ def test_r_product_self_consistency() -> None:
 
 def test_r_product_implication_tautology() -> None:
     """Test R-Product satisfies P -> P = 1 for all P."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Implies(P, P)
+    P = Symbol("P")
+    expr = sp.Implies(P(X), P(X))
 
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
@@ -190,10 +198,11 @@ def test_r_product_implication_tautology() -> None:
 
 def test_r_product_modus_ponens() -> None:
     """Test R-Product satisfies modus ponens: (P ∧ (P → Q)) → Q."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
+    P, Q = Symbol("P Q")
     # Modus ponens: ((P AND (P -> Q)) -> Q) should be a tautology
-    expr = sp.Implies(sp.And(P, sp.Implies(P, Q)), Q)
+    expr = sp.Implies(sp.And(P(X), sp.Implies(P(X), Q(X))), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -211,8 +220,11 @@ def test_r_product_modus_ponens() -> None:
 def test_r_product_gradient_flow_implication() -> None:
     """Test gradients flow through R-Product implication."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -240,8 +252,10 @@ def test_r_product_gradient_flow_implication() -> None:
 def test_r_product_gradient_flow_complex() -> None:
     """Test gradients flow through complex expression with R-Product."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Implies(P, Q), sp.Implies(Q, R))
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), R(X)))
 
     model_p = nn.Linear(5, 1)
     model_q = nn.Linear(5, 1)
@@ -273,8 +287,11 @@ def test_r_product_gradient_flow_complex() -> None:
 def test_r_product_with_batch_dimensions() -> None:
     """Test R-Product works correctly with different batch sizes."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1))),
@@ -295,8 +312,9 @@ def test_r_product_with_batch_dimensions() -> None:
 
 def test_r_product_implication_with_constants() -> None:
     """Test R-Product implication with boolean constants."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
+    P = Symbol("P")
 
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
@@ -305,7 +323,7 @@ def test_r_product_implication_with_constants() -> None:
     # true -> P: should equal P (since true=1, 1 <= 0.7 is false, so 0.7/1)
     # Wait, let me recalculate: true=1, P=0.7
     # implication(1, 0.7): 1 <= 0.7? No, so return 0.7/1 = 0.7
-    expr_true_p = sp.Implies(sp.true, P)
+    expr_true_p = sp.Implies(sp.true, P(X))
     logic_loss_true_p = compile_logic(
         expr_true_p, predicates, tnorm=RProductTNorm()
     )
@@ -313,7 +331,7 @@ def test_r_product_implication_with_constants() -> None:
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
     # false -> P: should be 1 (since false=0, 0 <= P is true)
-    expr_false_p = sp.Implies(sp.false, P)
+    expr_false_p = sp.Implies(sp.false, P(X))
     logic_loss_false_p = compile_logic(
         expr_false_p, predicates, tnorm=RProductTNorm()
     )
@@ -323,7 +341,7 @@ def test_r_product_implication_with_constants() -> None:
     )
 
     # P -> true: should be 1 (since 0.7 <= 1 is true)
-    expr_p_true = sp.Implies(P, sp.true)
+    expr_p_true = sp.Implies(P(X), sp.true)
     logic_loss_p_true = compile_logic(
         expr_p_true, predicates, tnorm=RProductTNorm()
     )
@@ -334,7 +352,7 @@ def test_r_product_implication_with_constants() -> None:
 
     # P -> false: R-Product gives 0/0.7 = 0 when evaluated directly
     # But with SymPy constant evaluation, this becomes NOT(P) = 0.3
-    expr_p_false = sp.Implies(P, sp.false)
+    expr_p_false = sp.Implies(P(X), sp.false)
     logic_loss_p_false = compile_logic(
         expr_p_false, predicates, tnorm=RProductTNorm()
     )
@@ -351,10 +369,12 @@ def test_r_product_transitive_implication() -> None:
     Tests: (P->Q ∧ Q->R) -> (P->R).
     """
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
     # Transitivity: ((P->Q) AND (Q->R)) -> (P->R)
     expr = sp.Implies(
-        sp.And(sp.Implies(P, Q), sp.Implies(Q, R)), sp.Implies(P, R)
+        sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), R(X))), sp.Implies(P(X), R(X))
     )
 
     predicates = {
@@ -373,10 +393,11 @@ def test_r_product_transitive_implication() -> None:
 
 def test_r_product_contrapositive() -> None:
     """Test R-Product with contrapositive: (P->Q) -> (~Q->~P)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
+    P, Q = Symbol("P Q")
     # Contrapositive: (P->Q) -> (NOT Q -> NOT P)
-    expr = sp.Implies(sp.Implies(P, Q), sp.Implies(sp.Not(Q), sp.Not(P)))
+    expr = sp.Implies(sp.Implies(P(X), Q(X)), sp.Implies(sp.Not(Q(X)), sp.Not(P(X))))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
@@ -396,8 +417,9 @@ def test_r_product_equivalent_decomposition() -> None:
 
     Tests: (P<->Q) = (P->Q)∧(Q->P).
     """
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
+    P, Q = Symbol("P Q")
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -407,12 +429,12 @@ def test_r_product_equivalent_decomposition() -> None:
     x = torch.randn(10, 5)
 
     # Test P <-> Q
-    expr_equiv = sp.Equivalent(P, Q)
+    expr_equiv = sp.Equivalent(P(X), Q(X))
     logic_loss_equiv = compile_logic(expr_equiv, predicates, tnorm=RProductTNorm())
     satisfaction_equiv = logic_loss_equiv(x)
 
     # Test (P->Q) AND (Q->P)
-    expr_decomposed = sp.And(sp.Implies(P, Q), sp.Implies(Q, P))
+    expr_decomposed = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), P(X)))
     logic_loss_decomposed = compile_logic(
         expr_decomposed, predicates, tnorm=RProductTNorm()
     )

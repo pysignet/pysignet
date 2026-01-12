@@ -461,14 +461,13 @@ class TestMixedPredicates:
         """Test expression with both Symbol and Predicate."""
         X = Variable("X")
         digit = Symbol("Digit")
-
-        digit = Symbol("Digit")
+        regular = Symbol("Regular")
 
         # Regular predicate
         regular_func = lambda x: torch.sigmoid(x.mean(dim=-1))
 
         # Expression mixes both types
-        expr = sp.And(digit(X, 0), sp.Symbol("Regular"))
+        expr = sp.And(digit(X, 0), regular(X))
 
         classifier = nn.Sequential(
             nn.Linear(10, 3),

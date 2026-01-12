@@ -11,6 +11,8 @@ import sympy as sp
 import torch
 
 from pysignet import (
+    Symbol,
+    Variable,
     compile_logic,
     Predicate,
     SProductTNorm,
@@ -25,8 +27,11 @@ from pysignet import (
 def test_product_and() -> None:
     """Test Product t-norm AND operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -44,8 +49,11 @@ def test_product_and() -> None:
 def test_product_or() -> None:
     """Test Product t-norm OR operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Or(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Or(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -64,8 +72,11 @@ def test_product_or() -> None:
 def test_product_not() -> None:
     """Test Product t-norm NOT operation."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Not(P)
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = sp.Not(P(X))
 
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
@@ -80,8 +91,11 @@ def test_product_not() -> None:
 def test_product_implies() -> None:
     """Test Product t-norm IMPLIES operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -101,8 +115,11 @@ def test_product_implies() -> None:
 def test_product_equivalent() -> None:
     """Test Product t-norm EQUIVALENT operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Equivalent(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Equivalent(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -130,8 +147,11 @@ def test_product_equivalent() -> None:
 def test_lukasiewicz_and() -> None:
     """Test Łukasiewicz t-norm AND operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -149,8 +169,11 @@ def test_lukasiewicz_and() -> None:
 def test_lukasiewicz_or() -> None:
     """Test Łukasiewicz t-norm OR operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Or(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Or(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
@@ -168,8 +191,11 @@ def test_lukasiewicz_or() -> None:
 def test_lukasiewicz_not() -> None:
     """Test Łukasiewicz t-norm NOT operation."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Not(P)
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = sp.Not(P(X))
 
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
@@ -184,8 +210,11 @@ def test_lukasiewicz_not() -> None:
 def test_lukasiewicz_implies() -> None:
     """Test Łukasiewicz t-norm IMPLIES operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -205,8 +234,11 @@ def test_lukasiewicz_implies() -> None:
 def test_lukasiewicz_equivalent() -> None:
     """Test Łukasiewicz t-norm EQUIVALENT operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Equivalent(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Equivalent(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -234,8 +266,11 @@ def test_lukasiewicz_equivalent() -> None:
 def test_godel_and() -> None:
     """Test Gödel t-norm AND operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.And(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
@@ -253,8 +288,11 @@ def test_godel_and() -> None:
 def test_godel_or() -> None:
     """Test Gödel t-norm OR operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Or(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Or(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
@@ -272,8 +310,11 @@ def test_godel_or() -> None:
 def test_godel_not() -> None:
     """Test Gödel t-norm NOT operation."""
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = sp.Not(P)
+    X = Variable("X")
+
+    P = Symbol("P")
+
+    expr = sp.Not(P(X))
 
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
 
@@ -288,8 +329,11 @@ def test_godel_not() -> None:
 def test_godel_implies() -> None:
     """Test Gödel t-norm IMPLIES operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Implies(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Implies(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -309,8 +353,11 @@ def test_godel_implies() -> None:
 def test_godel_equivalent() -> None:
     """Test Gödel t-norm EQUIVALENT operation."""
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.Equivalent(P, Q)
+    X = Variable("X")
+
+    P, Q = Symbol("P Q")
+
+    expr = sp.Equivalent(P(X), Q(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -338,8 +385,10 @@ def test_godel_equivalent() -> None:
 def test_product_multi_and() -> None:
     """Test Product t-norm with 3+ arguments in AND."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(P, Q, R)
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(P(X), Q(X), R(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -358,8 +407,10 @@ def test_product_multi_and() -> None:
 def test_lukasiewicz_multi_or() -> None:
     """Test Łukasiewicz t-norm with 3+ arguments in OR."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.Or(P, Q, R)
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+    expr = sp.Or(P(X), Q(X), R(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
@@ -380,8 +431,10 @@ def test_lukasiewicz_multi_or() -> None:
 def test_godel_multi_and() -> None:
     """Test Gödel t-norm with 3+ arguments in AND."""
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(P, Q, R)
+    X = Variable("X")
+
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(P(X), Q(X), R(X))
 
     predicates = {
         "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),

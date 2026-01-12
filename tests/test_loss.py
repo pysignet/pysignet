@@ -7,16 +7,17 @@ This module tests the loss() method and its different reduction modes
 import sympy as sp
 import torch
 
-from pysignet import compile_logic, Predicate
+from pysignet import Predicate, Symbol, Variable, compile_logic
 
 
 def test_loss_mean_reduction() -> None:
     """Test loss with mean reduction (default)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -31,11 +32,12 @@ def test_loss_mean_reduction() -> None:
 
 def test_loss_sum_reduction() -> None:
     """Test loss with sum reduction."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -49,11 +51,12 @@ def test_loss_sum_reduction() -> None:
 
 def test_loss_none_reduction() -> None:
     """Test loss with no reduction."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -68,11 +71,12 @@ def test_loss_none_reduction() -> None:
 
 def test_loss_reduction_consistency() -> None:
     """Test that different reductions are mathematically consistent."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
+    predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -94,11 +98,12 @@ def test_loss_reduction_consistency() -> None:
 
 def test_invalid_reduction_mode() -> None:
     """Test that invalid reduction mode raises ValueError."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -112,11 +117,12 @@ def test_invalid_reduction_mode() -> None:
 
 def test_loss_is_one_minus_satisfaction() -> None:
     """Test that loss = 1 - satisfaction with linear post-processing."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -130,12 +136,13 @@ def test_loss_is_one_minus_satisfaction() -> None:
 
 def test_loss_with_perfect_satisfaction() -> None:
     """Test loss with perfect satisfaction (satisfaction = 1.0)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
     # Predicate always returns 1.0
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]))}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -148,12 +155,13 @@ def test_loss_with_perfect_satisfaction() -> None:
 
 def test_loss_with_zero_satisfaction() -> None:
     """Test loss with zero satisfaction (satisfaction = 0.0)."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
     # Predicate always returns 0.0
-    predicates = {"P": Predicate( lambda x: torch.zeros(x.shape[0]))}
+    predicates = {"P": Predicate(lambda x: torch.zeros(x.shape[0]))}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(5, 3)
@@ -166,14 +174,15 @@ def test_loss_with_zero_satisfaction() -> None:
 
 def test_loss_with_complex_expression() -> None:
     """Test loss computation with complex expressions."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-    expr = sp.And(sp.Or(P, Q), sp.Not(R))
+    P, Q, R = Symbol("P Q R")
+    expr = sp.And(sp.Or(P(X), Q(X)), sp.Not(R(X)))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
-        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
+        "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3),
     }
 
     logic_loss = compile_logic(expr, predicates)
@@ -195,11 +204,12 @@ def test_loss_with_complex_expression() -> None:
 
 def test_loss_default_reduction() -> None:
     """Test that default reduction is 'mean'."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(10, 5)
@@ -214,11 +224,12 @@ def test_loss_default_reduction() -> None:
 
 def test_loss_with_varying_batch_sizes() -> None:
     """Test loss computation with different batch sizes."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8)}
 
     logic_loss = compile_logic(expr, predicates)
 
@@ -243,21 +254,22 @@ def test_loss_with_varying_batch_sizes() -> None:
 
 def test_loss_with_dict_input() -> None:
     """Test loss computation with dict input."""
+    X, Y = Variable("X Y")
     # pylint: disable=invalid-name
-    P, Q = sp.symbols("P Q")
-    expr = sp.And(P, Q)
+    P, Q = Symbol("P Q")
+    expr = sp.And(P(X), Q(Y))
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(x["p_data"].sum(dim=-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(x["q_data"].mean(dim=-1))),
+        "P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates)
 
     batch_size = 10
     inputs = {
-        "p_data": torch.randn(batch_size, 5),
-        "q_data": torch.randn(batch_size, 10),
+        "X": torch.randn(batch_size, 5),
+        "Y": torch.randn(batch_size, 10),
     }
 
     loss = logic_loss.loss(inputs, reduction="mean", post_processing="linear")
@@ -269,14 +281,13 @@ def test_loss_with_dict_input() -> None:
 
 def test_loss_numerics_stability() -> None:
     """Test loss computation with extreme satisfaction values."""
+    X = Variable("X")
     # pylint: disable=invalid-name
-    P = sp.symbols("P")
-    expr = P
+    P = Symbol("P")
+    expr = P(X)
 
     # Very high satisfaction (near 1)
-    predicates_high = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.9999999)
-    }
+    predicates_high = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.9999999)}
     logic_loss_high = compile_logic(expr, predicates_high)
     x = torch.randn(5, 3)
     loss_high = logic_loss_high.loss(x, reduction="mean", post_processing="linear")
@@ -286,9 +297,7 @@ def test_loss_numerics_stability() -> None:
     assert loss_high < 1e-6
 
     # Very low satisfaction (near 0)
-    predicates_low = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 1e-7)
-    }
+    predicates_low = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 1e-7)}
     logic_loss_low = compile_logic(expr, predicates_low)
     loss_low = logic_loss_low.loss(x, reduction="mean", post_processing="linear")
 

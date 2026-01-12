@@ -8,7 +8,8 @@ import pytest
 import sympy as sp
 import torch
 
-from pysignet import ConsistencyChecker
+from pysignet import ConsistencyChecker, Symbol
+from pysignet.logic import Variable
 
 
 class TestBasicConsistencyChecking:
@@ -414,3 +415,83 @@ class TestErrorHandling:
         # Should convert to boolean
         expected = torch.tensor([True, False, True])
         assert torch.equal(result, expected)
+
+    @pytest.mark.skip(reason="ConsistencyChecker doesn't support PredicateApplication yet - needs FOL update")
+    def test_consistency_with_dict_input_specific_predicate(self):
+        """ConsistencyChecker works with dict input specifying predicate names."""
+        X = Variable("X")
+        P, Q = Symbol("P Q")
+        expr = sp.And(P(X), Q(X))
+
+        predicates = {
+            "P": lambda x: torch.tensor([True, False, True]),
+            "Q": lambda x: torch.tensor([True, True, False]),
+        }
+        checker = ConsistencyChecker(expr, predicates)
+
+        # Dict input with specific predicate names
+        inputs = {
+            "P": torch.randn(3, 10),
+            "Q": torch.randn(3, 10),
+        }
+        result = checker(inputs)
+
+        # P AND Q
+        expected = torch.tensor([True, False, False])
+        assert torch.equal(result, expected)
+
+    @pytest.mark.skip(reason="ConsistencyChecker doesn't support PredicateApplication yet - needs FOL update")
+    def test_consistency_with_true_constant(self):
+        """ConsistencyChecker handles sp.true constant."""
+        X = Variable("X")
+        P = Symbol("P")
+        # Expression: P(X) AND true
+        expr = sp.And(P(X), sp.true)
+
+        predicates = {
+            "P": lambda x: torch.tensor([True, False, True]),
+        }
+        checker = ConsistencyChecker(expr, predicates)
+
+        x = torch.randn(3, 10)
+        result = checker({"P": x})
+
+        # P AND true = P
+        expected = torch.tensor([True, False, True])
+        assert torch.equal(result, expected)
+
+    @pytest.mark.skip(reason="ConsistencyChecker doesn't support PredicateApplication yet - needs FOL update")
+    def test_consistency_with_false_constant(self):
+        """ConsistencyChecker handles sp.false constant."""
+        X = Variable("X")
+        P = Symbol("P")
+        # Expression: P(X) OR false
+        expr = sp.Or(P(X), sp.false)
+
+        predicates = {
+            "P": lambda x: torch.tensor([True, False, True]),
+        }
+        checker = ConsistencyChecker(expr, predicates)
+
+        x = torch.randn(3, 10)
+        result = checker({"P": x})
+
+        # P OR false = P
+        expected = torch.tensor([True, False, True])
+        assert torch.equal(result, expected)
+
+    @pytest.mark.skip(reason="ConsistencyChecker doesn't support PredicateApplication yet - needs FOL update")
+    def test_consistency_unsupported_expression_type(self):
+        """ConsistencyChecker raises ValueError for unsupported expressions."""
+        import sympy
+        X = Variable("X")
+
+        # Create an unsupported SymPy expression (e.g., Add for arithmetic)
+        unsupported_expr = sympy.Add(X, X)
+
+        predicates = {}
+        checker = ConsistencyChecker(unsupported_expr, predicates)
+
+        x = torch.randn(3, 10)
+        with pytest.raises(ValueError, match="Unsupported expression type"):
+            checker(x)
