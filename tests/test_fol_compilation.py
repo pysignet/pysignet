@@ -145,7 +145,7 @@ class TestFOLMixedExpressions:
         assert result.shape == (4,)
         assert torch.all((result >= 0) & (result <= 1))
 
-    def test_mixed_nullary_and_variable_predicates(self):
+    def test_multiple_predicates_same_variable(self):
         """Test multiple predicates with same variable."""
         P, Q = Symbol("P Q")
         X = Variable("X")
