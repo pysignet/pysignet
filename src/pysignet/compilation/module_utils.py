@@ -12,13 +12,13 @@ Key principles:
 - Explicit validation: arity must match module output dimensionality
 """
 
-from typing import Callable
+from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
 
 
-def infer_module_arity(module: nn.Module) -> int:
+def infer_module_arity(module: nn.Module) -> Optional[int]:
     """Infer predicate arity from module output dimensionality.
 
     Args:
@@ -27,16 +27,14 @@ def infer_module_arity(module: nn.Module) -> int:
     Returns:
         1 for unary predicates (output dim = 1)
         2 for binary predicates (output dim > 1)
-
-    Raises:
-        ValueError: If cannot infer arity from output layer
+        None if arity cannot be inferred (custom modules)
 
     Rules:
         - Linear(*, 1) → arity 1 (unary)
         - Linear(*, N>1) → arity 2 (binary)
         - Sigmoid() → arity 1 (unary)
         - Softmax() → arity 2 (binary)
-        - Other layers → error (require explicit wrapper)
+        - Custom modules → None (arity inferred from expression usage)
 
     Example:
         >>> model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
@@ -45,6 +43,10 @@ def infer_module_arity(module: nn.Module) -> int:
         >>> model = nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1))
         >>> infer_module_arity(model)
         2
+        >>> class CustomModel(nn.Module):
+        ...     pass
+        >>> infer_module_arity(CustomModel())
+        None
     """
     final_layer = _get_final_layer(module)
 
@@ -60,12 +62,9 @@ def infer_module_arity(module: nn.Module) -> int:
         return 2
 
     else:
-        raise ValueError(
-            f"Cannot infer arity from module with final layer {type(final_layer).__name__}. "
-            f"Supported output layers: Linear, Sigmoid, Softmax. "
-            f"For other layer types, use explicit lambda wrapper. "
-            f"Example: lambda x: torch.sigmoid(your_model(x).mean(dim=-1))"
-        )
+        # Cannot infer arity for custom modules - return None
+        # Arity will be inferred from expression usage
+        return None
 
 
 def has_final_activation(module: nn.Module) -> bool:

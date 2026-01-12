@@ -357,8 +357,7 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        # Wrap in lambda since custom module can't be auto-detected
-        predicates = {"P": lambda x: model(x)}
+        predicates = {"P": model}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -392,8 +391,7 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        # Wrap in lambda since custom module can't be auto-detected
-        predicates = {"P": lambda x: model(x)}
+        predicates = {"P": model}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -426,8 +424,7 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        # Wrap in lambda since custom module can't be auto-detected
-        predicates = {"P": lambda x: model(x)}
+        predicates = {"P": model}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
@@ -460,8 +457,7 @@ class TestLogicLossGradientFlow:
                 return torch.sigmoid(self.weight).expand(x.shape[0])
 
         model = SimpleModel()
-        # Wrap in lambda since custom module can't be auto-detected
-        predicates = {"P": lambda x: model(x)}
+        predicates = {"P": model}
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)

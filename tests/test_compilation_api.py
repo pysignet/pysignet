@@ -563,8 +563,7 @@ class TestCompileLogicGradients:
                 return torch.sigmoid(self.linear(x).squeeze(-1))
 
         model = SimpleModel()
-        # Wrap model in lambda with explicit unary arity
-        predicates = {"P": lambda x: model(x)}
+        predicates = {"P": model}
 
         logic_loss = compile_logic(expr, predicates)
 
@@ -597,8 +596,7 @@ class TestCompileLogicGradients:
                 return torch.sigmoid(self.weight * x.sum(-1))
 
         model = SimpleModel()
-        # Wrap model in lambda with explicit unary arity
-        predicates = {"P": lambda x: model(x)}
+        predicates = {"P": model}
 
         logic_loss = compile_logic(expr, predicates)
 

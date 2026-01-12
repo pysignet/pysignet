@@ -105,31 +105,34 @@ class LogicCompiler(ABC):
                 module_to_check = value.func
 
             if module_to_check is not None and key in predicate_arities:
-                # Validate nn.Module arity matches usage
+                # Try to validate nn.Module arity matches usage
                 # For unary modules (output dim=1): expect exactly 1 argument
                 # For binary modules (output dim>1): expect 2+ arguments (variable + constant(s))
+                # For custom modules: skip validation (arity inferred from usage)
                 expected_arity = predicate_arities[key]
                 module_arity = infer_module_arity(module_to_check)
 
-                # Check compatibility
-                is_valid = False
-                if module_arity == 1:
-                    # Unary module: must have exactly 1 argument
-                    is_valid = (expected_arity == 1)
-                elif module_arity == 2:
-                    # Binary/multi-output module: must have 2+ arguments
-                    # Allows P(X, 0), P(X, 0, 1), etc. for channel selection
-                    is_valid = (expected_arity >= 2)
+                # Only validate if arity can be inferred
+                if module_arity is not None:
+                    # Check compatibility
+                    is_valid = False
+                    if module_arity == 1:
+                        # Unary module: must have exactly 1 argument
+                        is_valid = (expected_arity == 1)
+                    elif module_arity == 2:
+                        # Binary/multi-output module: must have 2+ arguments
+                        # Allows P(X, 0), P(X, 0, 1), etc. for channel selection
+                        is_valid = (expected_arity >= 2)
 
-                if not is_valid:
-                    arity_names = {1: "unary", 2: "binary"}
-                    module_name = arity_names.get(module_arity, f"arity-{module_arity}")
-                    raise ValueError(
-                        f"Predicate '{key}' arity mismatch: module has {module_name} arity "
-                        f"(output dim = {infer_module_arity(module_to_check)}) but used with "
-                        f"{expected_arity} argument(s). "
-                        f"Unary modules need exactly 1 argument, binary modules need 2+ arguments."
-                    )
+                    if not is_valid:
+                        arity_names = {1: "unary", 2: "binary"}
+                        module_name = arity_names.get(module_arity, f"arity-{module_arity}")
+                        raise ValueError(
+                            f"Predicate '{key}' arity mismatch: module has {module_name} arity "
+                            f"(output dim = {module_arity}) but used with "
+                            f"{expected_arity} argument(s). "
+                            f"Unary modules need exactly 1 argument, binary modules need 2+ arguments."
+                        )
 
             # Auto-wrap raw callables in Predicate objects
             # Note: nn.Modules are NOT wrapped - they're handled specially in evaluation
