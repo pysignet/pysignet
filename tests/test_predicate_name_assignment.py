@@ -254,9 +254,10 @@ class TestPredicateNameReassignmentValidation:
 
     def test_reusing_predicate_with_different_name_raises_error(self) -> None:
         """Reusing a predicate with a different name should raise ValueError."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
-        expr1 = P
-        expr2 = Q
+        expr1 = P(X)
+        expr2 = Q(X)
 
         # Create a predicate and use it with name "P"
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
@@ -338,19 +339,20 @@ class TestPredicateNameReassignmentValidation:
 
     def test_error_message_explains_solution(self) -> None:
         """Error message should explain how to fix the issue."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
         pred = Predicate(lambda x: torch.ones(x.shape[0]))
         predicates1 = {"P": pred}
 
         compiler = TNormCompiler()
-        compiler.compile(P, predicates1)
+        compiler.compile(P(X), predicates1)
 
         # Try to reuse with different name
         predicates2 = {"Q": pred}
 
         with pytest.raises(ValueError) as exc_info:
-            compiler.compile(Q, predicates2)
+            compiler.compile(Q(X), predicates2)
 
         error_msg = str(exc_info.value)
         # Should suggest creating new Predicate instance

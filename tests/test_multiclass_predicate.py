@@ -288,20 +288,20 @@ class TestEvaluation:
         X = Variable("X")
         digit = Symbol("Digit")
 
-        # Create deterministic classifier
-        class DeterministicClassifier(nn.Module):
-            def forward(self, x):
-                batch_size = x.shape[0]
-                # Return [0.1, 0.2, 0.7] for each batch element
-                output = torch.tensor([[0.1, 0.2, 0.7]], dtype=torch.float32)
-                return output.repeat(batch_size, 1)
-
-        classifier = DeterministicClassifier()
+        # Create deterministic classifier that returns [0.1, 0.2, 0.7]
+        # Using lambda wrapper for custom logic (not auto-detectable from layers)
+        def classifier_func(x, y):
+            batch_size = x.shape[0]
+            # Return [0.1, 0.2, 0.7] for each batch element
+            output = torch.tensor([[0.1, 0.2, 0.7]], dtype=torch.float32)
+            output = output.repeat(batch_size, 1)
+            # Extract the y-th index
+            return output[:, y]
 
         # Test each index
         for idx, expected_val in enumerate([0.1, 0.2, 0.7]):
             expr = digit(X, idx)
-            predicates = {"Digit": classifier}
+            predicates = {"Digit": classifier_func}
             compiled = compile_logic(expr, predicates)
 
             x = torch.randn(16, 10)

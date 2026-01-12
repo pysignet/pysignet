@@ -146,12 +146,12 @@ class TestFOLMixedExpressions:
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_mixed_nullary_and_variable_predicates(self):
-        """Test mixing nullary predicates with variable predicates."""
+        """Test multiple predicates with same variable."""
         P, Q = Symbol("P Q")
         X = Variable("X")
 
-        # P ∧ Q(X) - P is nullary, Q has variable
-        expr = sp.And(P, Q(X))
+        # P(X) ∧ Q(X) - both use explicit variable
+        expr = sp.And(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.9)
         q_model = lambda x: torch.full((x.shape[0],), 0.7)
@@ -162,8 +162,9 @@ class TestFOLMixedExpressions:
         result = logic_loss(x)
 
         assert result.shape == (3,)
-        # Should be conjunction of P (0.9) and ∀X: Q(X)
-        assert torch.all(result <= 0.9)
+        # Should be conjunction of P(X) (0.9) and Q(X) (0.7)
+        # Product t-norm: 0.9 * 0.7 = 0.63
+        assert torch.allclose(result, torch.tensor(0.63))
 
 
 class TestFOLComplexExpressions:
@@ -251,11 +252,12 @@ class TestFOLEdgeCases:
     """Test edge cases for FOL compilation."""
 
     def test_no_variables_compiles_normally(self):
-        """Test that expressions without variables compile normally."""
+        """Test that simple predicates with explicit variables compile."""
+        X = Variable("X")
         P, Q = Symbol("P Q")
 
-        # P ∧ Q - no variables
-        expr = sp.And(P, Q)
+        # P(X) ∧ Q(X) - explicit variable usage
+        expr = sp.And(P(X), Q(X))
 
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
         q_model = lambda x: torch.full((x.shape[0],), 0.7)

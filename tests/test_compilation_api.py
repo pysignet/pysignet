@@ -563,7 +563,8 @@ class TestCompileLogicGradients:
                 return torch.sigmoid(self.linear(x).squeeze(-1))
 
         model = SimpleModel()
-        predicates = {"P": Predicate(model, is_model=True)}
+        # Wrap model in lambda with explicit unary arity
+        predicates = {"P": lambda x: model(x)}
 
         logic_loss = compile_logic(expr, predicates)
 
@@ -596,7 +597,8 @@ class TestCompileLogicGradients:
                 return torch.sigmoid(self.weight * x.sum(-1))
 
         model = SimpleModel()
-        predicates = {"P": Predicate(model, is_model=True)}
+        # Wrap model in lambda with explicit unary arity
+        predicates = {"P": lambda x: model(x)}
 
         logic_loss = compile_logic(expr, predicates)
 
@@ -622,16 +624,13 @@ class TestCompileLogicGradients:
         P, Q = Symbol("P Q")
         expr = sp.And(P(X), Q(X))
 
-        # Create models
-        model_p = nn.Linear(5, 1)
-        model_q = nn.Linear(3, 1)
+        # Create models with recognizable structure for arity inference
+        model_p = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
+        model_q = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
         predicates = {
-            "P": Predicate(
-                lambda x: torch.sigmoid(model_p(x).squeeze(-1)),
-                is_model=False,  # Lambda, not a model
-            ),
-            "Q": Predicate(model_q, is_model=True),
+            "P": model_p,  # Raw module, should be auto-wrapped
+            "Q": model_q,  # Raw module, should be auto-wrapped
         }
 
         logic_loss = compile_logic(expr, predicates)
@@ -639,11 +638,10 @@ class TestCompileLogicGradients:
         # Get trainable parameters
         params = logic_loss.get_trainable_parameters()
 
-        # Should only get parameters from model_q (Q is marked as is_model)
-        # Note: P uses a lambda so won't be detected as a model
+        # Should get parameters from both models
         assert isinstance(params, list)
-        # model_q has weight and bias
-        assert len(params) == 2
+        # Each model has Linear layer with weight and bias = 2 params each = 4 total
+        assert len(params) == 4
 
     def test_compile_logic_with_non_callable_predicate(self):
         """compile_logic raises error for non-callable predicate."""

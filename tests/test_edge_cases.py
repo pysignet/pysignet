@@ -238,10 +238,11 @@ def test_deeply_nested_expression() -> None:
 def test_many_predicates() -> None:
     """Test handling expressions with many predicates."""
     # pylint: disable=invalid-name
+    X = Variable("X")
     symbols_list = Symbol("P Q R S T U V W X Y Z")
 
-    # Create expression using all predicates
-    expr = sp.And(*symbols_list[:10])
+    # Create expression using all predicates with explicit variable
+    expr = sp.And(*[sym(X) for sym in symbols_list[:10]])
 
     predicates = {
         str(sym): Predicate(lambda x: torch.ones(x.shape[0]) * 0.9)

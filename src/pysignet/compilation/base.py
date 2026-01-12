@@ -94,47 +94,46 @@ class LogicCompiler(ABC):
         # Extract predicate usages and their arities from expression
         predicate_arities = self._extract_predicate_arities(expanded_expr)
 
-        # Wrap predicates with smart nn.Module handling
+        # Wrap predicates and validate nn.Module arity
         wrapped_predicates: Dict[str, Predicate] = {}
         for key, value in predicates.items():
-            # Check if value is Predicate wrapping an nn.Module
-            module_to_wrap = None
+            # Extract module if wrapped in Predicate
+            module_to_check = None
             if isinstance(value, nn.Module):
-                module_to_wrap = value
+                module_to_check = value
             elif isinstance(value, Predicate) and isinstance(value.func, nn.Module):
-                module_to_wrap = value.func
+                module_to_check = value.func
 
-            if module_to_wrap is not None:
-                # Smart nn.Module handling
-                # Get expected arity from expression usage
-                if key not in predicate_arities:
-                    # Predicate not used in expression - skip wrapping
-                    # Will be caught by symbol extraction validation
-                    if isinstance(value, Predicate):
-                        wrapped_predicates[key] = value
-                    else:
-                        wrapped_predicates[key] = Predicate(value)
-                    continue
-
+            if module_to_check is not None and key in predicate_arities:
+                # Validate nn.Module arity matches usage
+                # For unary modules (output dim=1): expect exactly 1 argument
+                # For binary modules (output dim>1): expect 2+ arguments (variable + constant(s))
                 expected_arity = predicate_arities[key]
+                module_arity = infer_module_arity(module_to_check)
 
-                # Infer arity from module and validate match
-                module_arity = infer_module_arity(module_to_wrap)
-                if module_arity != expected_arity:
+                # Check compatibility
+                is_valid = False
+                if module_arity == 1:
+                    # Unary module: must have exactly 1 argument
+                    is_valid = (expected_arity == 1)
+                elif module_arity == 2:
+                    # Binary/multi-output module: must have 2+ arguments
+                    # Allows P(X, 0), P(X, 0, 1), etc. for channel selection
+                    is_valid = (expected_arity >= 2)
+
+                if not is_valid:
                     arity_names = {1: "unary", 2: "binary"}
+                    module_name = arity_names.get(module_arity, f"arity-{module_arity}")
                     raise ValueError(
-                        f"Predicate '{key}' arity mismatch: used as "
-                        f"{arity_names[expected_arity]} in expression but "
-                        f"module has {arity_names[module_arity]} arity "
-                        f"(output dim = {module_to_wrap.out_features if isinstance(module_to_wrap, nn.Linear) else 'N/A'}). "
-                        f"Ensure module output dimensionality matches usage."
+                        f"Predicate '{key}' arity mismatch: module has {module_name} arity "
+                        f"(output dim = {infer_module_arity(module_to_check)}) but used with "
+                        f"{expected_arity} argument(s). "
+                        f"Unary modules need exactly 1 argument, binary modules need 2+ arguments."
                     )
 
-                # Wrap with appropriate signature
-                wrapper = wrap_module_as_predicate(module_to_wrap, expected_arity)
-                wrapped_predicates[key] = Predicate(wrapper)
-
-            elif isinstance(value, Predicate):
+            # Auto-wrap raw callables in Predicate objects
+            # Note: nn.Modules are NOT wrapped - they're handled specially in evaluation
+            if isinstance(value, Predicate):
                 wrapped_predicates[key] = value
             elif callable(value):
                 wrapped_predicates[key] = Predicate(value)

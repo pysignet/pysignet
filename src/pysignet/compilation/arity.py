@@ -14,6 +14,7 @@ import inspect
 from typing import Dict
 
 import sympy as sp
+import torch.nn as nn
 
 from ..predicate import Predicate
 from ..multiclass import PredicateApplication
@@ -92,6 +93,12 @@ def _validate_application_arity(
 
     Raises:
         ValueError: If arity mismatch found
+
+    Note:
+        nn.Module instances are skipped here because they're validated
+        separately in _wrap_and_validate_predicates using infer_module_arity().
+        They're also handled specially in _evaluate_predicate_application
+        to preserve caching behavior for multi-output modules.
     """
     pred_name = app.predicate_name
 
@@ -101,6 +108,11 @@ def _validate_application_arity(
 
     predicate = predicates[pred_name]
     func = predicate.func
+
+    # Skip validation for nn.Module instances - they're validated separately
+    # and handled specially in _evaluate_predicate_application for caching
+    if isinstance(func, nn.Module):
+        return
 
     # Expected arity: total number of arguments in application
     expected_arity = len(app.application_args)

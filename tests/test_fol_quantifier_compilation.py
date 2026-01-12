@@ -88,10 +88,10 @@ class TestDomainSizeLimits:
 
     def test_large_domain_warns(self):
         """Large domain (>100) triggers warning."""
-        Y = Variable("Y")
+        X, Y = Variable("X Y")
         P = Symbol("P")
 
-        expr = ForAll(Y, range(150), P(Y))
+        expr = ForAll(Y, range(150), P(X, Y))
 
         model = nn.Sequential(nn.Linear(5, 200), nn.Softmax(dim=-1))
 
@@ -116,10 +116,10 @@ class TestDomainSizeLimits:
         """Small domain (<100) works without warning."""
         import warnings
 
-        Y = Variable("Y")
+        X, Y = Variable("X Y")
         P = Symbol("P")
 
-        expr = ForAll(Y, range(10), P(Y))
+        expr = ForAll(Y, range(10), P(X, Y))
 
         model = nn.Sequential(nn.Linear(5, 15), nn.Softmax(dim=-1))
 
@@ -211,10 +211,9 @@ class TestRealWorldPatterns:
         X, Y = Variable("X Y")
         Digit, Even = Symbol("Digit Even")
 
-        # ForAll(Y, [0,2,4,6,8], Digit(X, Y) → Even)
+        # ForAll(Y, [0,2,4,6,8], Digit(X, Y) → Even(X))
         # "For even digits, if X is classified as that digit, then the Even predicate holds"
-        # Note: Even is a nullary predicate (no arguments)
-        body = sp.Implies(Digit(X, Y), Even)
+        body = sp.Implies(Digit(X, Y), Even(X))
         expr = ForAll(Y, [0, 2, 4, 6, 8], body)
 
         digit_model = nn.Sequential(nn.Linear(10, 10), nn.Softmax(dim=-1))

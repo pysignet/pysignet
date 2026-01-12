@@ -535,7 +535,7 @@ class TestRealWorldPatterns:
         # Exists(Y, [2,3,5,7], Digit(X, Y)) → ¬Prime(X)
         # "If X is a prime digit, then it's not composite-prime"
         exists_expr = Exists(Y, [2, 3, 5, 7], Digit(X, Y))
-        expr = sp.Implies(exists_expr, sp.Not(Prime))
+        expr = sp.Implies(exists_expr, sp.Not(Prime(X)))
 
         digit_model = nn.Sequential(nn.Linear(8, 10), nn.Softmax(dim=-1))
         prime_model = nn.Sequential(nn.Linear(8, 1), nn.Sigmoid())

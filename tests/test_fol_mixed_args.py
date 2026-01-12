@@ -355,34 +355,30 @@ class TestArityValidationErrors:
             compile_logic(expr, predicates)
 
     def test_nullary_arity_mismatch_too_many_args(self):
-        """Error when nullary predicate callable takes 2+ arguments."""
+        """Error when predicate is used without arguments (nullary not allowed)."""
         P = Symbol("P")
 
-        # P used as nullary (no arguments)
+        # P used as nullary (no arguments) - this is disallowed
         expr = P
 
-        # But callable takes 2 arguments - ERROR!
+        # Callable takes 2 arguments
         predicates = {"P": lambda x, y: torch.tensor(0.5)}
 
-        with pytest.raises(ValueError, match="nullary usage"):
+        with pytest.raises(ValueError, match="used without arguments"):
             compile_logic(expr, predicates)
 
     def test_arity_validation_with_nn_module(self):
-        """nn.Module predicates skip detailed arity validation."""
+        """nn.Module predicates with auto-detectable arity."""
         X = Variable("X")
         P = Symbol("P")
 
         expr = P(X)
 
-        # nn.Module - arity validation is lenient
-        class SimpleModule(nn.Module):
-            def forward(self, x):
-                return torch.sigmoid(x.sum(dim=-1))
-
-        model = SimpleModule()
+        # Use Sequential with recognizable structure (unary)
+        model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
         predicates = {"P": model}
 
-        # Should compile successfully (nn.Module validation skipped)
+        # Should compile successfully
         compiled = compile_logic(expr, predicates)
 
         batch_size = 3
