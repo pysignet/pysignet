@@ -2,17 +2,22 @@
 
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, Union, Set
-import inspect
 import warnings
 
 import sympy as sp
 import torch
+import torch.nn as nn
 
 from ..predicate import Predicate
 from ..multiclass import PredicateApplication
 from ..logic import extract_variables, extract_variables_from_application
 from ..logic.quantifier import Quantifier
 from ..logic.expansion import expand_quantifier
+from .arity import validate_predicate_arity
+from .module_utils import (
+    infer_module_arity,
+    wrap_module_as_predicate
+)
 
 
 class LogicCompiler(ABC):
@@ -64,11 +69,11 @@ class LogicCompiler(ABC):
         """Wrap, validate, and prepare predicates for compilation.
 
         This method:
-        1. Auto-wraps raw callables in Predicate objects
-        2. Assigns names to predicates
-        3. Validates no predicate reuse with different names
-        4. Expands quantifiers
-        5. Extracts and validates symbols
+        1. Expands quantifiers
+        2. Extracts predicate usages and arities from expression
+        3. Wraps nn.Modules with smart detection (sigmoid/softmax)
+        4. Auto-wraps raw callables in Predicate objects
+        5. Assigns names and validates no reuse
         6. Validates predicate usage consistency
         7. Validates predicate arity
 
@@ -83,10 +88,53 @@ class LogicCompiler(ABC):
             ValueError: If validation fails
             TypeError: If predicate values are not callable
         """
-        # Auto-wrap raw callables in Predicate objects
+        # Expand quantifiers FIRST (needed for arity extraction)
+        expanded_expr = self._expand_quantifiers(expr)
+
+        # Extract predicate usages and their arities from expression
+        predicate_arities = self._extract_predicate_arities(expanded_expr)
+
+        # Wrap predicates with smart nn.Module handling
         wrapped_predicates: Dict[str, Predicate] = {}
         for key, value in predicates.items():
-            if isinstance(value, Predicate):
+            # Check if value is Predicate wrapping an nn.Module
+            module_to_wrap = None
+            if isinstance(value, nn.Module):
+                module_to_wrap = value
+            elif isinstance(value, Predicate) and isinstance(value.func, nn.Module):
+                module_to_wrap = value.func
+
+            if module_to_wrap is not None:
+                # Smart nn.Module handling
+                # Get expected arity from expression usage
+                if key not in predicate_arities:
+                    # Predicate not used in expression - skip wrapping
+                    # Will be caught by symbol extraction validation
+                    if isinstance(value, Predicate):
+                        wrapped_predicates[key] = value
+                    else:
+                        wrapped_predicates[key] = Predicate(value)
+                    continue
+
+                expected_arity = predicate_arities[key]
+
+                # Infer arity from module and validate match
+                module_arity = infer_module_arity(module_to_wrap)
+                if module_arity != expected_arity:
+                    arity_names = {1: "unary", 2: "binary"}
+                    raise ValueError(
+                        f"Predicate '{key}' arity mismatch: used as "
+                        f"{arity_names[expected_arity]} in expression but "
+                        f"module has {arity_names[module_arity]} arity "
+                        f"(output dim = {module_to_wrap.out_features if isinstance(module_to_wrap, nn.Linear) else 'N/A'}). "
+                        f"Ensure module output dimensionality matches usage."
+                    )
+
+                # Wrap with appropriate signature
+                wrapper = wrap_module_as_predicate(module_to_wrap, expected_arity)
+                wrapped_predicates[key] = Predicate(wrapper)
+
+            elif isinstance(value, Predicate):
                 wrapped_predicates[key] = value
             elif callable(value):
                 wrapped_predicates[key] = Predicate(value)
@@ -108,9 +156,6 @@ class LogicCompiler(ABC):
                 )
             pred.name = key
 
-        # Expand quantifiers BEFORE symbol extraction
-        expanded_expr = self._expand_quantifiers(expr)
-
         # Verify all symbols have corresponding predicates
         symbols = self._extract_predicate_symbols(expanded_expr)
         missing = symbols - set(wrapped_predicates.keys())
@@ -120,8 +165,8 @@ class LogicCompiler(ABC):
         # Validate predicate usage consistency
         self._validate_predicate_usage(expanded_expr)
 
-        # Validate predicate arity
-        self._validate_predicate_arity(expanded_expr, wrapped_predicates)
+        # Validate predicate arity using new clean validator
+        validate_predicate_arity(expanded_expr, wrapped_predicates)
 
         return wrapped_predicates
 
@@ -178,6 +223,49 @@ class LogicCompiler(ABC):
             return node
 
         return _expand_recursive(expr)
+
+    def _extract_predicate_arities(self, expr: sp.Basic) -> Dict[str, int]:
+        """Extract predicate names and their arities from expression.
+
+        Validates that each predicate is used consistently with the same arity.
+
+        Args:
+            expr: SymPy expression to analyze
+
+        Returns:
+            Dict mapping predicate names to their arities
+
+        Raises:
+            ValueError: If predicate used inconsistently with different arities
+
+        Example:
+            expr = sp.And(P(X), Q(X, Y))
+            → {"P": 1, "Q": 2}
+        """
+        arities: Dict[str, int] = {}
+
+        def extract(e: sp.Basic) -> None:
+            if isinstance(e, PredicateApplication):
+                pred_name = e.predicate_name
+                arity = len(e.application_args)
+
+                # Check consistency
+                if pred_name in arities:
+                    if arities[pred_name] != arity:
+                        raise ValueError(
+                            f"Predicate '{pred_name}' used inconsistently: "
+                            f"found both arity {arities[pred_name]} and "
+                            f"arity {arity} in the same expression."
+                        )
+                else:
+                    arities[pred_name] = arity
+
+            # Recurse into subexpressions
+            for arg in getattr(e, 'args', []):
+                extract(arg)
+
+        extract(expr)
+        return arities
 
     def _extract_predicate_symbols(self, expr: sp.Basic) -> Set[str]:
         """Extract all predicate symbols from a SymPy expression.
@@ -251,145 +339,6 @@ class LogicCompiler(ABC):
                 collect_usage(arg)
 
         collect_usage(expr)
-
-    def _validate_predicate_arity(
-        self,
-        expr: sp.Basic,
-        predicates: Dict[str, Predicate]
-    ) -> None:
-        """Validate that predicate callables accept correct number of arguments.
-
-        For PredicateApplications with mixed variable/constant arguments,
-        validates that the callable accepts as many arguments as there are
-        distinct free variables.
-
-        Args:
-            expr: SymPy expression to validate
-            predicates: Dict of predicates to check
-
-        Raises:
-            ValueError: If any predicate has incorrect arity
-        """
-        def check_arity(e: sp.Basic) -> None:
-            """Recursively check arity for PredicateApplications and Symbols."""
-            from ..logic.variable import VariableSymbol
-
-            if isinstance(e, PredicateApplication):
-                pred_name = e.predicate_name
-                predicate = predicates[pred_name]
-
-                # Count total arguments (free variables + constants)
-                # The callable must accept all arguments, not just free ones
-                expected_arity = len(e.application_args)
-
-                # Extract distinct free variables for error messages
-                free_vars = extract_variables_from_application(e)
-
-                # Get callable signature
-                func = predicate.func
-                try:
-                    # Skip validation for nn.Module instances
-                    if isinstance(func, torch.nn.Module):
-                        pass
-                    else:
-                        # Regular callable
-                        sig = inspect.signature(func)
-
-                        # Count parameters
-                        params = [
-                            p for p in sig.parameters.values()
-                            if p.kind in (
-                                inspect.Parameter.POSITIONAL_ONLY,
-                                inspect.Parameter.POSITIONAL_OR_KEYWORD
-                            )
-                        ]
-
-                        # For bound methods, exclude 'self'
-                        if inspect.ismethod(func):
-                            params = params[1:]
-
-                        actual_arity = len(params)
-
-                        if actual_arity != expected_arity:
-                            var_names = ", ".join(str(v) for v in sorted(
-                                free_vars, key=str
-                            )) if free_vars else "none"
-                            num_constants = expected_arity - len(free_vars)
-                            raise ValueError(
-                                f"Predicate '{pred_name}' arity mismatch: "
-                                f"application {e} has {expected_arity} argument(s) "
-                                f"({len(free_vars)} free variable(s): {var_names}, "
-                                f"{num_constants} constant(s)) but callable accepts "
-                                f"{actual_arity} argument(s). Callable signature must "
-                                f"match total number of arguments."
-                            )
-                except (ValueError, TypeError) as err:
-                    # Re-raise ValueError as-is
-                    if isinstance(err, ValueError):
-                        raise
-                    # For other cases, skip validation
-                    pass
-
-            elif isinstance(e, sp.Symbol):
-                # Check nullary predicates (Symbol used without arguments)
-                # Exclude VariableSymbol and built-in constants
-                if (not isinstance(e, VariableSymbol) and
-                    e not in (sp.true, sp.false) and
-                    str(e) in predicates):
-
-                    pred_name = str(e)
-                    predicate = predicates[pred_name]
-
-                    # Nullary predicates can accept 0 or 1 argument:
-                    # - 0 args: truly constant (lambda: torch.tensor(0.9))
-                    # - 1 arg: needs batch input (lambda x: torch.full((x.shape[0],), 0.9))
-                    # Both are valid for nullary usage
-
-                    func = predicate.func
-                    try:
-                        # Skip validation for nn.Module instances
-                        if isinstance(func, torch.nn.Module):
-                            pass
-                        else:
-                            # Regular callable
-                            sig = inspect.signature(func)
-
-                            # Count parameters
-                            params = [
-                                p for p in sig.parameters.values()
-                                if p.kind in (
-                                    inspect.Parameter.POSITIONAL_ONLY,
-                                    inspect.Parameter.POSITIONAL_OR_KEYWORD
-                                )
-                            ]
-
-                            # For bound methods, exclude 'self'
-                            if inspect.ismethod(func):
-                                params = params[1:]
-
-                            actual_arity = len(params)
-
-                            # Nullary allows 0 or 1 argument
-                            if actual_arity not in (0, 1):
-                                raise ValueError(
-                                    f"Predicate '{pred_name}' arity mismatch: "
-                                    f"nullary usage '{e}' (no arguments) requires "
-                                    f"callable with 0 or 1 argument(s) (for batch input), "
-                                    f"but callable accepts {actual_arity} argument(s). "
-                                    f"Use '{pred_name}(X, Y, ...)' for multi-argument predicates."
-                                )
-                    except (ValueError, TypeError) as err:
-                        # Re-raise ValueError as-is
-                        if isinstance(err, ValueError):
-                            raise
-                        # For other cases, skip validation
-                        pass
-
-            # Recurse into subexpressions
-            for arg in getattr(e, 'args', []):
-                check_arity(arg)
-
-        check_arity(expr)
 
     def _parse_predicate_application(
         self,
