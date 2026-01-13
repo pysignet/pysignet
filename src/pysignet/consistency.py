@@ -9,6 +9,9 @@ from typing import Dict, Union, Set, Callable, Any
 import sympy as sp
 import torch
 
+from .multiclass import PredicateApplication
+from .logic.variable import VariableSymbol
+
 
 class ConsistencyChecker:
     """Check how often a logical formula is satisfied by model predictions.
@@ -17,8 +20,10 @@ class ConsistencyChecker:
     predicates. Each predicate should return a boolean tensor indicating
     whether a condition holds.
 
+    Uses the FOL interface with Variables and PredicateApplications.
+
     Args:
-        expression: SymPy logic expression to check
+        expression: SymPy logic expression to check (must use FOL interface)
         predicates: Dict mapping predicate names to callables that return
                    boolean tensors. For example:
                    `{'P': lambda x: model(x).argmax(-1) == 0}`
@@ -27,11 +32,12 @@ class ConsistencyChecker:
         >>> import sympy as sp
         >>> import torch
         >>> import torch.nn as nn
-        >>> from logic_as_loss import ConsistencyChecker
+        >>> from pysignet import ConsistencyChecker, Symbol, Variable
         >>>
-        >>> # Define constraint: predictions should be consistent
-        >>> P, Q = sp.symbols('P Q')
-        >>> constraint = sp.Implies(P, Q)  # If P then Q
+        >>> # Define constraint with FOL interface
+        >>> P, Q = Symbol("P Q")
+        >>> X = Variable("X")
+        >>> constraint = sp.Implies(P(X), Q(X))  # If P(X) then Q(X)
         >>>
         >>> # Create models
         >>> model1 = nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1))
@@ -70,10 +76,20 @@ class ConsistencyChecker:
             )
 
     def _extract_predicate_symbols(self, expr: sp.Basic) -> Set[str]:
-        """Extract all predicate symbols from a SymPy expression."""
-        if isinstance(expr, sp.Symbol):
-            return {str(expr)}
+        """Extract all predicate symbols from a SymPy expression.
 
+        Only supports FOL interface (PredicateApplication).
+        Variables (VariableSymbol) are skipped.
+        """
+        # FOL interface: predicate applications P(X), Digit(X, 0)
+        if isinstance(expr, PredicateApplication):
+            return {expr.predicate_name}
+
+        # Skip variables (they are not predicates)
+        if isinstance(expr, VariableSymbol):
+            return set()
+
+        # Recurse into compound expressions
         symbols: Set[str] = set()
         for arg in expr.args:
             symbols.update(self._extract_predicate_symbols(arg))
@@ -125,10 +141,9 @@ class ConsistencyChecker:
         Returns:
             Boolean tensor indicating satisfaction
         """
-        # Base case: symbol
-        if isinstance(expr, sp.Symbol):
-            symbol_name = str(expr)
-            return decisions[symbol_name]
+        # Base case: FOL predicate application P(X), Digit(X, 0)
+        if isinstance(expr, PredicateApplication):
+            return decisions[expr.predicate_name]
 
         # Boolean constants
         if expr == sp.true:
