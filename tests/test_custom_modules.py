@@ -125,10 +125,16 @@ class TestCustomBinaryModules:
     """Test custom nn.Module with binary predicates."""
 
     def test_custom_binary_module_compiles(self):
-        """Custom binary module compiles and runs."""
-        X, Y = Variable("X Y")
+        """Custom binary module compiles and runs.
+
+        Note: For binary predicates with nn.Modules, the module outputs
+        multiple channels and the second argument is used for indexing.
+        The module forward() takes only the first argument.
+        """
+        X = Variable("X")
         P = Symbol("P")
-        expr = P(X, Y)
+        # P(X, 2) - select channel 2
+        expr = P(X, 2)
 
         class CustomBinary(nn.Module):
             def __init__(self):
@@ -136,14 +142,14 @@ class TestCustomBinaryModules:
                 self.linear = nn.Linear(10, 5)
 
             def forward(self, x):
-                # Returns (batch, 5) - binary predicate
+                # Returns (batch, 5) - multi-output for binary predicate
                 return torch.softmax(self.linear(x), dim=-1)
 
         model = CustomBinary()
         logic_loss = compile_logic(expr, {"P": model})
 
         x = torch.randn(3, 10)
-        result = logic_loss({"X": x, "Y": torch.tensor([0, 1, 2])})
+        result = logic_loss(x)
 
         assert result.shape == (3,)
 
@@ -266,8 +272,11 @@ class TestCustomModulesWithPredicate:
 
         # Should have weight and bias
         assert len(params_list) == 2
-        assert model.weight in params_list
-        assert model.bias in params_list
+
+        # Check parameters are in the list (use id comparison)
+        param_ids = {id(p) for p in params_list}
+        assert id(model.weight) in param_ids
+        assert id(model.bias) in param_ids
 
 
 class TestMixedCustomAndSequential:

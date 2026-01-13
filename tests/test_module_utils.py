@@ -72,31 +72,28 @@ class TestInferModuleArity:
         model = nn.Linear(10, 5)
         assert infer_module_arity(model) == 2
 
-    def test_relu_output_raises_error(self):
-        """Test ReLU as final layer raises error."""
+    def test_relu_output_returns_none(self):
+        """Test ReLU as final layer returns None (custom module)."""
         model = nn.Sequential(
             nn.Linear(10, 5),
             nn.ReLU()
         )
 
-        with pytest.raises(ValueError) as exc_info:
-            infer_module_arity(model)
+        # ReLU is not a supported output layer, so returns None
+        # Arity will be inferred from expression usage
+        result = infer_module_arity(model)
+        assert result is None
 
-        error_msg = str(exc_info.value)
-        assert "ReLU" in error_msg
-        assert "Linear" in error_msg or "Sigmoid" in error_msg or "Softmax" in error_msg
-
-    def test_tanh_output_raises_error(self):
-        """Test Tanh as final layer raises error."""
+    def test_tanh_output_returns_none(self):
+        """Test Tanh as final layer returns None (custom module)."""
         model = nn.Sequential(
             nn.Linear(10, 3),
             nn.Tanh()
         )
 
-        with pytest.raises(ValueError) as exc_info:
-            infer_module_arity(model)
-
-        assert "Tanh" in str(exc_info.value)
+        # Tanh is not a supported output layer, so returns None
+        result = infer_module_arity(model)
+        assert result is None
 
 
 class TestHasFinalActivation:
@@ -361,24 +358,22 @@ class TestArityMismatch:
 class TestErrorMessages:
     """Test that error messages are helpful."""
 
-    def test_unsupported_layer_suggests_alternatives(self):
-        """Test error message suggests supported layer types."""
+    def test_unsupported_layer_returns_none(self):
+        """Test unsupported layers return None (treated as custom modules)."""
         model = nn.Sequential(nn.Linear(10, 5), nn.Tanh())
 
-        with pytest.raises(ValueError) as exc_info:
-            infer_module_arity(model)
+        # Unsupported layers return None - arity inferred from usage
+        result = infer_module_arity(model)
+        assert result is None
 
-        error_msg = str(exc_info.value)
-        assert "Linear" in error_msg
-        assert "Sigmoid" in error_msg
-        assert "Softmax" in error_msg
+    def test_custom_module_returns_none(self):
+        """Test custom modules return None (arity from usage)."""
+        class CustomModule(nn.Module):
+            def forward(self, x):
+                return torch.sigmoid(x)
 
-    def test_unsupported_layer_suggests_wrapper(self):
-        """Test error message suggests explicit wrapper."""
-        model = nn.Sequential(nn.Linear(10, 5), nn.ReLU())
+        model = CustomModule()
 
-        with pytest.raises(ValueError) as exc_info:
-            infer_module_arity(model)
-
-        error_msg = str(exc_info.value)
-        assert "lambda" in error_msg.lower() or "wrapper" in error_msg.lower()
+        # Custom modules return None - arity inferred from usage
+        result = infer_module_arity(model)
+        assert result is None
