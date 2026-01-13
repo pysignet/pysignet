@@ -171,7 +171,6 @@ class TestBasicConsistencyChecking:
 class TestTransitivityConstraint:
     """Test transitivity constraint from NLI paper."""
 
-    @pytest.mark.skip(reason="Phase 4: Constants support required - E('P', 'H') uses string constants")
     def test_transitivity_entailment(self) -> None:
         """Test: E(P,H) ∧ E(H,Z) → E(P,Z)."""
         E = Symbol("E")
@@ -218,7 +217,6 @@ class TestTransitivityConstraint:
         result = checker(x)
         assert result[0].item() is True
 
-    @pytest.mark.skip(reason="Phase 4: Constants support required - E('P', 'H') uses string constants")
     def test_transitivity_contradiction(self) -> None:
         """Test: E(P,H) ∧ C(H,Z) → C(P,Z)."""
         E, C = Symbol("E C")
@@ -250,7 +248,6 @@ class TestTransitivityConstraint:
 class TestSymmetryConstraint:
     """Test symmetry constraint from NLI paper."""
 
-    @pytest.mark.skip(reason="Phase 4: Constants support required - C('P', 'H') uses string constants")
     def test_symmetry_equivalence(self) -> None:
         """Test: C(P,H) ↔ C(H,P)."""
         C = Symbol("C")

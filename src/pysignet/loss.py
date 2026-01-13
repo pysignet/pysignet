@@ -52,34 +52,63 @@ class LogicLoss:
 
     def __call__(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
+        inputs: Optional[Union[torch.Tensor, Dict[str, torch.Tensor]]] = None,
+        **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
         """Evaluate compiled logic and return satisfaction degrees.
 
         Args:
-            inputs: Single tensor or dict of tensors
+            inputs: Single tensor, dict of tensors, or None (for constant-only
+                   predicates with no variables). Default: None.
+            **variable_bindings: FOL variable bindings (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
             Satisfaction tensor of shape (batch_size,) in [0, 1].
             Higher values = better satisfaction.
+
+        Examples:
+            >>> # Traditional API (single tensor)
+            >>> result = logic_loss(x)
+            >>>
+            >>> # Traditional API (dict)
+            >>> result = logic_loss({"P": x_p, "Q": x_q})
+            >>>
+            >>> # FOL API (variable bindings)
+            >>> result = logic_loss(X=x, Y=y)
+            >>>
+            >>> # Constant-only predicates (no inputs)
+            >>> result = logic_loss()
         """
+        # If variable bindings provided via kwargs, use them
+        if variable_bindings:
+            if inputs is not None:
+                raise ValueError(
+                    "Cannot provide both positional 'inputs' and variable "
+                    "bindings (**kwargs). Use one or the other."
+                )
+            inputs = variable_bindings
+        # Handle no-input case (constant-only predicates)
+        elif inputs is None:
+            inputs = {}
         return self.compiled_logic(inputs)
 
     def loss(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        inputs: Optional[Union[torch.Tensor, Dict[str, torch.Tensor]]] = None,
         reduction: str = 'mean',
         post_processing: Optional[
             Union[str, Callable[[torch.Tensor], torch.Tensor]]
-        ] = None
+        ] = None,
+        **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
         """Compute loss based on logical constraint violation.
 
         Args:
-            inputs: Inputs for predicates
+            inputs: Inputs for predicates, or None for constant-only predicates
             reduction: 'mean', 'sum', or 'none' (default: 'mean')
             post_processing: Post-processing mode - 'log', 'linear', callable,
                            or None (uses default from __init__)
+            **variable_bindings: FOL variable bindings (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
             Loss value (lower = better satisfaction)
@@ -88,7 +117,7 @@ class LogicLoss:
             ValueError: If invalid post_processing or reduction mode
         """
         # Compute satisfaction
-        satisfaction = self(inputs)
+        satisfaction = self(inputs, **variable_bindings)
 
         # Determine post-processing mode
         postprocessing_type = (

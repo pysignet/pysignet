@@ -461,7 +461,18 @@ class LogicCompiler(ABC):
         # Handle nn.Module or no-constants case (old behavior)
         # Route based on number of free variables
         if len(free_vars) == 0:
-            # No free variables - true nullary predicate
+            # No free variables - either nullary or constant-only predicate
+
+            # If non-module callable with constants, pass constants as arguments
+            if not is_module and len(constants) > 0:
+                cache_key = (id(func), tuple(constants))
+                result = ctx.get_or_compute(
+                    cache_key,
+                    lambda: predicate(*constants)
+                )
+                return result
+
+            # True nullary predicate (no variables, no constants)
             cache_key = (id(func), "nullary")
             result = ctx.get_or_compute(cache_key, lambda: predicate())
 
@@ -469,7 +480,7 @@ class LogicCompiler(ABC):
             if not isinstance(result, torch.Tensor):
                 result = torch.tensor(result)
 
-            # Handle constants as output indices if present
+            # Handle constants as output indices if present (nn.Module case)
             if len(constants) > 0 and result.dim() > 0:
                 for const in constants:
                     if result.dim() == 0:

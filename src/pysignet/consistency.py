@@ -95,55 +95,98 @@ class ConsistencyChecker:
             symbols.update(self._extract_predicate_symbols(arg))
         return symbols
 
+    def _extract_predicate_applications(self, expr: sp.Basic) -> Set[PredicateApplication]:
+        """Extract all unique PredicateApplications from expression.
+
+        Args:
+            expr: SymPy expression
+
+        Returns:
+            Set of all PredicateApplication instances in the expression
+        """
+        applications: Set[PredicateApplication] = set()
+
+        if isinstance(expr, PredicateApplication):
+            applications.add(expr)
+            return applications
+
+        # Skip variables
+        if isinstance(expr, VariableSymbol):
+            return applications
+
+        # Recurse into compound expressions
+        for arg in expr.args:
+            applications.update(self._extract_predicate_applications(arg))
+
+        return applications
+
     def _evaluate_predicates(
         self,
         inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
-    ) -> Dict[str, torch.Tensor]:
-        """Evaluate all predicates on inputs to get boolean decisions.
+    ) -> Dict[Any, torch.Tensor]:
+        """Evaluate all predicate applications on inputs to get boolean decisions.
 
         Args:
             inputs: Single tensor or dict of tensors for predicates
 
         Returns:
-            Dict mapping predicate names to boolean tensors
+            Dict mapping PredicateApplication instances to boolean tensors
         """
+        from .logic import is_constant
+
         decisions = {}
 
-        for name, predicate in self.predicates.items():
+        # Extract all unique predicate applications from expression
+        applications = self._extract_predicate_applications(self.expression)
+
+        for app in applications:
+            pred_name = app.predicate_name
+            predicate = self.predicates[pred_name]
+
+            # Extract constants from this application (preserving order)
+            constants = [arg for arg in app.application_args if is_constant(arg)]
+
             # Get input for this predicate
             if isinstance(inputs, dict):
-                pred_input = inputs.get(name, inputs.get('default'))
+                pred_input = inputs.get(pred_name, inputs.get('default'))
             else:
                 pred_input = inputs
 
-            # Evaluate predicate to get boolean decision
-            result = predicate(pred_input)
+            # Evaluate predicate with constants (if any)
+            if constants:
+                # Pass constants as arguments to predicate
+                result = predicate(*constants)
+            else:
+                # No constants, pass just the input
+                result = predicate(pred_input)
 
-            # Predicate always returns a tensor, convert to boolean
+            # Convert to boolean if needed
             if result.dtype != torch.bool:
                 result = result.bool()
 
-            decisions[name] = result
+            # Store result keyed by the PredicateApplication instance
+            decisions[app] = result
 
         return decisions
 
     def _evaluate_boolean(
         self,
         expr: sp.Basic,
-        decisions: Dict[str, torch.Tensor]
+        decisions: Dict[Any, torch.Tensor]
     ) -> torch.Tensor:
         """Recursively evaluate SymPy expression with boolean logic.
 
         Args:
             expr: SymPy expression to evaluate
-            decisions: Dict mapping symbol names to boolean tensors
+            decisions: Dict mapping PredicateApplication instances to boolean tensors
 
         Returns:
             Boolean tensor indicating satisfaction
         """
-        # Base case: FOL predicate application P(X), Digit(X, 0)
+        # Base case: FOL predicate application P(X), Digit(X, 0), E("P", "H")
         if isinstance(expr, PredicateApplication):
-            return decisions[expr.predicate_name]
+            # Look up by the PredicateApplication instance itself
+            return decisions[expr]
 
         # Boolean constants
         if expr == sp.true:
