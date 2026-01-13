@@ -106,7 +106,8 @@ def compile_logic(
         )
 
     # Compile the expression with wrapped predicates
+    # Returns CompiledExpression
     compiled = compiler.compile(expr, wrapped_predicates)
 
-    # Wrap in LogicLoss with wrapped predicates
-    return LogicLoss(compiled, wrapped_predicates, post_processing)
+    # Wrap CompiledExpression in LogicLoss
+    return LogicLoss(compiled, post_processing)

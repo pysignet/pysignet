@@ -18,6 +18,7 @@ from .module_utils import (
     infer_module_arity,
     wrap_module_as_predicate
 )
+from .compiled_expression import CompiledExpression
 
 
 class LogicCompiler(ABC):
@@ -45,16 +46,16 @@ class LogicCompiler(ABC):
             self,
             expr: sp.Basic,
             predicates: Dict[str, Predicate],
-    ) -> Callable[[Union[torch.Tensor, Dict[str, torch.Tensor]]], torch.Tensor]:
-        """Compile a logic expression into a differentiable callable.
+    ) -> CompiledExpression:
+        """Compile a logic expression into a differentiable CompiledExpression.
 
         Args:
             expr: SymPy logic expression (e.g., sp.And(P, sp.Or(Q, sp.Not(R))))
             predicates: Dict mapping predicate names to Predicate objects
 
         Returns:
-            Callable that takes inputs and returns satisfaction tensor of
-            shape (batch_size,) with values in [0, 1].
+            CompiledExpression that can be evaluated with variable bindings,
+            supports partial binding, and provides introspection.
 
         Raises:
             ValueError: If symbols in expr have no corresponding predicates

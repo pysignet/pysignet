@@ -8,9 +8,11 @@ import torch
 
 
 from .base import LogicCompiler
+from .compiled_expression import CompiledExpression
 from ..predicate import Predicate
 from ..context import EvaluationContext
 from ..multiclass import PredicateApplication
+from ..logic import extract_variables
 
 
 class LinearThresholdUnitCompiler(LogicCompiler):
@@ -66,16 +68,16 @@ class LinearThresholdUnitCompiler(LogicCompiler):
         self,
         expr: sp.Basic,
         predicates: Dict[str, Predicate]
-    ) -> Callable[[Union[torch.Tensor, Dict[str, torch.Tensor]]], torch.Tensor]:
-        """Compile a logic expression into a differentiable callable.
+    ) -> CompiledExpression:
+        """Compile a logic expression into a differentiable CompiledExpression.
 
         Args:
             expr: SymPy logic expression
             predicates: Dict mapping predicate names to Predicate objects or callables
 
         Returns:
-            Callable that takes inputs and returns satisfaction tensor of
-            shape (batch_size,) with values in [0, 1] (soft mode) or {0, 1} (hard mode)
+            CompiledExpression that can be evaluated with variable bindings,
+            supports partial binding, and provides introspection.
 
         Raises:
             ValueError: If symbols in expr have no corresponding predicates
@@ -85,7 +87,10 @@ class LinearThresholdUnitCompiler(LogicCompiler):
         wrapped_predicates = self._wrap_and_validate_predicates(expr, predicates)
         expanded_expr = self._expand_quantifiers(expr)
 
-        # Return a closure that evaluates the expression
+        # Extract free variables for FOL support
+        free_vars = extract_variables(expanded_expr)
+
+        # Create a closure that evaluates the expression
         def compiled_logic(
             inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
         ) -> torch.Tensor:
@@ -102,7 +107,12 @@ class LinearThresholdUnitCompiler(LogicCompiler):
                 expanded_expr, inputs, wrapped_predicates, ctx
             )
 
-        return compiled_logic
+        # Return CompiledExpression instead of raw closure
+        return CompiledExpression(
+            compiled_logic=compiled_logic,
+            free_variables=set(v.name for v in free_vars),
+            predicates=wrapped_predicates
+        )
 
     def _evaluate_expression(
         self,

@@ -259,7 +259,7 @@ class TestGradientFlow:
         compiled_fn = compiler.compile(expr, {"P": model})
 
         # Wrap in LogicLoss for loss computation
-        logic_loss = LogicLoss(compiled_fn, predicates={"P": model})
+        logic_loss = LogicLoss(compiled_fn)
 
         x = torch.randn(3, 5)
         loss = logic_loss.loss(x)

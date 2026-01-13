@@ -27,10 +27,10 @@ class TestLogicLossBasics:
         # Compile and wrap in LogicLoss
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
-        assert logic_loss.compiled_logic is compiled
-        assert logic_loss.predicates is predicates
+        assert logic_loss._compiled_expr is compiled
+        # predicates now internal to CompiledExpression
         assert logic_loss.default_post_processing == "linear"
 
     def test_logic_loss_call_returns_satisfaction(self) -> None:
@@ -44,7 +44,7 @@ class TestLogicLossBasics:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
         x = torch.randn(10, 5)
         satisfaction = logic_loss(x)
@@ -67,7 +67,7 @@ class TestLogicLossBasics:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
@@ -93,7 +93,7 @@ class TestLogicLossPostProcessing:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="log")
+        logic_loss = LogicLoss(compiled, post_processing="log")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
@@ -113,7 +113,7 @@ class TestLogicLossPostProcessing:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x)
@@ -142,7 +142,7 @@ class TestLogicLossPostProcessing:
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
         logic_loss = LogicLoss(
-            compiled, predicates, post_processing=custom_postprocessing
+            compiled, post_processing=custom_postprocessing
         )
 
         x = torch.randn(10, 5)
@@ -162,7 +162,7 @@ class TestLogicLossPostProcessing:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="invalid_mode")
+        logic_loss = LogicLoss(compiled, post_processing="invalid_mode")
 
         x = torch.randn(10, 5)
 
@@ -185,7 +185,7 @@ class TestLogicLossReductionModes:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="mean")
@@ -207,7 +207,7 @@ class TestLogicLossReductionModes:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="sum")
@@ -229,7 +229,7 @@ class TestLogicLossReductionModes:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="none")
@@ -251,7 +251,7 @@ class TestLogicLossReductionModes:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
         x = torch.randn(10, 5)
 
@@ -274,7 +274,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="log")
+        logic_loss = LogicLoss(compiled, post_processing="log")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="mean")
@@ -296,7 +296,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="sum")
@@ -324,7 +324,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
         for post_proc in post_processings:
             for reduction in reductions:
-                logic_loss = LogicLoss(compiled, predicates, post_processing=post_proc)
+                logic_loss = LogicLoss(compiled, post_processing=post_proc)
                 x = torch.randn(10, 5)
                 loss = logic_loss.loss(x, reduction=reduction)
 
@@ -361,7 +361,7 @@ class TestLogicLossGradientFlow:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
         x = torch.randn(10, 5)
         satisfaction = logic_loss(x)
@@ -395,7 +395,7 @@ class TestLogicLossGradientFlow:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="mean")
@@ -428,7 +428,7 @@ class TestLogicLossGradientFlow:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="log")
+        logic_loss = LogicLoss(compiled, post_processing="log")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="mean")
@@ -461,7 +461,7 @@ class TestLogicLossGradientFlow:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(10, 5)
         loss = logic_loss.loss(x, reduction="mean")
@@ -493,7 +493,7 @@ class TestLogicLossTrainableParameters:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
         # Get trainable parameters
         params = logic_loss.get_trainable_parameters()
@@ -514,7 +514,7 @@ class TestLogicLossTrainableParameters:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = LogicLoss(compiled)
 
         # Get trainable parameters
         params = logic_loss.get_trainable_parameters()
@@ -538,7 +538,7 @@ class TestLogicLossTrainableParameters:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         # Create optimizer with extracted parameters
         params = logic_loss.get_trainable_parameters()
@@ -572,7 +572,7 @@ class TestLogicLossBoundaryConditions:
         compiled = compiler.compile(expr, predicates)
 
         # Test with linear post-processing
-        logic_loss_linear = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss_linear = LogicLoss(compiled, post_processing="linear")
         x = torch.randn(10, 5)
         loss_linear = logic_loss_linear.loss(x, reduction="mean")
 
@@ -580,7 +580,7 @@ class TestLogicLossBoundaryConditions:
         assert torch.allclose(loss_linear, torch.tensor(0.0), atol=1e-5)
 
         # Test with log post-processing (log(1) = 0)
-        logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+        logic_loss_log = LogicLoss(compiled, post_processing="log")
         loss_log = logic_loss_log.loss(x, reduction="mean")
 
         # Log: loss = -log(1) = 0
@@ -600,7 +600,7 @@ class TestLogicLossBoundaryConditions:
         compiled = compiler.compile(expr, predicates)
 
         # Test with linear post-processing
-        logic_loss_linear = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss_linear = LogicLoss(compiled, post_processing="linear")
         x = torch.randn(10, 5)
         loss_linear = logic_loss_linear.loss(x, reduction="mean")
 
@@ -608,7 +608,7 @@ class TestLogicLossBoundaryConditions:
         assert torch.allclose(loss_linear, torch.tensor(1.0), atol=1e-5)
 
         # Test with log post-processing (log should give large positive value)
-        logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+        logic_loss_log = LogicLoss(compiled, post_processing="log")
         loss_log = logic_loss_log.loss(x, reduction="mean")
 
         # Log: loss = -log(1e-7) is large and positive
@@ -635,7 +635,6 @@ class TestLogicLossBoundaryConditions:
             # Linear post-processing should be stable
             logic_loss_linear = LogicLoss(
                 compiled,
-                predicates,
                 post_processing="linear",
             )
             x = {"X": torch.randn(10, 5), "Y": val}
@@ -647,7 +646,7 @@ class TestLogicLossBoundaryConditions:
             assert loss_linear >= 0.0
 
             # Log post-processing should also be stable (though large)
-            logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+            logic_loss_log = LogicLoss(compiled, post_processing="log")
             loss_log = logic_loss_log.loss(x, reduction="mean")
 
             # Should not produce NaN (inf is possible for very small values)
@@ -672,7 +671,7 @@ class TestLogicLossBoundaryConditions:
 
             # Linear post-processing should be stable
             logic_loss_linear = LogicLoss(
-                compiled, predicates, post_processing="linear"
+                compiled, post_processing="linear"
             )
             x = {"X": torch.randn(10, 5), "Y": val}
             loss_linear = logic_loss_linear.loss(x, reduction="mean")
@@ -684,7 +683,7 @@ class TestLogicLossBoundaryConditions:
             assert loss_linear < 1.0
 
             # Log post-processing should also be stable
-            logic_loss_log = LogicLoss(compiled, predicates, post_processing="log")
+            logic_loss_log = LogicLoss(compiled, post_processing="log")
             loss_log = logic_loss_log.loss(x, reduction="mean")
 
             # Should not produce NaN or inf
@@ -711,7 +710,7 @@ class TestLogicLossInputHandling:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         # Single tensor input
         x = torch.randn(10, 5)
@@ -739,7 +738,7 @@ class TestLogicLossInputHandling:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         # Dict input with different tensors for P and Q
         inputs = {"X": torch.randn(10, 5), "Y": torch.randn(10, 3)}
@@ -763,7 +762,7 @@ class TestLogicLossInputHandling:
 
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates, post_processing="linear")
+        logic_loss = LogicLoss(compiled, post_processing="linear")
 
         # Test with different batch sizes
         batch_sizes = [1, 5, 10, 32, 100]
