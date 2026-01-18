@@ -31,14 +31,16 @@ class TestTernaryPredicates:
 
         logic_loss = compile_logic(expr, {"P": ternary_func})
 
-        x = torch.randn(5, 10)
-        y = torch.randn(5, 8)
-        z = torch.randn(5, 6)
+        batch_size = 5
+        x = torch.randn(batch_size, 10)
+        y = torch.randn(batch_size, 8)
+        z = torch.randn(batch_size, 6)
 
-        result = logic_loss({"X": x, "Y": y, "Z": z})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"X": x, "Y": y, "Z": z}, quantify='none')
 
-        assert result.shape == (5,)
-        assert torch.allclose(result, torch.ones(5) * 0.8)
+        assert result.shape == (batch_size,)
+        assert torch.allclose(result, torch.ones(batch_size) * 0.8)
 
     def test_ternary_with_two_variables_one_constant(self):
         """Ternary predicate with two variables and one constant."""
@@ -69,12 +71,14 @@ class TestTernaryPredicates:
 
         logic_loss = compile_logic(expr, {"P": ternary_pred})
 
-        x = torch.randn(3, 10)
-        y = torch.randn(3, 8)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        y = torch.randn(batch_size, 8)
 
-        result = logic_loss({"X": x, "Y": y})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"X": x, "Y": y}, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
     def test_ternary_gradient_flow(self):
         """Gradients flow through ternary predicates."""
@@ -101,9 +105,9 @@ class TestTernaryPredicates:
 
         logic_loss = compile_logic(expr, {"P": ternary_pred})
 
-        x = torch.randn(10, 5)
-        y = torch.randn(10, 4)
-        z = torch.randn(10, 3)
+        x = torch.randn(1, 5)
+        y = torch.randn(1, 4)
+        z = torch.randn(1, 3)
 
         loss = logic_loss.loss({"X": x, "Y": y, "Z": z})
         loss.backward()
@@ -140,10 +144,12 @@ class TestTernaryPredicates:
 
         logic_loss = compile_logic(expr, {"P": ternary_pred})
 
-        x = torch.randn(3, 5)
-        result = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
 
 class TestQuaternaryPredicates:
@@ -164,14 +170,16 @@ class TestQuaternaryPredicates:
 
         logic_loss = compile_logic(expr, {"P": quaternary_func})
 
-        w = torch.randn(4, 5)
-        x = torch.randn(4, 5)
-        y = torch.randn(4, 5)
-        z = torch.randn(4, 5)
+        batch_size = 4
+        w = torch.randn(batch_size, 5)
+        x = torch.randn(batch_size, 5)
+        y = torch.randn(batch_size, 5)
+        z = torch.randn(batch_size, 5)
 
-        result = logic_loss({"W": w, "X": x, "Y": y, "Z": z})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"W": w, "X": x, "Y": y, "Z": z}, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_quaternary_gradient_flow(self):
@@ -198,10 +206,10 @@ class TestQuaternaryPredicates:
 
         logic_loss = compile_logic(expr, {"P": quaternary_pred})
 
-        w = torch.randn(5, 3)
-        x = torch.randn(5, 3)
-        y = torch.randn(5, 3)
-        z = torch.randn(5, 3)
+        w = torch.randn(1, 3)
+        x = torch.randn(1, 3)
+        y = torch.randn(1, 3)
+        z = torch.randn(1, 3)
 
         loss = logic_loss.loss({"W": w, "X": x, "Y": y, "Z": z})
         loss.backward()
@@ -232,10 +240,10 @@ class TestQuaternaryPredicates:
         initial_weight = model.weight.data.clone()
 
         # Training step
-        w = torch.randn(10, 3)
-        x = torch.randn(10, 3)
-        y = torch.randn(10, 3)
-        z = torch.randn(10, 3)
+        w = torch.randn(1, 3)
+        x = torch.randn(1, 3)
+        y = torch.randn(1, 3)
+        z = torch.randn(1, 3)
 
         loss = logic_loss.loss({"W": w, "X": x, "Y": y, "Z": z})
         optimizer.zero_grad()
@@ -264,10 +272,12 @@ class TestHighArityPredicates:
 
         logic_loss = compile_logic(expr, {"P": quinary_func})
 
-        inputs = {f"V{i}": torch.randn(3, 2) for i in range(1, 6)}
-        result = logic_loss(inputs)
+        batch_size = 4
+        inputs = {f"V{i}": torch.randn(batch_size, 2) for i in range(1, 6)}
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(inputs, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
     def test_high_arity_with_mixed_constants(self):
         """High arity predicate with some constant arguments."""
@@ -292,12 +302,14 @@ class TestHighArityPredicates:
 
         logic_loss = compile_logic(expr, {"P": high_arity_pred})
 
-        x = torch.randn(4, 5)
-        y = torch.randn(4, 3)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        y = torch.randn(batch_size, 3)
 
-        result = logic_loss({"X": x, "Y": y})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"X": x, "Y": y}, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
 
 
 class TestNaryPredicatesWithComplexExpressions:
@@ -318,13 +330,15 @@ class TestNaryPredicatesWithComplexExpressions:
 
         logic_loss = compile_logic(expr, {"P": ternary_p, "Q": ternary_q})
 
-        x = torch.randn(5, 4)
-        y = torch.randn(5, 4)
-        z = torch.randn(5, 4)
+        batch_size = 4
+        x = torch.randn(batch_size, 4)
+        y = torch.randn(batch_size, 4)
+        z = torch.randn(batch_size, 4)
 
-        result = logic_loss({"X": x, "Y": y, "Z": z})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"X": x, "Y": y, "Z": z}, quantify='none')
 
-        assert result.shape == (5,)
+        assert result.shape == (batch_size,)
 
     def test_mixed_arity_predicates(self):
         """Mix predicates of different arities."""
@@ -358,10 +372,12 @@ class TestNaryPredicatesWithComplexExpressions:
             "R": ternary_pred
         })
 
-        x = torch.randn(3, 5)
-        y = torch.randn(3, 3)
-        z = torch.randn(3, 2)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        y = torch.randn(batch_size, 3)
+        z = torch.randn(batch_size, 2)
 
-        result = logic_loss({"X": x, "Y": y, "Z": z})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"X": x, "Y": y, "Z": z}, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)

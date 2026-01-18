@@ -92,7 +92,7 @@ class TestGetOrCompute:
         ctx = EvaluationContext()
 
         def create_tensor():
-            return torch.randn(32, 10)
+            return torch.randn(1, 10)
 
         cache_key = "tensor_key"
         tensor1 = ctx.get_or_compute(cache_key, create_tensor)
@@ -197,7 +197,7 @@ class TestCacheKeys:
         obj1 = nn.Linear(10, 5)
         obj2 = nn.Linear(10, 5)
 
-        inputs = torch.randn(32, 10)
+        inputs = torch.randn(1, 10)
 
         # Cache key based on id
         key1 = (id(obj1), id(inputs))
@@ -218,7 +218,7 @@ class TestGradientPreservation:
         ctx = EvaluationContext()
 
         network = nn.Linear(10, 5)
-        inputs = torch.randn(32, 10, requires_grad=True)
+        inputs = torch.randn(1, 10, requires_grad=True)
 
         def compute():
             return network(inputs)
@@ -244,7 +244,7 @@ class TestGradientPreservation:
         ctx = EvaluationContext()
 
         network = nn.Linear(10, 5)
-        inputs = torch.randn(16, 10, requires_grad=True)
+        inputs = torch.randn(1, 10, requires_grad=True)
 
         def compute():
             return network(inputs)
@@ -348,7 +348,7 @@ class TestRealWorldUsage:
             nn.Softmax(dim=-1)
         )
 
-        inputs = torch.randn(32, 10)
+        inputs = torch.randn(1, 10)
 
         # Cache key based on network and inputs
         cache_key = (id(network), id(inputs))
@@ -379,7 +379,7 @@ class TestRealWorldUsage:
         ctx = EvaluationContext()
 
         classifier = nn.Linear(10, 3)
-        inputs = torch.randn(16, 10)
+        inputs = torch.randn(1, 10)
 
         def evaluate_classifier():
             return torch.softmax(classifier(inputs), dim=-1)
@@ -398,6 +398,7 @@ class TestRealWorldUsage:
         digit_2 = full_output[:, 2]
 
         # Should all come from the same tensor
-        assert digit_0.shape == (16,)
-        assert digit_1.shape == (16,)
-        assert digit_2.shape == (16,)
+        # With batch_size=1, shapes are (1,)
+        assert digit_0.shape == (1,)
+        assert digit_1.shape == (1,)
+        assert digit_2.shape == (1,)

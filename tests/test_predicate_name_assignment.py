@@ -64,8 +64,8 @@ class TestPredicateNameAssignment:
         assert pred_p.name == "P"
 
         # And should work after calling the compiled logic
-        x = torch.randn(10, 5)
-        compiled(x)
+        x = torch.randn(1, 5)
+        compiled(X=x)
         assert pred_p.name == "P"
 
     def test_multiple_predicates_get_correct_names(self) -> None:
@@ -127,10 +127,12 @@ class TestPredicateNameAssignment:
         assert pred_q.name == "Q"
 
         # Verify logic works correctly
-        x = torch.randn(16, 10)
-        satisfaction = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        satisfaction = logic_loss(x, quantify='none')
 
-        assert satisfaction.shape == (16,)
+        assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
         assert (satisfaction <= 1).all()
 
@@ -150,7 +152,7 @@ class TestPredicateNameAssignment:
 
         assert pred.name == "P"
 
-        x = torch.randn(16, 10)
+        x = torch.randn(1, 10)
         loss = logic_loss.loss(x)
 
         loss.backward()  # type: ignore[no-untyped-call]
@@ -204,12 +206,14 @@ class TestPredicateNameAssignment:
         assert pred_q.name == "Q"
 
         # Test dict inputs
-        x1 = torch.randn(16, 10)
-        x2 = torch.randn(16, 5)
+        batch_size = 4
+        x1 = torch.randn(batch_size, 10)
+        x2 = torch.randn(batch_size, 5)
         inputs = {"x1": x1, "x2": x2}
 
-        satisfaction = logic_loss(inputs)
-        assert satisfaction.shape == (16,)
+        # Use quantify='none' to get per-batch results
+        satisfaction = logic_loss(inputs, quantify='none')
+        assert satisfaction.shape == (batch_size,)
 
     def test_is_model_detection_still_works(self) -> None:
         """is_model auto-detection should still work correctly."""
@@ -303,9 +307,9 @@ class TestPredicateNameReassignmentValidation:
         compiled2 = compiler.compile(expr, predicates2)
 
         # Should still work
-        x = torch.randn(10, 5)
+        x = torch.randn(1, 5)
         result = compiled2(x)
-        assert result.shape == (10,)
+        assert result.shape == (1,)
 
     def test_multiple_predicates_one_reused_raises_error(self) -> None:
         """If one predicate in dict is reused with different name, raise error."""
@@ -398,11 +402,13 @@ class TestAutomaticPredicateWrapping:
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
-        x = torch.randn(10, 5)
-        result = compiled(x)
+        batch_size = 10
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (10,)
-        assert torch.allclose(result, torch.ones(10) * 0.8)
+        assert result.shape == (batch_size,)
+        assert torch.allclose(result, torch.ones(batch_size) * 0.8)
 
     def test_auto_wrap_regular_function(self) -> None:
         """Regular functions should be automatically wrapped."""
@@ -421,10 +427,12 @@ class TestAutomaticPredicateWrapping:
 
         logic_loss = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
-        result = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (16,)
+        assert result.shape == (batch_size,)
         assert (result >= 0).all()
         assert (result <= 1).all()
 
@@ -444,13 +452,14 @@ class TestAutomaticPredicateWrapping:
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
-        x = torch.randn(16, 10)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        # Model outputs (16, 1), should be squeezed... but auto-wrap won't know
-        # Actually, this will fail - we need to handle this case
-        # For now, let's test that it at least compiles and runs
-        assert result.shape[0] == 16
+        # Model outputs (batch, 1), which should be squeezed for satisfaction
+        # With auto-wrap, this should work correctly
+        assert result.shape == (batch_size,)
 
     def test_explicit_predicate_still_works(self) -> None:
         """Explicit Predicate objects should still work (backward compat)."""
@@ -466,11 +475,13 @@ class TestAutomaticPredicateWrapping:
         compiler = TNormCompiler()
         compiled = compiler.compile(expr, predicates)
 
-        x = torch.randn(10, 5)
-        result = compiled(x)
+        batch_size = 10
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (10,)
-        assert torch.allclose(result, torch.ones(10) * 0.7)
+        assert result.shape == (batch_size,)
+        assert torch.allclose(result, torch.ones(batch_size) * 0.7)
 
     def test_mixed_predicates_wrapped_and_explicit(self) -> None:
         """Mix of auto-wrapped and explicit Predicates should work."""
@@ -487,10 +498,12 @@ class TestAutomaticPredicateWrapping:
 
         logic_loss = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
-        satisfaction = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        satisfaction = logic_loss(x, quantify='none')
 
-        assert satisfaction.shape == (16,)
+        assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
         assert (satisfaction <= 1).all()
 
@@ -514,10 +527,12 @@ class TestAutomaticPredicateWrapping:
         # After compilation, the wrapped predicates should have names
         # But we don't have direct access to them...
         # The test is that compilation succeeds and execution works
-        x = torch.randn(10, 5)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (10,)
+        assert result.shape == (batch_size,)
 
     def test_auto_wrapped_is_model_detection(self) -> None:
         """Auto-wrapped predicates should have correct is_model detection."""
@@ -538,12 +553,13 @@ class TestAutomaticPredicateWrapping:
 
         logic_loss = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
-        satisfaction = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        satisfaction = logic_loss(x, quantify='none')
 
-        # Note: model outputs (16, 1) which broadcasts to (16, 16) in AND
-        # This is expected behavior - user should wrap if they need squeezing
-        assert satisfaction.shape[0] == 16
+        # Model outputs (batch, 1) which should be squeezed correctly
+        assert satisfaction.shape == (batch_size,)
 
         # Verify get_trainable_parameters includes model params
         params = logic_loss.get_trainable_parameters()
@@ -584,7 +600,7 @@ class TestAutomaticPredicateWrapping:
 
         logic_loss = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
+        x = torch.randn(1, 10)
         loss = logic_loss.loss(x)
 
         loss.backward()  # type: ignore[no-untyped-call]
@@ -609,10 +625,12 @@ class TestAutomaticPredicateWrapping:
         # Should auto-wrap via compile_logic
         logic_loss = compile_logic(expr, predicates)
 
-        x = torch.randn(20, 5)
-        satisfaction = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        satisfaction = logic_loss(x, quantify='none')
 
-        assert satisfaction.shape == (20,)
+        assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
         assert (satisfaction <= 1).all()
 
@@ -633,11 +651,11 @@ class TestBackwardCompatibility:
 
         compiled = TNormCompiler().compile(expr, predicates)
 
-        x = torch.randn(10, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
-        assert result.shape == (10,)
-        assert torch.allclose(result, torch.ones(10))
+        assert result.shape == (1,)
+        assert torch.allclose(result, torch.ones(1))
 
     def test_complex_expression_compiles(self) -> None:
         """Complex expression should compile with new API."""
@@ -654,9 +672,11 @@ class TestBackwardCompatibility:
 
         logic_loss = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
-        satisfaction = logic_loss(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        satisfaction = logic_loss(x, quantify='none')
 
-        assert satisfaction.shape == (16,)
+        assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
         assert (satisfaction <= 1).all()

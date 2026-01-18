@@ -71,10 +71,10 @@ class TestSymbolAPI:
         compiled = compile_logic(expr, predicates)
 
         # Should evaluate successfully
-        x = torch.randn(32, 10)
-        result = compiled(x)
+        x = torch.randn(3, 10)
+        result = compiled(X=x, quantify="none")
 
-        assert result.shape == (32,)
+        assert result.shape == (3,)
 
     def test_validation_rejects_inconsistent_usage(self):
         """Test that validation rejects predicate used both ways."""
@@ -128,7 +128,7 @@ class TestSymbolAPIUsagePatterns:
         Digit = Symbol("Digit")
         X = Variable("X")
 
-        # One-hot constraint using FOL interface: Digit(X, 0) OR ... OR Digit(X, 9)
+        # Constraint using FOL interface: Digit(X, 0) OR ... OR Digit(X, 9)
         expr = sp.Or(
             Digit(X, 0),
             Digit(X, 1),
@@ -151,10 +151,10 @@ class TestSymbolAPIUsagePatterns:
         compiled = compile_logic(expr, predicates)
 
         # Evaluate
-        x = torch.randn(32, 784)
-        result = compiled(x)
+        x = torch.randn(3, 784)
+        result = compiled(X=x, quantify="forall")
 
-        assert result.shape == (32,)
+        assert result.shape == ()
 
     def test_mixed_binary_and_multiclass(self):
         """Test realistic mixing of binary and multi-class predicates."""
@@ -176,10 +176,10 @@ class TestSymbolAPIUsagePatterns:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
-        result = compiled(x)
+        x = torch.randn(10, 10)
+        result = compiled(X=x)
 
-        assert result.shape == (16,)
+        assert result.shape == ()
 
     def test_all_binary_predicates(self):
         """Test that all-binary case still works perfectly."""
@@ -196,10 +196,10 @@ class TestSymbolAPIUsagePatterns:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(32, 10)
-        result = compiled(x)
+        x = torch.randn(10, 10)
+        result = compiled(X=x)
 
-        assert result.shape == (32,)
+        assert result.shape == ()
 
     def test_all_multiclass_predicates(self):
         """Test all-multiclass case."""
@@ -219,7 +219,7 @@ class TestSymbolAPIUsagePatterns:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(16, 10)
-        result = compiled(x)
+        x = torch.randn(10, 10)
+        result = compiled(X=x)
 
-        assert result.shape == (16,)
+        assert result.shape == ()

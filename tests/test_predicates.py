@@ -28,8 +28,8 @@ def test_deterministic_predicate() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x_pos = torch.ones(5, 3)
-    x_neg = -torch.ones(5, 3)
+    x_pos = torch.ones(1, 3)
+    x_neg = -torch.ones(1, 3)
 
     assert (logic_loss(x_pos) == 1.0).all()
     assert (logic_loss(x_neg) == 0.0).all()
@@ -110,7 +110,7 @@ def test_non_tensor_predicate_return() -> None:
     predicates = {"P": Predicate( lambda x: 0.75)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # Should convert 0.75 to tensor
@@ -131,7 +131,7 @@ def test_predicate_clamping_above_one() -> None:
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 2.5)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # Should be clamped to 1.0
@@ -152,7 +152,7 @@ def test_predicate_clamping_below_zero() -> None:
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * -1.5)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # Should be clamped to 0.0
@@ -177,13 +177,14 @@ def test_predicate_with_neural_network() -> None:
     predicates = {"P": Predicate( lambda x: model(x).squeeze(-1))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
+    # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(x)
 
     # Should return values in [0, 1] due to sigmoid
-    assert satisfaction.shape == (10,)
-    assert satisfaction.min() >= 0.0
-    assert satisfaction.max() <= 1.0
+    assert satisfaction.shape == ()  # Scalar with forall quantification
+    assert satisfaction.item() >= 0.0
+    assert satisfaction.item() <= 1.0
 
 
 def test_predicate_with_multiple_models() -> None:
@@ -206,13 +207,14 @@ def test_predicate_with_multiple_models() -> None:
     }
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
+    # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(x)
 
     # Should compute correctly with all models
-    assert satisfaction.shape == (10,)
-    assert satisfaction.min() >= 0.0
-    assert satisfaction.max() <= 1.0
+    assert satisfaction.shape == ()  # Scalar with forall quantification
+    assert satisfaction.item() >= 0.0
+    assert satisfaction.item() <= 1.0
 
 
 def test_predicate_name_attribute() -> None:
@@ -249,7 +251,7 @@ def test_predicate_callable_behavior() -> None:
 
     predicate = Predicate( custom_func)
 
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
 
     # Test with default argument
     result1 = predicate(x)

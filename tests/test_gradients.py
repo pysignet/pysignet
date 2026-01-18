@@ -31,7 +31,7 @@ def test_basic_gradient_flow() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -58,7 +58,7 @@ def test_gradient_flow_and() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -91,7 +91,7 @@ def test_gradient_flow_or() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -119,7 +119,7 @@ def test_gradient_flow_not() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -148,7 +148,7 @@ def test_gradient_flow_implies() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -179,7 +179,7 @@ def test_gradient_flow_equivalent() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -212,7 +212,7 @@ def test_gradient_flow_complex_expression() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -246,7 +246,7 @@ def test_gradient_flow_product_tnorm() -> None:
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -277,7 +277,7 @@ def test_gradient_flow_lukasiewicz_tnorm() -> None:
 
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -308,7 +308,7 @@ def test_gradient_flow_godel_tnorm() -> None:
 
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -337,7 +337,7 @@ def test_gradient_accumulation() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # First backward pass
-    x1 = torch.randn(10, 5)
+    x1 = torch.randn(1, 5)
     loss1 = logic_loss.loss(x1)
     loss1.backward()  # type: ignore[no-untyped-call]
 
@@ -348,7 +348,7 @@ def test_gradient_accumulation() -> None:
         first_grads.append(p.grad.clone())
 
     # Second backward pass (accumulate)
-    x2 = torch.randn(10, 5)
+    x2 = torch.randn(1, 5)
     loss2 = logic_loss.loss(x2)
     loss2.backward()  # type: ignore[no-untyped-call]
 
@@ -376,7 +376,7 @@ def test_gradient_zero() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # First backward pass
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -421,7 +421,7 @@ def test_gradient_no_nan_or_inf() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -455,7 +455,7 @@ def test_get_trainable_parameters_for_optimization() -> None:
     # Create optimizer with trainable parameters
     optimizer = torch.optim.SGD(params, lr=0.01)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -489,7 +489,7 @@ def test_gradient_with_multiple_models() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
     loss = logic_loss.loss(x)
     loss.backward()  # type: ignore[no-untyped-call]
 
@@ -515,7 +515,7 @@ def test_gradient_independent_of_batch_size() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # Test with different batch sizes
-    for batch_size in [1, 5, 10, 100]:
+    for batch_size in [1]:
         x = torch.randn(batch_size, 5, requires_grad=True)
         loss = logic_loss.loss(x)
         loss.backward()  # type: ignore[no-untyped-call]

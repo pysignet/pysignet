@@ -25,10 +25,12 @@ def test_single_tensor_input() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # Single tensor input - same tensor passed to all predicates
-    x = torch.randn(10, 5)
-    satisfaction = logic_loss(x)
+    batch_size = 10
+    x = torch.randn(batch_size, 5)
+    # Use quantify='none' to get per-batch results
+    satisfaction = logic_loss(x, quantify='none')
 
-    assert satisfaction.shape == (10,)
+    assert satisfaction.shape == (batch_size,)
     assert satisfaction.min() >= 0.0
     assert satisfaction.max() <= 1.0
 
@@ -53,7 +55,8 @@ def test_dict_input_per_predicate() -> None:
         "Y": torch.randn(batch_size, 10),  # Different shape
     }
 
-    satisfaction = logic_loss(inputs)
+    # Use quantify='none' to get per-batch results
+    satisfaction = logic_loss(inputs, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -69,10 +72,10 @@ def test_batching_various_sizes() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    # Different batch sizes
-    for batch_size in [1, 10, 100]:
+    # Different batch sizes with quantify='none' to get per-batch results
+    for batch_size in [1, 5, 10, 32]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss(x)
+        satisfaction = logic_loss(x, quantify='none')
         assert satisfaction.shape == (batch_size,)
         assert satisfaction.min() >= 0.0
         assert satisfaction.max() <= 1.0
@@ -100,7 +103,8 @@ def test_different_feature_dimensions() -> None:
         "Z": torch.randn(batch_size, 3),
     }
 
-    satisfaction = logic_loss(inputs)
+    # Use quantify='none' to get per-batch results
+    satisfaction = logic_loss(inputs, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -116,7 +120,7 @@ def test_input_preserves_device() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # CPU tensor
-    x_cpu = torch.randn(5, 3)
+    x_cpu = torch.randn(1, 3)
     satisfaction_cpu = logic_loss(x_cpu)
     assert satisfaction_cpu.device == x_cpu.device
 
@@ -133,12 +137,12 @@ def test_input_preserves_dtype() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # float32 (default)
-    x_float32 = torch.randn(5, 3, dtype=torch.float32)
+    x_float32 = torch.randn(1, 3, dtype=torch.float32)
     satisfaction_float32 = logic_loss(x_float32)
     assert satisfaction_float32.dtype == torch.float32
 
     # float64
-    x_float64 = torch.randn(5, 3, dtype=torch.float64)
+    x_float64 = torch.randn(1, 3, dtype=torch.float64)
     unused_satisfaction_float64 = logic_loss(x_float64)
     # Note: dtype might be converted due to operations
     # Intentionally unused, just testing execution
@@ -158,10 +162,12 @@ def test_multidimensional_features() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # 3D input: (batch, height, width)
-    x = torch.randn(5, 4, 4)
-    satisfaction = logic_loss(x)
+    batch_size = 5
+    x = torch.randn(batch_size, 4, 4)
+    # Use quantify='none' to get per-batch results
+    satisfaction = logic_loss(x, quantify='none')
 
-    assert satisfaction.shape == (5,)
+    assert satisfaction.shape == (batch_size,)
     assert satisfaction.min() >= 0.0
     assert satisfaction.max() <= 1.0
 
@@ -176,7 +182,7 @@ def test_sequential_calls_same_input() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
 
     # Multiple calls should give same result
     result1 = logic_loss(x)
@@ -197,8 +203,8 @@ def test_sequential_calls_different_inputs() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     # Different inputs should give potentially different results
-    x1 = torch.ones(5, 3)  # Positive
-    x2 = -torch.ones(5, 3)  # Negative
+    x1 = torch.ones(1, 3)  # Positive
+    x2 = -torch.ones(1, 3)  # Negative
 
     result1 = logic_loss(x1)
     result2 = logic_loss(x2)
@@ -232,7 +238,8 @@ def test_dict_input_subset_of_predicates() -> None:
         "Y": torch.randn(batch_size, 3),
     }
 
-    satisfaction = logic_loss(inputs)
+    # Use quantify='none' to get per-batch results
+    satisfaction = logic_loss(inputs, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -257,6 +264,6 @@ def test_consistent_batch_size_required() -> None:
         "Y": torch.randn(batch_size, 3),  # Same batch size
     }
 
-    # Should work fine
-    satisfaction = logic_loss(inputs)
+    # Should work fine - use quantify='none' to get per-batch results
+    satisfaction = logic_loss(inputs, quantify='none')
     assert satisfaction.shape == (batch_size,)

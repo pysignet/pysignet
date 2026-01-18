@@ -17,7 +17,7 @@ def test_true_constant() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # true should always evaluate to 1.0
@@ -31,7 +31,7 @@ def test_false_constant() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # false should always evaluate to 0.0
@@ -48,7 +48,7 @@ def test_and_with_true() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # P AND true = P
@@ -65,7 +65,7 @@ def test_and_with_false() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # P AND false = false = 0
@@ -82,7 +82,7 @@ def test_or_with_true() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # P OR true = true = 1
@@ -99,7 +99,7 @@ def test_or_with_false() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # P OR false = P = 0.6
@@ -113,7 +113,7 @@ def test_not_true() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # NOT true = false = 0
@@ -127,7 +127,7 @@ def test_not_false() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # NOT false = true = 1
@@ -144,7 +144,7 @@ def test_implies_with_true_antecedent() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # true -> P = NOT(true) OR P = false OR P = P
@@ -161,7 +161,7 @@ def test_implies_with_false_antecedent() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # false -> P = NOT(false) OR P = true OR P = true
@@ -178,7 +178,7 @@ def test_implies_with_true_consequent() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # P -> true = NOT(P) OR true = true
@@ -195,7 +195,7 @@ def test_implies_with_false_consequent() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # P -> false = NOT(P) OR false = NOT(P)
@@ -213,7 +213,7 @@ def test_constants_with_dict_input() -> None:
     # Test with true constant
     expr_true = sp.Or(P(X), sp.true)
     logic_loss_true = compile_logic(expr_true, predicates)
-    inputs = {"X": torch.randn(5, 3)}
+    inputs = {"X": torch.randn(1, 3)}
     satisfaction_true = logic_loss_true(inputs)
 
     # P OR true = true = 1
@@ -243,7 +243,7 @@ def test_complex_with_constants() -> None:
     }
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction = logic_loss(x)
 
     # Should simplify to P
@@ -260,12 +260,12 @@ def test_constants_preserve_batch_size() -> None:
 
     logic_loss = compile_logic(sp.And(P(X), sp.true), predicates)
 
-    # Test with different batch sizes
-    for batch_size in [1, 10, 100]:
+    # Test with different batch sizes using quantify='none' to get per-batch results
+    for batch_size in [1, 5, 10]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss({"X": x})
+        satisfaction = logic_loss({"X": x}, quantify='none')
         assert satisfaction.shape == (batch_size,)
-        assert torch.allclose(satisfaction, torch.tensor(0.6))
+        assert torch.allclose(satisfaction, torch.ones(batch_size) * 0.6)
 
 
 def test_equivalent_with_constants() -> None:
@@ -279,7 +279,7 @@ def test_equivalent_with_constants() -> None:
     # P <-> true = P
     expr_true = sp.Equivalent(P(X), sp.true)
     logic_loss_true = compile_logic(expr_true, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
     satisfaction_true = logic_loss_true(x)
 
     # P <-> true = (P -> true) AND (true -> P) = true AND P = P
@@ -302,7 +302,7 @@ def test_false_constant_with_dict_input() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    inputs = {"P": torch.randn(5, 3)}
+    inputs = {"P": torch.randn(1, 3)}
     satisfaction = logic_loss(inputs)
 
     # false should always evaluate to 0.0

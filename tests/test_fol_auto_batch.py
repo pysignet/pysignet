@@ -16,8 +16,6 @@ from pysignet.logic import Variable, ForAll, Exists, expand_quantifier
 class TestBasicAutoBatching:
     """Tests for basic automatic batch quantification."""
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction to scalar not implemented. "
-                             "Returns (batch_size,), expects ().")
     def test_free_variable_auto_batched_after_expansion(self):
         """Free variable is auto-batched after domain expansion."""
         X, Y = Variable("X Y")
@@ -49,7 +47,7 @@ class TestBasicAutoBatching:
         assert result.shape == ()
         assert 0 <= result.item() <= 1
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_single_free_variable_batched(self):
         """Single free variable is batched."""
         X = Variable("X")
@@ -73,7 +71,7 @@ class TestBasicAutoBatching:
         # Scalar result (batch reduction)
         assert result.shape == ()
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_multiple_free_variables_batched(self):
         """Multiple free variables are batched together."""
         X, Y = Variable("X Y")
@@ -103,7 +101,7 @@ class TestBasicAutoBatching:
 class TestMixedQuantification:
     """Tests for mixed domain and batch quantification."""
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_domain_quantified_then_batch_quantified(self):
         """Domain quantifier expanded, then free var batch-quantified."""
         X, Y = Variable("X Y")
@@ -133,7 +131,7 @@ class TestMixedQuantification:
         assert result.shape == ()
         assert 0 <= result.item() <= 1
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_exists_with_free_variable(self):
         """Exists quantifier with free variable."""
         X, Y = Variable("X Y")
@@ -162,7 +160,7 @@ class TestMixedQuantification:
         # Scalar result
         assert result.shape == ()
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_nested_quantifiers_with_free_variable(self):
         """Nested quantifiers with remaining free variable."""
         X, Y, Z = Variable("X Y Z")
@@ -198,7 +196,7 @@ class TestMixedQuantification:
 class TestBatchReduction:
     """Tests for batch reduction behavior."""
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_batch_reduction_uses_and(self):
         """Batch reduction uses AND (universal quantification)."""
         X = Variable("X")
@@ -229,7 +227,7 @@ class TestBatchReduction:
         expected = 0.9 * 0.8 * 0.7
         assert torch.isclose(result, torch.tensor(expected), atol=1e-5)
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_empty_batch_handling(self):
         """Empty batch is handled correctly."""
         X = Variable("X")
@@ -326,7 +324,7 @@ class TestGradientFlow:
 class TestRealWorldPatterns:
     """Tests for real-world usage patterns."""
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_one_hot_constraint_with_batching(self):
         """One-hot constraint works with batch quantification."""
         X, Y = Variable("X Y")
@@ -366,7 +364,7 @@ class TestRealWorldPatterns:
         loss = compiled.loss({"X": x})
         assert loss.shape == ()
 
-    @pytest.mark.skip(reason="Phase 2.6+: Batch reduction not implemented.")
+    
     def test_even_digits_constraint_with_batching(self):
         """Even digits constraint works with batching."""
         X, Y = Variable("X Y")
@@ -404,7 +402,6 @@ class TestRealWorldPatterns:
 class TestEdgeCases:
     """Tests for edge cases."""
 
-    @pytest.mark.skip(reason="No free variables - needs support for compiled().")
     def test_no_free_variables_after_expansion(self):
         """Expression with no free variables after expansion."""
         Y = Variable("Y")
@@ -431,7 +428,6 @@ class TestEdgeCases:
 
         assert result.shape == ()
 
-    @pytest.mark.skip(reason="No free variables - needs support for compiled().")
     def test_all_variables_domain_quantified(self):
         """All variables are domain-quantified."""
         X, Y = Variable("X Y")

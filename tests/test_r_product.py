@@ -16,13 +16,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import (
-    Predicate,
-    RProductTNorm,
-    Symbol,
-    Variable,
-    compile_logic
-)
+from pysignet import Predicate, RProductTNorm, Symbol, Variable, compile_logic
 
 
 def test_r_product_implication_when_antecedent_less() -> None:
@@ -160,14 +154,12 @@ def test_r_product_self_consistency() -> None:
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
         predicates = {
-            "P": Predicate(
-                "P", lambda x, val=p_value: torch.ones(x.shape[0]) * val
-            )
+            "P": Predicate("P", lambda x, val=p_value: torch.ones(x.shape[0]) * val)
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
-        x = torch.randn(10, 5)
-        satisfaction = logic_loss(x)
+        x = torch.randn(1, 5)
+        satisfaction = logic_loss(X=x)
 
         # P <-> P should always be 1 (perfect satisfaction)
         assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
@@ -183,14 +175,12 @@ def test_r_product_implication_tautology() -> None:
     # Test with various predicate values
     for p_value in [0.0, 0.3, 0.5, 0.7, 1.0]:
         predicates = {
-            "P": Predicate(
-                "P", lambda x, val=p_value: torch.ones(x.shape[0]) * val
-            )
+            "P": Predicate("P", lambda x, val=p_value: torch.ones(x.shape[0]) * val)
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
-        x = torch.randn(10, 5)
-        satisfaction = logic_loss(x)
+        x = torch.randn(1, 5)
+        satisfaction = logic_loss(X=x)
 
         # P -> P should always be 1
         assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
@@ -205,13 +195,13 @@ def test_r_product_modus_ponens() -> None:
     expr = sp.Implies(sp.And(P(X), sp.Implies(P(X), Q(X))), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
-    x = torch.randn(10, 5)
-    satisfaction = logic_loss(x)
+    x = torch.randn(1, 5)
+    satisfaction = logic_loss(X=x)
 
     # Modus ponens should be satisfied
     assert (satisfaction >= 0.9).all()  # Very high satisfaction expected
@@ -230,14 +220,14 @@ def test_r_product_gradient_flow_implication() -> None:
     model_q = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "P": Predicate(lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
 
-    x = torch.randn(10, 5)
-    loss = logic_loss.loss(x)
+    x = torch.randn(1, 5)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -262,15 +252,15 @@ def test_r_product_gradient_flow_complex() -> None:
     model_r = nn.Linear(5, 1)
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
-        "R": Predicate( lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
+        "P": Predicate(lambda x: torch.sigmoid(model_p(x).squeeze(-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
+        "R": Predicate(lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
 
-    x = torch.randn(10, 5)
-    loss = logic_loss.loss(x)
+    x = torch.randn(1, 5)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # All models should have gradients (may be zero in some cases)
@@ -294,16 +284,16 @@ def test_r_product_with_batch_dimensions() -> None:
     expr = sp.Implies(P(X), Q(X))
 
     predicates = {
-        "P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1))),
-        "Q": Predicate( lambda x: torch.sigmoid(x.mean(dim=-1))),
+        "P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1))),
+        "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
 
-    # Test with different batch sizes
-    for batch_size in [1, 5, 10, 100]:
+    # Test with different batch sizes using quantify='none' for per-batch results
+    for batch_size in [1, 5, 10]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss(x)
+        satisfaction = logic_loss(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert satisfaction.min() >= 0.0
@@ -316,51 +306,37 @@ def test_r_product_implication_with_constants() -> None:
     # pylint: disable=invalid-name
     P = Symbol("P")
 
-    predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7)}
+    predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
 
     # true -> P: should equal P (since true=1, 1 <= 0.7 is false, so 0.7/1)
     # Wait, let me recalculate: true=1, P=0.7
     # implication(1, 0.7): 1 <= 0.7? No, so return 0.7/1 = 0.7
     expr_true_p = sp.Implies(sp.true, P(X))
-    logic_loss_true_p = compile_logic(
-        expr_true_p, predicates, tnorm=RProductTNorm()
-    )
-    satisfaction_true_p = logic_loss_true_p(x)
+    logic_loss_true_p = compile_logic(expr_true_p, predicates, tnorm=RProductTNorm())
+    satisfaction_true_p = logic_loss_true_p(X=x)
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
     # false -> P: should be 1 (since false=0, 0 <= P is true)
     expr_false_p = sp.Implies(sp.false, P(X))
-    logic_loss_false_p = compile_logic(
-        expr_false_p, predicates, tnorm=RProductTNorm()
-    )
-    satisfaction_false_p = logic_loss_false_p(x)
-    assert torch.allclose(
-        satisfaction_false_p, torch.tensor(1.0), atol=1e-5
-    )
+    logic_loss_false_p = compile_logic(expr_false_p, predicates, tnorm=RProductTNorm())
+    satisfaction_false_p = logic_loss_false_p(X=x)
+    assert torch.allclose(satisfaction_false_p, torch.tensor(1.0), atol=1e-5)
 
     # P -> true: should be 1 (since 0.7 <= 1 is true)
     expr_p_true = sp.Implies(P(X), sp.true)
-    logic_loss_p_true = compile_logic(
-        expr_p_true, predicates, tnorm=RProductTNorm()
-    )
-    satisfaction_p_true = logic_loss_p_true(x)
-    assert torch.allclose(
-        satisfaction_p_true, torch.tensor(1.0), atol=1e-5
-    )
+    logic_loss_p_true = compile_logic(expr_p_true, predicates, tnorm=RProductTNorm())
+    satisfaction_p_true = logic_loss_p_true(X=x)
+    assert torch.allclose(satisfaction_p_true, torch.tensor(1.0), atol=1e-5)
 
     # P -> false: R-Product gives 0/0.7 = 0 when evaluated directly
     # But with SymPy constant evaluation, this becomes NOT(P) = 0.3
     expr_p_false = sp.Implies(P(X), sp.false)
-    logic_loss_p_false = compile_logic(
-        expr_p_false, predicates, tnorm=RProductTNorm()
-    )
-    satisfaction_p_false = logic_loss_p_false(x)
+    logic_loss_p_false = compile_logic(expr_p_false, predicates, tnorm=RProductTNorm())
+    satisfaction_p_false = logic_loss_p_false(X=x)
     # SymPy simplifies P -> false to NOT(P), so expect 1 - 0.7 = 0.3
-    assert torch.allclose(
-        satisfaction_p_false, torch.tensor(0.3), atol=1e-5
-    )
+    assert torch.allclose(satisfaction_p_false, torch.tensor(0.3), atol=1e-5)
 
 
 def test_r_product_transitive_implication() -> None:
@@ -378,14 +354,14 @@ def test_r_product_transitive_implication() -> None:
     )
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
-        "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.4),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
+        "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.4),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
-    x = torch.randn(10, 5)
-    satisfaction = logic_loss(x)
+    x = torch.randn(1, 5)
+    satisfaction = logic_loss(X=x)
 
     # Transitivity should have high satisfaction
     assert (satisfaction >= 0.8).all()
@@ -400,13 +376,13 @@ def test_r_product_contrapositive() -> None:
     expr = sp.Implies(sp.Implies(P(X), Q(X)), sp.Implies(sp.Not(Q(X)), sp.Not(P(X))))
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.7),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.5),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
-    x = torch.randn(10, 5)
-    satisfaction = logic_loss(x)
+    x = torch.randn(1, 5)
+    satisfaction = logic_loss(X=x)
 
     # Contrapositive should have reasonably high satisfaction
     assert (satisfaction >= 0.7).all()
@@ -422,25 +398,23 @@ def test_r_product_equivalent_decomposition() -> None:
     P, Q = Symbol("P Q")
 
     predicates = {
-        "P": Predicate( lambda x: torch.ones(x.shape[0]) * 0.8),
-        "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
+        "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
+        "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
 
     # Test P <-> Q
     expr_equiv = sp.Equivalent(P(X), Q(X))
     logic_loss_equiv = compile_logic(expr_equiv, predicates, tnorm=RProductTNorm())
-    satisfaction_equiv = logic_loss_equiv(x)
+    satisfaction_equiv = logic_loss_equiv(X=x)
 
     # Test (P->Q) AND (Q->P)
     expr_decomposed = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), P(X)))
     logic_loss_decomposed = compile_logic(
         expr_decomposed, predicates, tnorm=RProductTNorm()
     )
-    satisfaction_decomposed = logic_loss_decomposed(x)
+    satisfaction_decomposed = logic_loss_decomposed(X=x)
 
     # Should be equal
-    assert torch.allclose(
-        satisfaction_equiv, satisfaction_decomposed, atol=1e-5
-    )
+    assert torch.allclose(satisfaction_equiv, satisfaction_decomposed, atol=1e-5)

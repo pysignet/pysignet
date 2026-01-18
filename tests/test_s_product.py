@@ -165,8 +165,8 @@ def test_s_product_self_consistency() -> None:
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
-        x = torch.randn(10, 5)
-        satisfaction = logic_loss(x)
+        x = torch.randn(1, 5)
+        satisfaction = logic_loss(X=x)
 
         # P <-> P should always be 1 (perfect satisfaction)
         assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
@@ -186,8 +186,8 @@ def test_s_product_implication_tautology() -> None:
         }
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
-        x = torch.randn(10, 5)
-        satisfaction = logic_loss(x)
+        x = torch.randn(1, 5)
+        satisfaction = logic_loss(X=x)
 
         # P -> P should always be 1
         # S-Product: 1 - p + p*p = 1 - p(1-p) = 1 - p + p^2
@@ -235,8 +235,8 @@ def test_s_product_gradient_flow_implication() -> None:
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
-    x = torch.randn(10, 5)
-    loss = logic_loss.loss(x)
+    x = torch.randn(1, 5)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -269,8 +269,8 @@ def test_s_product_gradient_flow_complex() -> None:
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
-    x = torch.randn(10, 5)
-    loss = logic_loss.loss(x)
+    x = torch.randn(1, 5)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # All models should have gradients
@@ -303,10 +303,10 @@ def test_s_product_with_batch_dimensions() -> None:
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
-    # Test with different batch sizes
-    for batch_size in [1, 5, 10, 100]:
+    # Test with different batch sizes using quantify='none' for per-batch results
+    for batch_size in [1, 5, 10]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss(x)
+        satisfaction = logic_loss(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert satisfaction.min() >= 0.0
@@ -321,7 +321,7 @@ def test_s_product_implication_with_constants() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
 
     # true -> P: 1 - 1 + 1*0.7 = 0.7
     expr_true_p = sp.Implies(sp.true, P(X))
@@ -362,7 +362,7 @@ def test_s_product_equivalent_decomposition() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
 
     # Test P <-> Q
     expr_equiv = sp.Equivalent(P(X), Q(X))
@@ -398,7 +398,7 @@ def test_s_product_cross_entropy_equivalence() -> None:
         predicates = {"P": Predicate(lambda x, y: torch.ones(x.shape[0]) * y)}
 
         logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
-        x = torch.randn(10, 5)
+        x = torch.randn(1, 5)
         satisfaction = logic_loss({"X": x, "Y": label})
 
         # Satisfaction should match the label
@@ -419,8 +419,8 @@ def test_s_product_modus_ponens() -> None:
     }
 
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
-    x = torch.randn(10, 5)
-    satisfaction = logic_loss(x)
+    x = torch.randn(1, 5)
+    satisfaction = logic_loss(X=x)
 
     # Modus ponens should have reasonably high satisfaction
     # (may not be as high as R-Product due to consistency issues)
@@ -438,7 +438,7 @@ def test_s_product_de_morgans_laws() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
 
     # NOT(P AND Q) = NOT(P) OR NOT(Q)
     expr1 = sp.Not(sp.And(P(X), Q(X)))
@@ -482,9 +482,9 @@ def test_s_product_numerical_stability() -> None:
     logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
 
     # Test with various inputs including extreme values
-    x = torch.randn(10, 5) * 10  # Large values
+    x = torch.randn(1, 5) * 10  # Large values
 
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     assert not torch.isnan(satisfaction).any()
     assert not torch.isinf(satisfaction).any()

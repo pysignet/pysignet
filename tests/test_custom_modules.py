@@ -34,10 +34,12 @@ class TestCustomUnaryModules:
         model = CustomUnary()
         logic_loss = compile_logic(expr, {"P": model})
 
-        x = torch.randn(5, 10)
-        result = logic_loss(x)
+        batch_size = 5
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (5,)
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_custom_unary_gradient_flow(self):
@@ -57,7 +59,7 @@ class TestCustomUnaryModules:
         model = CustomUnary()
         logic_loss = compile_logic(expr, {"P": model})
 
-        x = torch.randn(5, 10)
+        x = torch.randn(1, 10)
         loss = logic_loss.loss(x)
         loss.backward()
 
@@ -84,10 +86,12 @@ class TestCustomUnaryModules:
 
         logic_loss = compile_logic(expr, {"P": model_p, "Q": model_q})
 
-        x = torch.randn(3, 8)
-        result = logic_loss(x)
+        batch_size = 3
+        x = torch.randn(batch_size, 8)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
     def test_custom_unary_training_loop(self):
         """Can train custom unary modules."""
@@ -111,7 +115,7 @@ class TestCustomUnaryModules:
         initial_weight = model.linear.weight.data.clone()
 
         # Training step
-        x = torch.randn(10, 5)
+        x = torch.randn(1, 5)
         loss = logic_loss.loss(x)
         optimizer.zero_grad()
         loss.backward()
@@ -148,10 +152,12 @@ class TestCustomBinaryModules:
         model = CustomBinary()
         logic_loss = compile_logic(expr, {"P": model})
 
-        x = torch.randn(3, 10)
-        result = logic_loss(x)
+        batch_size = 3
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
     def test_custom_binary_with_constant(self):
         """Custom binary module with constant index."""
@@ -174,10 +180,12 @@ class TestCustomBinaryModules:
         model = CustomClassifier()
         logic_loss = compile_logic(expr, {"P": model})
 
-        x = torch.randn(5, 8)
-        result = logic_loss(x)
+        batch_size = 5
+        x = torch.randn(batch_size, 8)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (5,)
+        assert result.shape == (batch_size,)
 
     def test_custom_binary_gradient_flow(self):
         """Gradients flow through custom binary modules."""
@@ -207,7 +215,7 @@ class TestCustomBinaryModules:
         model = DigitClassifier()
         logic_loss = compile_logic(expr, {"Digit": model})
 
-        x = torch.randn(4, 10)
+        x = torch.randn(1, 10)
         loss = logic_loss.loss(x)
         loss.backward()
 
@@ -240,10 +248,12 @@ class TestCustomModulesWithPredicate:
         compiled = compiler.compile(expr, predicates)
         logic_loss = LogicLoss(compiled, predicates)
 
-        x = torch.randn(5, 3)
-        result = logic_loss(x)
+        batch_size = 5
+        x = torch.randn(batch_size, 3)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (5,)
+        assert result.shape == (batch_size,)
 
     def test_get_trainable_parameters_from_custom_module(self):
         """Can extract parameters from custom modules."""
@@ -305,7 +315,9 @@ class TestMixedCustomAndSequential:
             "Q": seq_model
         })
 
-        x = torch.randn(5, 10)
-        result = logic_loss(x)
+        batch_size = 5
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
-        assert result.shape == (5,)
+        assert result.shape == (batch_size,)

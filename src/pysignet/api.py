@@ -109,5 +109,5 @@ def compile_logic(
     # Returns CompiledExpression
     compiled = compiler.compile(expr, wrapped_predicates)
 
-    # Wrap CompiledExpression in LogicLoss
-    return LogicLoss(compiled, post_processing)
+    # Wrap CompiledExpression in LogicLoss with t-norm for batch quantification
+    return LogicLoss(compiled, post_processing, tnorm=tnorm_instance)

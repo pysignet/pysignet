@@ -11,7 +11,7 @@ from pysignet import Predicate, Symbol, Variable, compile_logic
 
 
 def test_loss_mean_reduction() -> None:
-    """Test loss with mean reduction (default)."""
+    """Test loss with mean reduction over per-batch losses."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
@@ -20,10 +20,13 @@ def test_loss_mean_reduction() -> None:
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    batch_size = 10
+    x = torch.randn(batch_size, 5)
 
-    # Mean reduction (default) with linear post-processing
-    loss = logic_loss.loss(x, reduction="mean", post_processing="linear")
+    # Mean reduction requires quantify='none' to get per-batch losses first
+    loss = logic_loss.loss(
+        X=x, quantify='none', reduction="mean", post_processing="linear"
+    )
 
     assert loss.shape == ()  # Scalar
     assert loss >= 0.0
@@ -31,7 +34,7 @@ def test_loss_mean_reduction() -> None:
 
 
 def test_loss_sum_reduction() -> None:
-    """Test loss with sum reduction."""
+    """Test loss with sum reduction over per-batch losses."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
@@ -40,17 +43,18 @@ def test_loss_sum_reduction() -> None:
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    batch_size = 10
+    x = torch.randn(batch_size, 5)
 
-    # Sum reduction
-    loss = logic_loss.loss(x, reduction="sum")
+    # Sum reduction requires quantify='none' to get per-batch losses first
+    loss = logic_loss.loss(X=x, quantify='none', reduction="sum")
 
     assert loss.shape == ()  # Scalar
     assert loss >= 0.0
 
 
 def test_loss_none_reduction() -> None:
-    """Test loss with no reduction."""
+    """Test loss with no reduction (per-batch losses)."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
@@ -59,12 +63,15 @@ def test_loss_none_reduction() -> None:
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    batch_size = 10
+    x = torch.randn(batch_size, 5)
 
-    # No reduction with linear post-processing
-    loss = logic_loss.loss(x, reduction="none", post_processing="linear")
+    # No reduction with quantify='none' for per-batch losses
+    loss = logic_loss.loss(
+        X=x, quantify='none', reduction="none", post_processing="linear"
+    )
 
-    assert loss.shape == (10,)  # Per-sample losses
+    assert loss.shape == (batch_size,)  # Per-batch losses
     assert loss.min() >= 0.0
     assert loss.max() <= 1.0
 
@@ -79,15 +86,16 @@ def test_loss_reduction_consistency() -> None:
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    batch_size = 10
+    x = torch.randn(batch_size, 5)
 
-    # Get all three reduction modes
-    loss_mean = logic_loss.loss(x, reduction="mean")
-    loss_sum = logic_loss.loss(x, reduction="sum")
-    loss_none = logic_loss.loss(x, reduction="none")
+    # All reductions require quantify='none' to get per-batch losses first
+    loss_mean = logic_loss.loss(X=x, quantify='none', reduction="mean")
+    loss_sum = logic_loss.loss(X=x, quantify='none', reduction="sum")
+    loss_none = logic_loss.loss(X=x, quantify='none', reduction="none")
 
     # sum = mean * batch_size
-    assert torch.allclose(loss_sum, loss_mean * 10)
+    assert torch.allclose(loss_sum, loss_mean * batch_size)
 
     # mean = average of per-sample losses
     assert torch.allclose(loss_mean, loss_none.mean())
@@ -106,13 +114,14 @@ def test_invalid_reduction_mode() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    x = torch.randn(1, 3)
 
     try:
-        logic_loss.loss(x, reduction="invalid")
+        # Using quantify='none' since reduction only works with quantify='none'
+        logic_loss.loss(X=x, quantify='none', reduction="invalid")
         assert False, "Should have raised ValueError"
     except ValueError as e:
-        assert "Unknown reduction" in str(e)
+        assert "Invalid reduction" in str(e)
 
 
 def test_loss_is_one_minus_satisfaction() -> None:
@@ -125,13 +134,15 @@ def test_loss_is_one_minus_satisfaction() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
 
-    satisfaction = logic_loss(x)
-    loss_none = logic_loss.loss(x, reduction="none", post_processing="linear")
+    # Default quantify='forall' with batch_size=1 returns scalar
+    satisfaction = logic_loss(X=x)
+    # Use default quantify='forall' for loss too (returns scalar loss)
+    loss = logic_loss.loss(X=x, post_processing="linear")
 
     # loss = 1 - satisfaction (with linear post-processing)
-    assert torch.allclose(loss_none, 1.0 - satisfaction)
+    assert torch.allclose(loss, 1.0 - satisfaction)
 
 
 def test_loss_with_perfect_satisfaction() -> None:
@@ -145,9 +156,11 @@ def test_loss_with_perfect_satisfaction() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    batch_size = 10
+    x = torch.randn(batch_size, 3)
 
-    loss = logic_loss.loss(x, reduction="mean")
+    # Use default quantify='forall' for loss (returns scalar)
+    loss = logic_loss.loss(X=x)
 
     # Perfect satisfaction => loss = 0
     assert torch.allclose(loss, torch.tensor(0.0))
@@ -164,9 +177,11 @@ def test_loss_with_zero_satisfaction() -> None:
     predicates = {"P": Predicate(lambda x: torch.zeros(x.shape[0]))}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(5, 3)
+    batch_size = 10
+    x = torch.randn(batch_size, 3)
 
-    loss = logic_loss.loss(x, reduction="mean", post_processing="linear")
+    # Use default quantify='forall' for loss (returns scalar)
+    loss = logic_loss.loss(X=x, post_processing="linear")
 
     # Zero satisfaction => loss = 1 (with linear post-processing)
     assert torch.allclose(loss, torch.tensor(1.0))
@@ -186,7 +201,7 @@ def test_loss_with_complex_expression() -> None:
     }
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    x = torch.randn(1, 5)
 
     # Compute satisfaction manually
     # (P | Q) & ~R
@@ -198,12 +213,13 @@ def test_loss_with_complex_expression() -> None:
     expected_satisfaction = p_or_q * not_r
     expected_loss = 1.0 - expected_satisfaction
 
-    loss = logic_loss.loss(x, reduction="mean", post_processing="linear")
+    # Default quantify='forall' with batch_size=1 returns scalar
+    loss = logic_loss.loss(X=x, post_processing="linear")
     assert torch.allclose(loss, torch.tensor(expected_loss), atol=1e-5)
 
 
-def test_loss_default_reduction() -> None:
-    """Test that default reduction is 'mean'."""
+def test_loss_default_quantify() -> None:
+    """Test that default quantify is 'forall' and produces scalar loss."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
@@ -212,18 +228,19 @@ def test_loss_default_reduction() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
     logic_loss = compile_logic(expr, predicates)
-    x = torch.randn(10, 5)
+    batch_size = 10
+    x = torch.randn(batch_size, 5)
 
-    # Default should be mean
-    loss_default = logic_loss.loss(x)
-    loss_mean = logic_loss.loss(x, reduction="mean")
+    # Default is quantify='forall' which reduces to scalar via product
+    loss_default = logic_loss.loss(X=x)
+    loss_forall = logic_loss.loss(X=x, quantify='forall')
 
-    assert torch.allclose(loss_default, loss_mean)
-    assert loss_default.shape == ()
+    assert torch.allclose(loss_default, loss_forall)
+    assert loss_default.shape == ()  # Scalar
 
 
 def test_loss_with_varying_batch_sizes() -> None:
-    """Test loss computation with different batch sizes."""
+    """Test loss computation with different batch sizes using reductions."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
@@ -233,13 +250,20 @@ def test_loss_with_varying_batch_sizes() -> None:
 
     logic_loss = compile_logic(expr, predicates)
 
-    # Test different batch sizes with linear post-processing
-    for batch_size in [1, 5, 10, 100]:
+    # Test different batch sizes with quantify='none' and various reductions
+    for batch_size in [1, 10, 32]:
         x = torch.randn(batch_size, 5)
 
-        loss_mean = logic_loss.loss(x, reduction="mean", post_processing="linear")
-        loss_sum = logic_loss.loss(x, reduction="sum", post_processing="linear")
-        loss_none = logic_loss.loss(x, reduction="none", post_processing="linear")
+        # Use quantify='none' to get per-batch losses, then apply reductions
+        loss_mean = logic_loss.loss(
+            X=x, quantify='none', reduction="mean", post_processing="linear"
+        )
+        loss_sum = logic_loss.loss(
+            X=x, quantify='none', reduction="sum", post_processing="linear"
+        )
+        loss_none = logic_loss.loss(
+            X=x, quantify='none', reduction="none", post_processing="linear"
+        )
 
         assert loss_mean.shape == ()
         assert loss_sum.shape == ()
@@ -272,9 +296,10 @@ def test_loss_with_dict_input() -> None:
         "Y": torch.randn(batch_size, 10),
     }
 
-    loss = logic_loss.loss(inputs, reduction="mean", post_processing="linear")
+    # Default quantify='forall' produces scalar loss
+    loss = logic_loss.loss(inputs, post_processing="linear")
 
-    assert loss.shape == ()
+    assert loss.shape == ()  # Scalar from forall quantification
     assert loss >= 0.0
     assert loss <= 1.0
 
@@ -289,8 +314,12 @@ def test_loss_numerics_stability() -> None:
     # Very high satisfaction (near 1)
     predicates_high = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.9999999)}
     logic_loss_high = compile_logic(expr, predicates_high)
-    x = torch.randn(5, 3)
-    loss_high = logic_loss_high.loss(x, reduction="mean", post_processing="linear")
+    batch_size = 10
+    x = torch.randn(batch_size, 3)
+    # Use quantify='none' with reduction='mean' for explicit mean over per-batch
+    loss_high = logic_loss_high.loss(
+        X=x, quantify='none', reduction="mean", post_processing="linear"
+    )
 
     # Loss should be very small (near 0) with linear post-processing
     assert loss_high >= 0.0
@@ -299,7 +328,9 @@ def test_loss_numerics_stability() -> None:
     # Very low satisfaction (near 0)
     predicates_low = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 1e-7)}
     logic_loss_low = compile_logic(expr, predicates_low)
-    loss_low = logic_loss_low.loss(x, reduction="mean", post_processing="linear")
+    loss_low = logic_loss_low.loss(
+        X=x, quantify='none', reduction="mean", post_processing="linear"
+    )
 
     # Loss should be very high (near 1) with linear post-processing
     assert loss_low > 0.999999

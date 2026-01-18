@@ -42,7 +42,8 @@ class TestMixedArgumentArityValidation:
         x1 = torch.randn(batch_size, 5)
         x2 = torch.randn(batch_size, 4)
 
-        result = compiled({"X1": x1, "X2": x2})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X1": x1, "X2": x2}, quantify='none')
 
         # Should return satisfaction for batch
         assert result.shape == (batch_size,)
@@ -83,7 +84,8 @@ class TestMixedArgumentArityValidation:
         batch_size = 4
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X": x}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -109,7 +111,8 @@ class TestMixedArgumentArityValidation:
         x2 = torch.randn(batch_size, 4)
         x3 = torch.randn(batch_size, 2)
 
-        result = compiled({"X1": x1, "X2": x2, "X3": x3})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X1": x1, "X2": x2, "X3": x3}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -132,7 +135,8 @@ class TestMixedArgumentArityValidation:
         x1 = torch.randn(batch_size, 5)
         x2 = torch.randn(batch_size, 4)
 
-        result = compiled({"X1": x1, "X2": x2})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X1": x1, "X2": x2}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -157,7 +161,8 @@ class TestMixedArgumentEvaluation:
         batch_size = 4
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X": x}, quantify='none')
 
         # Should return satisfaction for batch
         # Value should be in [0, 1] (probabilities for class 0)
@@ -181,7 +186,8 @@ class TestMixedArgumentEvaluation:
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X": x}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -216,7 +222,8 @@ class TestMixedArgumentEvaluation:
         x1 = torch.randn(batch_size, 5)
         x2 = torch.randn(batch_size, 4)
 
-        result = compiled({"X1": x1, "X2": x2})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X1": x1, "X2": x2}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -265,7 +272,8 @@ class TestEdgeCases:
         batch_size = 2
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X": x}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -286,7 +294,8 @@ class TestEdgeCases:
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X": x}, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -383,7 +392,8 @@ class TestArityValidationErrors:
 
         batch_size = 3
         x = torch.randn(batch_size, 5)
-        result = compiled({"X": x})
+        # Use quantify='none' to get per-batch results
+        result = compiled({"X": x}, quantify='none')
 
         assert result.shape == (batch_size,)
 

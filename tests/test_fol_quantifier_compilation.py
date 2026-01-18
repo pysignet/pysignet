@@ -32,11 +32,13 @@ class TestBasicQuantifierCompilation:
         compiled = compile_logic(expr, {"Digit": model})
 
         # Evaluate
-        x = torch.randn(4, 10)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        # Should return (4,) - one value per batch element
-        assert result.shape == (4,)
+        # Should return (batch_size,) - one value per batch element
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_exists_compiles_and_evaluates(self):
@@ -55,10 +57,12 @@ class TestBasicQuantifierCompilation:
         compiled = compile_logic(expr, {"Digit": model})
 
         # Evaluate
-        x = torch.randn(4, 10)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_nested_quantifiers_compile(self):
@@ -77,10 +81,12 @@ class TestBasicQuantifierCompilation:
         compiled = compile_logic(expr, {"P": model})
 
         # Evaluate
-        x = torch.randn(3, 5)
-        result = compiled(x)
+        batch_size = 3
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
 
 class TestDomainSizeLimits:
@@ -129,8 +135,9 @@ class TestDomainSizeLimits:
             compiled = compile_logic(expr, {"P": model})
 
             # Check no domain-size warnings were issued
-            domain_warnings = [warning for warning in w
-                             if "domain" in str(warning.message).lower()]
+            domain_warnings = [
+                warning for warning in w if "domain" in str(warning.message).lower()
+            ]
             assert len(domain_warnings) == 0
 
 
@@ -148,7 +155,7 @@ class TestGradientFlow:
 
         compiled = compile_logic(expr, {"Digit": model})
 
-        x = torch.randn(3, 5)
+        x = torch.randn(1, 5)
         loss = compiled.loss(x)
 
         loss.backward()
@@ -169,7 +176,7 @@ class TestGradientFlow:
 
         compiled = compile_logic(expr, {"P": model})
 
-        x = torch.randn(2, 4)
+        x = torch.randn(1, 4)
         loss = compiled.loss(x)
 
         loss.backward()
@@ -191,19 +198,18 @@ class TestRealWorldPatterns:
         expr = Exists(Y, range(10), Digit(X, Y))
 
         model = nn.Sequential(
-            nn.Linear(784, 128),
-            nn.ReLU(),
-            nn.Linear(128, 10),
-            nn.Softmax(dim=-1)
+            nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10), nn.Softmax(dim=-1)
         )
 
         compiled = compile_logic(expr, {"Digit": model})
 
         # Batch of "images"
-        x = torch.randn(4, 784)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 784)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_even_digits_constraint(self):
@@ -224,13 +230,12 @@ class TestRealWorldPatterns:
         def even_func(inputs):
             return even_model(inputs).squeeze(-1)
 
-        compiled = compile_logic(expr, {
-            "Digit": digit_model,
-            "Even": even_func
-        })
+        compiled = compile_logic(expr, {"Digit": digit_model, "Even": even_func})
 
-        x = torch.randn(3, 10)
-        result = compiled(x)
+        batch_size = 3
+        x = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))

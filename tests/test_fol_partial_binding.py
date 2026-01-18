@@ -33,14 +33,16 @@ class TestBasicPartialBinding:
         compiled = compile_logic(expr, predicates)
 
         # Partial bind X
-        x = torch.randn(4, 10)
+        x = torch.randn(1, 10)
         partial = compiled.partial(X=x)
 
         # Now bind Y
-        y = torch.randn(4, 10)
-        result = partial(Y=y)
+        batch_size = 4
+        y = torch.randn(batch_size, 10)
+        # Use quantify='none' to get per-batch results
+        result = partial(Y=y, quantify='none')
 
-        assert result.shape == torch.Size([4])
+        assert result.shape == torch.Size([batch_size])
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_partial_bind_returns_callable(self):
@@ -56,7 +58,7 @@ class TestBasicPartialBinding:
         }
 
         compiled = compile_logic(expr, predicates)
-        x = torch.randn(4, 10)
+        x = torch.randn(1, 10)
         partial = compiled.partial(X=x)
 
         assert callable(partial)
@@ -75,8 +77,8 @@ class TestBasicPartialBinding:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(4, 10)
-        y = torch.randn(4, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
 
         # Bind X then Y
         result1 = compiled.partial(X=x)(Y=y)
@@ -100,8 +102,8 @@ class TestBasicPartialBinding:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(4, 10)
-        y = torch.randn(4, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
 
         # Full binding
         result_full = compiled(X=x, Y=y)
@@ -132,13 +134,14 @@ class TestMultiplePartialBindings:
         compiled = compile_logic(expr, predicates)
 
         # Chain partial bindings
-        x = torch.randn(3, 10)
-        y = torch.randn(3, 10)
-        z = torch.randn(3, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
+        z = torch.randn(1, 10)
 
-        result = compiled.partial(X=x).partial(Y=y)(Z=z)
+        # Use quantify='none' to get per-batch results
+        result = compiled.partial(X=x).partial(Y=y)(Z=z, quantify='none')
 
-        assert result.shape == torch.Size([3])
+        assert result.shape == torch.Size([1])
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_bind_multiple_at_once(self):
@@ -156,9 +159,9 @@ class TestMultiplePartialBindings:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(3, 10)
-        y = torch.randn(3, 10)
-        z = torch.randn(3, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
+        z = torch.randn(1, 10)
 
         # Bind two variables at once
         result = compiled.partial(X=x, Y=y)(Z=z)
@@ -183,9 +186,9 @@ class TestMultiplePartialBindings:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(3, 10)
-        y = torch.randn(3, 10)
-        z = torch.randn(3, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
+        z = torch.randn(1, 10)
 
         # Different orders
         result1 = compiled.partial(X=x).partial(Y=y)(Z=z)
@@ -213,8 +216,8 @@ class TestErrorHandling:
 
         compiled = compile_logic(expr, predicates)
 
-        x1 = torch.randn(4, 10)
-        x2 = torch.randn(4, 10)
+        x1 = torch.randn(1, 10)
+        x2 = torch.randn(1, 10)
 
         # Bind X once
         partial = compiled.partial(X=x1)
@@ -239,7 +242,7 @@ class TestErrorHandling:
         # Try to bind a variable that doesn't exist
         # NEW BEHAVIOR: CompiledExpression validates at partial() time
         with pytest.raises(ValueError, match="not in expression"):
-            compiled.partial(Z=torch.randn(4, 10))
+            compiled.partial(Z=torch.randn(1, 10))
 
     def test_error_on_missing_final_bindings(self):
         """Test that calling with missing variables raises error."""
@@ -256,7 +259,7 @@ class TestErrorHandling:
         compiled = compile_logic(expr, predicates)
 
         # Partial bind X only
-        partial = compiled.partial(X=torch.randn(4, 10))
+        partial = compiled.partial(X=torch.randn(1, 10))
 
         # Try to call without Y should raise error
         with pytest.raises(ValueError, match="Missing input"):
@@ -280,8 +283,8 @@ class TestPartialBindingWithDifferentExpressions:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(5, 10)
-        y = torch.randn(5, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
 
         result_partial = compiled.partial(X=x)(Y=y)
         result_full = compiled(X=x, Y=y)
@@ -302,8 +305,8 @@ class TestPartialBindingWithDifferentExpressions:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(5, 10)
-        y = torch.randn(5, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
 
         result_partial = compiled.partial(X=x)(Y=y)
         result_full = compiled(X=x, Y=y)
@@ -325,15 +328,16 @@ class TestPartialBindingWithDifferentExpressions:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(8, 10)
+        x = torch.randn(1, 10)
 
         # Partial bind X (constant 5 is already in the expression)
         partial = compiled.partial(X=x)
 
         # Call with no more arguments needed
-        result = partial()
+        # Use quantify='none' to get per-batch results
+        result = partial(quantify='none')
 
-        assert result.shape == torch.Size([8])
+        assert result.shape == torch.Size([1])
 
 
 class TestPartialBindingLoss:
@@ -353,8 +357,8 @@ class TestPartialBindingLoss:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(4, 10)
-        y = torch.randn(4, 10)
+        x = torch.randn(1, 10)
+        y = torch.randn(1, 10)
 
         # Partial bind and compute loss
         partial = compiled.partial(X=x)
@@ -379,8 +383,8 @@ class TestPartialBindingLoss:
 
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(4, 10, requires_grad=True)
-        y = torch.randn(4, 10, requires_grad=True)
+        x = torch.randn(1, 10, requires_grad=True)
+        y = torch.randn(1, 10, requires_grad=True)
 
         # Partial bind and compute loss
         partial = compiled.partial(X=x)
@@ -460,5 +464,6 @@ class TestRealWorldUseCases:
 
         # Check constraint multiple times (e.g., during training)
         for _ in range(5):
-            satisfaction = partial()
+            # Use quantify='none' to get per-batch results
+            satisfaction = partial(quantify='none')
             assert satisfaction.shape == torch.Size([1])

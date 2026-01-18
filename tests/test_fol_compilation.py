@@ -30,7 +30,8 @@ class TestBasicFOLCompilation:
 
         # Batch of 4 samples
         x = torch.randn(4, 28*28)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         # Should return satisfaction for batch
         assert result.shape == (4,)
@@ -49,7 +50,8 @@ class TestBasicFOLCompilation:
         logic_loss = compile_logic(expr, {"Digit": digit_model})
 
         x = torch.randn(3, 28*28)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         # Universal quantification: for all i, j in batch
         # Should return (3,) - one result per batch element
@@ -70,7 +72,8 @@ class TestBasicFOLCompilation:
         logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(5, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (5,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -92,7 +95,8 @@ class TestFOLBatchQuantification:
         logic_loss = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(4, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         # ∀X: P(X) with batch size 4
         # Should be conjunction of P(0), P(1), P(2), P(3)
@@ -117,7 +121,8 @@ class TestFOLBatchQuantification:
 
         x = torch.randn(3, 5)
         y = torch.randn(3, 4)
-        result = logic_loss({"X": x, "Y": y})
+        # Use quantify='none' to get per-batch results
+        result = logic_loss({"X": x, "Y": y}, quantify='none')
 
         assert result.shape == (3,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -140,7 +145,8 @@ class TestFOLMixedExpressions:
         logic_loss = compile_logic(expr, {"Digit": digit_model})
 
         x = torch.randn(4, 784)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (4,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -159,12 +165,13 @@ class TestFOLMixedExpressions:
         logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (3,)
         # Should be conjunction of P(X) (0.9) and Q(X) (0.7)
         # Product t-norm: 0.9 * 0.7 = 0.63
-        assert torch.allclose(result, torch.tensor(0.63))
+        assert torch.allclose(result, torch.full((3,), 0.63))
 
 
 class TestFOLComplexExpressions:
@@ -189,7 +196,8 @@ class TestFOLComplexExpressions:
         })
 
         x = torch.randn(2, 5)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (2,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -209,7 +217,8 @@ class TestFOLComplexExpressions:
         logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (3,)
         # P(X) ∨ Q(X) for each batch element
@@ -236,8 +245,9 @@ class TestFOLGradients:
 
         logic_loss = compile_logic(expr, {"P": p_model})
 
-        x = torch.randn(3, 5, requires_grad=True)
-        result = logic_loss(x)
+        x = torch.randn(4, 5, requires_grad=True)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         # Compute loss and backprop
         loss = result.mean()
@@ -265,7 +275,8 @@ class TestFOLEdgeCases:
         logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(4, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (4,)
         # Should be simple conjunction, no quantification
@@ -283,7 +294,8 @@ class TestFOLEdgeCases:
         logic_loss = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(1, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         # With batch size 1, ∀X quantifies over just 1 element
         assert result.shape == (1,)
@@ -301,7 +313,8 @@ class TestFOLEdgeCases:
         logic_loss = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(100, 10)
-        result = logic_loss(x)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(x, quantify='none')
 
         assert result.shape == (100,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -323,7 +336,8 @@ class TestFOLWithDictInputs:
 
         # Dict input with variable name as key
         inputs = {"X": torch.randn(5, 10)}
-        result = logic_loss(inputs)
+        # Use quantify='none' to get per-batch results
+        result = logic_loss(inputs, quantify='none')
 
         assert result.shape == (5,)
         assert torch.all((result >= 0) & (result <= 1))

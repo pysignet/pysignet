@@ -95,7 +95,7 @@ class TNormCompiler(LogicCompiler):
                 expanded_expr, inputs, wrapped_predicates, ctx
             )
 
-        # Return CompiledExpression instead of raw closure
+        # Return CompiledExpression (no batch reduction - handled by LogicLoss)
         return CompiledExpression(
             compiled_logic=compiled_logic,
             free_variables=set(v.name for v in free_vars),

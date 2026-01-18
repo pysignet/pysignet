@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic, LogicLoss
+from pysignet import Symbol, Variable, LogicLoss
 from pysignet.compilation import LinearThresholdUnitCompiler
 
 
@@ -27,13 +27,15 @@ class TestBasicOperations:
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
         q_model = lambda x: torch.full((x.shape[0],), 0.9)
 
-        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiler = LinearThresholdUnitCompiler(mode="soft")
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(4, 5)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
         # With sigmoid threshold, high values should give high output
         assert torch.all(result > 0.5)
 
@@ -47,13 +49,15 @@ class TestBasicOperations:
         p_model = lambda x: torch.full((x.shape[0],), 0.1)
         q_model = lambda x: torch.full((x.shape[0],), 0.2)
 
-        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiler = LinearThresholdUnitCompiler(mode="soft")
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(3, 5)
-        result = compiled(x)
+        batch_size = 3
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
         # Sum is 0.3, threshold is 0.5, so should be < 0.5
         assert torch.all(result < 0.5)
 
@@ -69,8 +73,8 @@ class TestBasicOperations:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"P": p_model})
 
-        x = torch.randn(2, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # 1 - 0.7 = 0.3
         assert torch.allclose(result, torch.full((2,), 0.3))
@@ -85,11 +89,11 @@ class TestBasicOperations:
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
         q_model = lambda x: torch.full((x.shape[0],), 0.9)
 
-        compiler = LinearThresholdUnitCompiler(mode='hard')
+        compiler = LinearThresholdUnitCompiler(mode="hard")
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(3, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # Sum is 1.7, threshold is 1.5, so output is 1.0
         assert torch.allclose(result, torch.ones(3))
@@ -104,11 +108,11 @@ class TestBasicOperations:
         p_model = lambda x: torch.full((x.shape[0],), 0.2)
         q_model = lambda x: torch.full((x.shape[0],), 0.1)
 
-        compiler = LinearThresholdUnitCompiler(mode='hard')
+        compiler = LinearThresholdUnitCompiler(mode="hard")
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(3, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # Sum is 0.3, threshold is 0.5, so output is 0.0
         assert torch.allclose(result, torch.zeros(3))
@@ -130,8 +134,8 @@ class TestImplicationAndEquivalence:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(2, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # (NOT 0.3) OR 0.8 = 0.7 OR 0.8
         # Sum is 1.5, threshold is 0.5, so sigmoid(1.0*(1.5-0.5)) = sigmoid(1.0) = 0.7311
@@ -150,14 +154,16 @@ class TestImplicationAndEquivalence:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(2, 5)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (2,)
+        assert result.shape == (batch_size,)
         # (P => Q) AND (Q => P)
         # Each implication: (NOT 0.6) OR 0.6 = 0.4 OR 0.6 -> sigmoid(0.5) = 0.6225
         # AND of two 0.6225 values: sum=1.245, threshold=1.5 -> sigmoid(-0.255) = 0.4366
-        assert torch.allclose(result, torch.full((2,), 0.4366), atol=1e-4)
+        assert torch.allclose(result, torch.full((batch_size,), 0.4366), atol=1e-4)
 
 
 class TestWithVariables:
@@ -175,10 +181,12 @@ class TestWithVariables:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"P": p_model})
 
-        x = torch.randn(4, 5)
-        result = compiled(x)
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_two_variables_different_predicates(self):
@@ -194,11 +202,13 @@ class TestWithVariables:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(3, 5)
-        y = torch.randn(3, 4)
-        result = compiled({"X": x, "Y": y})
+        batch_size = 3
+        x = torch.randn(batch_size, 5)
+        y = torch.randn(batch_size, 4)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, Y=y, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
 
 class TestQuantifiers:
@@ -218,10 +228,12 @@ class TestQuantifiers:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"Digit": model})
 
-        x = torch.randn(3, 5)
-        result = compiled({"X": x})
+        batch_size = 3
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (3,)
+        assert result.shape == (batch_size,)
 
     def test_exists_expansion(self):
         """Test Exists quantifier expands to disjunction."""
@@ -237,10 +249,12 @@ class TestQuantifiers:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"Digit": model})
 
-        x = torch.randn(4, 5)
-        result = compiled({"X": x})
+        batch_size = 4
+        x = torch.randn(batch_size, 5)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
-        assert result.shape == (4,)
+        assert result.shape == (batch_size,)
 
 
 class TestGradientFlow:
@@ -255,13 +269,13 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
 
-        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiler = LinearThresholdUnitCompiler(mode="soft")
         compiled_fn = compiler.compile(expr, {"P": model})
 
         # Wrap in LogicLoss for loss computation
         logic_loss = LogicLoss(compiled_fn)
 
-        x = torch.randn(3, 5)
+        x = torch.randn(1, 5)
         loss = logic_loss.loss(x)
 
         loss.backward()
@@ -279,18 +293,14 @@ class TestGradientFlow:
         expr = sp.And(P(X), Q(X))
 
         # Use requires_grad to test differentiability
-        p_model = lambda x: torch.full(
-            (x.shape[0],), 0.8, requires_grad=True
-        )
-        q_model = lambda x: torch.full(
-            (x.shape[0],), 0.9, requires_grad=True
-        )
+        p_model = lambda x: torch.full((x.shape[0],), 0.8, requires_grad=True)
+        q_model = lambda x: torch.full((x.shape[0],), 0.9, requires_grad=True)
 
-        compiler = LinearThresholdUnitCompiler(mode='hard')
+        compiler = LinearThresholdUnitCompiler(mode="hard")
         compiled = compiler.compile(expr, {"P": p_model, "Q": q_model})
 
-        x = torch.randn(2, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # Result uses step function, so no grad_fn
         assert result.grad_fn is None
@@ -302,7 +312,7 @@ class TestEdgeCases:
     def test_invalid_mode_raises_error(self):
         """Test that invalid mode raises ValueError."""
         with pytest.raises(ValueError, match="mode must be"):
-            LinearThresholdUnitCompiler(mode='invalid')
+            LinearThresholdUnitCompiler(mode="invalid")
 
     def test_boolean_constants(self):
         """Test boolean constants work correctly."""
@@ -316,8 +326,8 @@ class TestEdgeCases:
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(expr, {"P": p_model})
 
-        x = torch.randn(3, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # P AND TRUE should be high (sum 1.7, threshold 1.5)
         assert torch.all(result > 0.5)
@@ -336,12 +346,11 @@ class TestEdgeCases:
 
         compiler = LinearThresholdUnitCompiler()
         compiled = compiler.compile(
-            expr,
-            {"P1": p1_model, "P2": p2_model, "P3": p3_model, "P4": p4_model}
+            expr, {"P1": p1_model, "P2": p2_model, "P3": p3_model, "P4": p4_model}
         )
 
-        x = torch.randn(2, 5)
-        result = compiled(x)
+        x = torch.randn(1, 5)
+        result = compiled(X=x)
 
         # Sum is 0.4, threshold is 0.5, so output < 0.5
         assert torch.all(result < 0.5)

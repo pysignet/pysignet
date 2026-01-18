@@ -11,7 +11,6 @@ import sympy as sp
 
 from pysignet import Symbol, compile_logic
 from pysignet.logic import Variable
-from pysignet.tnorms import RProductTNorm
 
 
 class TestConstantOnlyPredicates:
@@ -35,8 +34,8 @@ class TestConstantOnlyPredicates:
         # Should evaluate without any variable bindings
         result = compiled()
         # Shape is whatever the predicate returns (no batch dimension)
-        assert result.shape == torch.Size([1])
-        assert result[0].item() == pytest.approx(0.8)
+        assert result.shape == ()
+        assert result.item() == pytest.approx(0.8)
 
     def test_predicate_with_multiple_constants(self):
         """Test predicate with multiple constant arguments."""
@@ -57,8 +56,8 @@ class TestConstantOnlyPredicates:
 
         # Should evaluate without variable bindings
         result = compiled()
-        assert result.shape == torch.Size([1])
-        assert result[0].item() == pytest.approx(0.9)
+        assert result.shape == ()
+        assert result.item() == pytest.approx(0.9)
 
     def test_predicate_with_string_constant(self):
         """Test predicate with string constant."""
@@ -95,17 +94,16 @@ class TestMixedVariableAndConstant:
         model = nn.Sequential(nn.Linear(10, 10), nn.Softmax(dim=-1))
 
         # Lambda that selects the constant class
-        predicates = {
-            "Digit": lambda x, label: model(x)[:, label]
-        }
+        predicates = {"Digit": lambda x, label: model(x)[:, label]}
 
         compiled = compile_logic(expr, predicates)
 
         # Only bind X, not the constant 5
-        x = torch.randn(8, 10)
+        x = torch.randn(1, 10)
+        # Default quantify='forall' with batch_size=1 returns scalar
         result = compiled(X=x)
 
-        assert result.shape == torch.Size([8])
+        assert result.shape == ()
         assert torch.all((result >= 0) & (result <= 1))
 
     def test_constant_then_variable(self):
@@ -125,10 +123,10 @@ class TestMixedVariableAndConstant:
         compiled = compile_logic(expr, predicates)
 
         # Only bind X
-        x = torch.randn(4, 10)
+        x = torch.randn(10, 10)
         result = compiled(X=x)
 
-        assert result.shape == torch.Size([4])
+        assert result.shape == ()
 
     def test_variable_constant_variable(self):
         """Test predicate with pattern V-C-V: P(X, 0, Y)."""
@@ -150,7 +148,8 @@ class TestMixedVariableAndConstant:
         # Bind both variables, constant passed automatically
         x = torch.randn(4, 5)
         y = torch.randn(4, 5)
-        result = compiled(X=x, Y=y)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, Y=y, quantify='none')
 
         assert result.shape == torch.Size([4])
 
@@ -174,7 +173,8 @@ class TestMixedVariableAndConstant:
 
         x = torch.randn(3, 4)
         y = torch.randn(3, 4)
-        result = compiled(X=x, Y=y)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, Y=y, quantify='none')
 
         assert result.shape == torch.Size([3])
 
@@ -190,14 +190,13 @@ class TestConstantsNotInBindings:
         # P(X, 5)
         expr = P(X, 5)
 
-        predicates = {
-            "P": lambda x, label: torch.sigmoid(x.sum(dim=-1))
-        }
+        predicates = {"P": lambda x, label: torch.sigmoid(x.sum(dim=-1))}
         compiled = compile_logic(expr, predicates)
 
         # Should only need to bind X, not the constant 5
         x = torch.randn(4, 10)
-        result = compiled(X=x)  # No error even though 5 not bound
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')  # No error even though 5 not bound
 
         assert result.shape == torch.Size([4])
 
@@ -210,20 +209,19 @@ class TestConstantsNotInBindings:
         expr = Digit(X, 5)
 
         model = nn.Sequential(nn.Linear(10, 10), nn.Softmax(dim=-1))
-        predicates = {
-            "Digit": lambda x, label: model(x)[:, label]
-        }
+        predicates = {"Digit": lambda x, label: model(x)[:, label]}
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(4, 10)
 
         # This should work (only X bound)
-        result1 = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result1 = compiled(X=x, quantify='none')
         assert result1.shape == torch.Size([4])
 
         # Binding extra keys should be ignored or raise error
         # (depends on implementation, but constant shouldn't be required)
-        result2 = compiled(X=x)
+        result2 = compiled(X=x, quantify='none')
         assert torch.allclose(result1, result2)
 
     def test_multiple_constants_none_required_in_binding(self):
@@ -236,13 +234,14 @@ class TestConstantsNotInBindings:
 
         predicates = {
             "P": lambda x, label: torch.sigmoid(x.sum(dim=-1)),
-            "Q": lambda x, color: torch.sigmoid(x.sum(dim=-1) + len(color))
+            "Q": lambda x, color: torch.sigmoid(x.sum(dim=-1) + len(color)),
         }
         compiled = compile_logic(expr, predicates)
 
         # Only bind X
         x = torch.randn(4, 10)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([4])
 
@@ -261,13 +260,12 @@ class TestConstantInterpretation:
         model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
 
         # Use constant as index into softmax output
-        predicates = {
-            "Digit": lambda x, label: model(x)[:, label]
-        }
+        predicates = {"Digit": lambda x, label: model(x)[:, label]}
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(8, 784)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([8])
         assert torch.all((result >= 0) & (result <= 1))
@@ -285,13 +283,12 @@ class TestConstantInterpretation:
         # Map string to index
         color_map = {"red": 0, "green": 1, "blue": 2}
 
-        predicates = {
-            "Color": lambda x, color: model(x)[:, color_map[color]]
-        }
+        predicates = {"Color": lambda x, color: model(x)[:, color_map[color]]}
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(5, 10)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([5])
 
@@ -310,7 +307,8 @@ class TestConstantInterpretation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(6, 10)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([6])
         assert torch.all((result == 0) | (result == 1))
@@ -324,12 +322,15 @@ class TestConstantInterpretation:
         expr = P(X, None)
 
         predicates = {
-            "P": lambda x, mode: torch.sigmoid(x.sum(dim=-1)) if mode is None else x.mean(dim=-1)
+            "P": lambda x, mode: (
+                torch.sigmoid(x.sum(dim=-1)) if mode is None else x.mean(dim=-1)
+            )
         }
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(3, 10)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([3])
 
@@ -349,12 +350,13 @@ class TestComplexExpressions:
 
         predicates = {
             "P": lambda x, label: model(x)[:, label],
-            "Q": lambda x, label: model(x)[:, label]
+            "Q": lambda x, label: model(x)[:, label],
         }
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(4, 10)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([4])
 
@@ -368,13 +370,12 @@ class TestComplexExpressions:
 
         model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
 
-        predicates = {
-            "Digit": lambda x, label: model(x)[:, label]
-        }
+        predicates = {"Digit": lambda x, label: model(x)[:, label]}
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(8, 784)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([8])
 
@@ -391,12 +392,13 @@ class TestComplexExpressions:
 
         predicates = {
             "Digit": lambda x, label: digit_model(x)[:, label],
-            "Even": lambda x: even_model(x).squeeze(-1)
+            "Even": lambda x: even_model(x).squeeze(-1),
         }
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(8, 784)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([8])
 
@@ -406,22 +408,20 @@ class TestComplexExpressions:
         X = Variable("X")
 
         # (P(X, 0) ∧ Q(X, 1)) → R(X, 2)
-        expr = sp.Implies(
-            sp.And(P(X, 0), Q(X, 1)),
-            R(X, 2)
-        )
+        expr = sp.Implies(sp.And(P(X, 0), Q(X, 1)), R(X, 2))
 
         model = nn.Sequential(nn.Linear(10, 5), nn.Softmax(dim=-1))
 
         predicates = {
             "P": lambda x, label: model(x)[:, label],
             "Q": lambda x, label: model(x)[:, label],
-            "R": lambda x, label: model(x)[:, label]
+            "R": lambda x, label: model(x)[:, label],
         }
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(4, 10)
-        result = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        result = compiled(X=x, quantify='none')
 
         assert result.shape == torch.Size([4])
 
@@ -439,12 +439,10 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(10, 10), nn.Softmax(dim=-1))
 
-        predicates = {
-            "Digit": lambda x, label: model(x)[:, label]
-        }
+        predicates = {"Digit": lambda x, label: model(x)[:, label]}
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(4, 10, requires_grad=True)
+        x = torch.randn(1, 10, requires_grad=True)
         result = compiled(X=x)
 
         # Backward pass
@@ -463,13 +461,11 @@ class TestGradientFlow:
         # P(X, 0, Y)
         expr = P(X, 0, Y)
 
-        predicates = {
-            "P": lambda x, mode, y: torch.sigmoid((x + y).sum(dim=-1))
-        }
+        predicates = {"P": lambda x, mode, y: torch.sigmoid((x + y).sum(dim=-1))}
         compiled = compile_logic(expr, predicates)
 
-        x = torch.randn(3, 5, requires_grad=True)
-        y = torch.randn(3, 5, requires_grad=True)
+        x = torch.randn(1, 5, requires_grad=True)
+        y = torch.randn(1, 5, requires_grad=True)
         result = compiled(X=x, Y=y)
 
         loss = result.mean()
@@ -494,14 +490,13 @@ class TestRealWorldPatterns:
 
         model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
 
-        predicates = {
-            "Digit": lambda x, label: model(x)[:, label]
-        }
+        predicates = {"Digit": lambda x, label: model(x)[:, label]}
         compiled = compile_logic(expr, predicates)
 
         # Batch of images
         x = torch.randn(32, 784)
-        satisfaction = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        satisfaction = compiled(X=x, quantify='none')
 
         assert satisfaction.shape == torch.Size([32])
         assert torch.all((satisfaction >= 0) & (satisfaction <= 1))
@@ -513,22 +508,20 @@ class TestRealWorldPatterns:
 
         # Digit(X, 0) ∨ Digit(X, 2) ∨ Digit(X, 4) → Even(X)
         # "If X is 0, 2, or 4, then X should be even"
-        expr = sp.Implies(
-            sp.Or(Digit(X, 0), Digit(X, 2), Digit(X, 4)),
-            Even(X)
-        )
+        expr = sp.Implies(sp.Or(Digit(X, 0), Digit(X, 2), Digit(X, 4)), Even(X))
 
         digit_model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
         even_model = nn.Sequential(nn.Linear(784, 1), nn.Sigmoid())
 
         predicates = {
             "Digit": lambda x, label: digit_model(x)[:, label],
-            "Even": lambda x: even_model(x).squeeze(-1)
+            "Even": lambda x: even_model(x).squeeze(-1),
         }
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(16, 784)
-        satisfaction = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        satisfaction = compiled(X=x, quantify='none')
 
         assert satisfaction.shape == torch.Size([16])
 
@@ -549,11 +542,12 @@ class TestRealWorldPatterns:
 
         predicates = {
             "Color": lambda x, color: color_model(x)[:, color_map[color]],
-            "Shape": lambda x, shape: shape_model(x)[:, shape_map[shape]]
+            "Shape": lambda x, shape: shape_model(x)[:, shape_map[shape]],
         }
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(10, 100)
-        satisfaction = compiled(X=x)
+        # Use quantify='none' to get per-batch results
+        satisfaction = compiled(X=x, quantify='none')
 
         assert satisfaction.shape == torch.Size([10])

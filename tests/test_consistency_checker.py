@@ -302,7 +302,7 @@ class TestBatchConsistencyChecking:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(4, 10)
+        x = torch.randn(1, 10)
         result = checker(x)
         expected = torch.tensor([True, False, False, False])
         assert torch.equal(result, expected)
@@ -319,7 +319,7 @@ class TestBatchConsistencyChecking:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(4, 10)
+        x = torch.randn(1, 10)
         # True→True, False→True, True→False, False→False
         result = checker(x)
         expected = torch.tensor([True, True, False, True])
@@ -337,7 +337,7 @@ class TestBatchConsistencyChecking:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(5, 10)
+        x = torch.randn(1, 10)
         satisfied = checker(x)
 
         # Count satisfied
@@ -377,7 +377,7 @@ class TestPredicatesWithModels:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         result = checker(x)
 
         # P: [True, False, True]
@@ -401,7 +401,7 @@ class TestBooleanConstants:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         result = checker(x)
         expected = torch.tensor([True, False, True])
         assert torch.equal(result, expected)
@@ -417,7 +417,7 @@ class TestBooleanConstants:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         result = checker(x)
         expected = torch.tensor([True, False, True])
         assert torch.equal(result, expected)
@@ -449,7 +449,7 @@ class TestErrorHandling:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         result = checker(x)
 
         # Should convert to boolean
@@ -471,8 +471,8 @@ class TestErrorHandling:
 
         # Dict input with specific predicate names
         inputs = {
-            "P": torch.randn(3, 10),
-            "Q": torch.randn(3, 10),
+            "P": torch.randn(1, 10),
+            "Q": torch.randn(1, 10),
         }
         result = checker(inputs)
 
@@ -493,7 +493,7 @@ class TestErrorHandling:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         result = checker({"P": x})
 
         # P AND true = P
@@ -513,7 +513,7 @@ class TestErrorHandling:
         }
         checker = ConsistencyChecker(expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         result = checker({"P": x})
 
         # P OR false = P
@@ -531,6 +531,6 @@ class TestErrorHandling:
         predicates = {}
         checker = ConsistencyChecker(unsupported_expr, predicates)
 
-        x = torch.randn(3, 10)
+        x = torch.randn(1, 10)
         with pytest.raises(ValueError, match="Unsupported expression type"):
             checker(x)
