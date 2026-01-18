@@ -1,258 +1,287 @@
-# Logic-as-loss: Project summary
+# pysignet: Logic-as-Loss for Neural Networks
 
 ## What is this project?
 
 A PyTorch library that converts symbolic predicate logic expressions (written in
 SymPy) into differentiable loss functions. This enables training neural networks
-with logical constraints.
+with logical constraints using First-Order Logic (FOL).
 
 This library bridges symbolic logic (SymPy) with differentiable optimization
 (PyTorch). It allows you to:
 
-- Express logical constraints symbolically using SymPy
-- Automatically convert them to differentiable loss functions
+- Express logical constraints symbolically using SymPy with FOL support
+- Use variables and quantifiers (ForAll, Exists) over domains
+- Automatically convert constraints to differentiable loss functions
 - Train neural networks to satisfy logical constraints
-- Handle batched operations efficiently
-- Use predicates as either PyTorch models or deterministic functions
+- Handle batched operations with explicit quantification semantics
 
-
-## Desiderata
-
-1. Efficient batching: All operations should be natively vectorized for batch
-   processing.
-
-   ```python
-   x = torch.randn(1000, 10)
-   satisfaction = compiled_logic(x) # shape: (1000, )
-   ```
-
-2. All operations should be sub-differentiable
-
-   ```python
-   loss = compiled_logic.loss(inputs)
-   loss.backward()
-   ```
-
-   After the last step, gradients will flow through the entire logic expression
-   to all models that allow for gradients
-
-3. Flexible input handling: The inputs can be single examples (one image, one
-   document, etc) or groups of them. The input handling flexibility comes from
-   the mapping from symbols to predicates. The predicates can work with subsets
-   of the provided inputs.
-
-   ```python
-   x = {
-       "image": image_data,
-       "text": text_data,
-       "sensor": sensor_data
-   }
-
-   satisfaction = compiled_logic(x)
-   ```
-
-   At the last step, the appropriate models will get the appropriate elements of
-   `x` because of how the predicates are mapped to symbols.
-
-
-
-
-## Key Features
-
-- **Symbolic Logic**: Write constraints using familiar logic operators in sympy
-  (AND, OR, NOT, IMPLIES, etc.)
-- **Flexible Predicates**: Predicates can be neural networks or deterministic
-  functions of inputs
-- **Batching Support**: All operations support batched inputs for efficient
-  training
-- **Multiple T-Norms**: Choose from Product, Łukasiewicz, or Gödel t-norms
-- **Full PyTorch Integration**: Gradients flow through all operations, use any
-  PyTorch features
-- **Per-Predicate Inputs**: Different predicates can receive different inputs
-
-
-## Quick example and usage pattern
-
-The usage pattern involves the following four steps:
-
-1. Define logic with SymPy (symbols and the logic expression)
-2. Map each symbol in SymPy to predicates, which could be model calls or
-   input-dependent functions (or combinations of them)
-3. Create the logic loss compiler
-4. Train
-
+## Quick Example
 
 ```python
 import torch
 import torch.nn as nn
 import sympy as sp
-from pysignet import compile_logic, Predicate
+from pysignet import Symbol, Variable, compile_logic
 
-# Define logic expression. First define the symbols
-P, Q, R = sp.symbols('P Q R')
+# Define symbols and variables
+P, Q = Symbol("P Q")
+X = Variable("X")
 
-# the transitivity property
-expr = sp.Implies(sp.And(sp.Implies(P, Q),
-                         sp.Implies(Q, R))
-                  sp.Implies(P, R))
+# Define a logical expression using FOL
+# "For all inputs X, if P(X) then Q(X)"
+expr = sp.Implies(P(X), Q(X))
 
-# Define a model
-model = nn.Sequential(nn.Linear(10, 5), nn.Sigmoid())
+# Define neural network models
+model_p = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
+model_q = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
-# Predicates explicitly select their inputs
+# Map symbols to models (auto-wrapped as predicates)
 predicates = {
-    'P': Predicate('P', lambda x: model(x).squeeze(-1)),
-    'Q': Predicate('Q', lambda x: (x.sum(dim=-1) > 0).float()),
-    'R': Predicate('R', lambda x: model(x).squeeze(-1))
+    "P": lambda x: model_p(x).squeeze(-1),
+    "Q": lambda x: model_q(x).squeeze(-1)
 }
 
-# Compile logic expression
+# Compile the logic expression
 logic_loss = compile_logic(expr, predicates)
 
-# Use in training with a single tensor input
-x = torch.randn(32, 10)  # batch_size=32
-satisfaction = logic_loss(x)  # Shape: (32,), values in [0, 1]
-loss = logic_loss.loss(x)    # Scalar loss (lower = better)
+# Use in training
+x = torch.randn(32, 10)  # batch of 32 inputs
 
-# Backpropagate
-loss.backward()
+# Evaluate satisfaction (default: forall quantification over batch)
+satisfaction = logic_loss(X=x)  # Scalar in [0, 1]
+
+# Compute loss for training
+loss = logic_loss.loss(X=x)  # Scalar loss
+loss.backward()  # Gradients flow to both models
 ```
 
-## What Makes This Useful
+## Key Features
 
-1. Neural-Symbolic AI: Combine neural learning with symbolic reasoning:
-```python
-# "If person is detected, face must be detected"
-expr = sp.Implies(person_detected, face_detected)
+- **First-Order Logic**: Variables, predicates with arguments, quantifiers
+- **Domain Quantifiers**: ForAll and Exists over finite domains
+- **Batch Quantification**: Explicit `quantify` parameter ('forall', 'exists', 'none')
+- **Flexible Predicates**: Neural networks or deterministic functions
+- **Multiple T-Norms**: Product, Lukasiewicz, or Godel t-norms
+- **Full PyTorch Integration**: Gradients flow through all operations
+- **Numerical Stability**: Log-space computation for large batches
+
+## Installation
+
+```bash
+pip install pysignet
 ```
 
-2. Constrained Learning: Enforce domain knowledge during training:
-```python
-# "Temperature and pressure must be in safe range"
-expr = sp.And(safe_temp, safe_pressure)
+Or with Poetry:
+```bash
+poetry add pysignet
 ```
-
-3. Semi-Supervised Learning: Use logic rules as weak supervision:
-```python
-# "If labeled positive, confidence should be high"
-expr = sp.Implies(is_positive_label, high_confidence)
-```
-
-4. Multi-Task Learning: Enforce consistency between tasks:
-```python
-# "If task1 predicts X, task2 should predict Y"
-expr = sp.Implies(task1_predicts_X, task2_predicts_Y)
-```
-
 
 ## Core Concepts
 
-### Named Neurons
+### Symbols and Variables
 
-The library is built on the concept of **named neurons**: nodes in a computation graph that have externally defined semantic meaning, not just arbitrary activations.
+**Symbols** represent predicates (named neurons):
+```python
+from pysignet import Symbol, Variable
 
-A **named neuron** can be:
-- **Network outputs**: Classifier predictions with semantic labels
-- **Network inputs**: Input features with defined meaning
-- **Intermediate nodes**: Attention weights, embeddings, or activations with assigned semantics
+# Create predicate symbols
+P, Q, R = Symbol("P Q R")
 
-The `Predicate` class wraps named neurons and maps them to logical predicates, bridging symbolic logic with neural network representations. This abstraction is foundational to the entire library.
+# Create variables for FOL
+X, Y = Variable("X Y")
+```
+
+**Variables** are placeholders bound to tensors at evaluation time:
+```python
+# P(X) - unary predicate applied to variable X
+# Similar(X, Y) - binary predicate comparing two inputs
+# Digit(X, 0) - predicate with variable and constant arguments
+```
+
+### Predicates and Arity
+
+Predicates map inputs to truth values [0, 1]:
+
+```python
+# Unary predicate: P(X) -> [0, 1]
+P = Symbol("P")
+expr = P(X)  # Property P holds for X
+
+# Binary predicate with constant: Digit(X, label) -> [0, 1]
+Digit = Symbol("Digit")
+expr = Digit(X, 3)  # "X is digit 3"
+
+# Multi-class classifier (10 outputs, select by index)
+model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
+predicates = {"Digit": model}  # Returns (batch, 10), index selects class
+```
+
+### Domain Quantifiers
+
+Quantify over finite domains:
+
+```python
+from pysignet.logic import ForAll, Exists
+
+X, Y = Variable("X Y")
+Digit, Even = Symbol("Digit Even")
+
+# "For digits in 0, 2, 4, if X is classified as that digit, then X is even"
+# Expands to: Implies(Digit(X,0), Even(X)) AND Implies(Digit(X,2), Even(X)) AND
+Implies(Digit(X,2), Even(X))
+expr = ForAll(Y, [0, 2, 4], Implies(Digit(X, Y), Even(X)))
+
+# "X is classified as some digit 0-9"
+# Expands to: Digit(X,0) OR Digit(X,1) OR ... OR Digit(X,9)
+expr = Exists(Y, range(10), Digit(X, Y))
+```
+
+### Batch Quantification
+
+Control how batch dimensions are handled:
+
+```python
+logic_loss = compile_logic(expr, predicates)
+x = torch.randn(32, 10)
+
+# Universal quantification (default): ALL batch elements must satisfy
+satisfaction = logic_loss(X=x, quantify='forall')  # Scalar
+
+# Existential quantification: AT LEAST ONE element must satisfy
+satisfaction = logic_loss(X=x, quantify='exists')  # Scalar
+
+# No quantification: per-element satisfaction
+satisfaction = logic_loss(X=x, quantify='none')  # Shape: (32,)
+```
 
 ### T-Norms
 
-T-norms are continuous relaxations of discrete logical operators:
+T-norms are continuous relaxations of logical operators:
 
-| Logic Op    | Product T-Norm | Łukasiewicz T-Norm | Gödel T-Norm          |
-|-------------|----------------|--------------------|-----------------------|
-| AND (∧)     | a × b          | max(0, a+b-1)      | min(a, b)             |
-| OR (∨)      | a+b-a×b        | min(1, a+b)        | max(a, b)             |
-| NOT (¬)     | 1-a            | 1-a                | 1-a                   |
-| IMPLIES (→) | max(1, y/x)    | max(1, 1-x+y)      | [NOT DIFFERENTIABLE!] |
-
-**Product T-Norm** (default): Best for gradient flow, most commonly used in neural-symbolic learning.
-
-**Łukasiewicz T-Norm**: Stricter constraints, good for enforcing hard logical rules.
-
-**Gödel T-Norm**: Most conservative, but can have gradient issues at boundaries.
-
-
-### Predicates
-
-A `Predicate` wraps a function or model that evaluates to [0, 1]:
+| Logic Op    | Product T-Norm | Lukasiewicz T-Norm | Godel T-Norm |
+|-------------|----------------|--------------------|--------------|
+| AND         | a * b          | max(0, a+b-1)      | min(a, b)    |
+| OR          | a+b-a*b        | min(1, a+b)        | max(a, b)    |
+| NOT         | 1-a            | 1-a                | 1-a          |
+| IMPLIES     | min(1, b/a)    | min(1, 1-a+b)      | 1 if a<=b    |
 
 ```python
-# Neural network predicate
-model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
-pred = Predicate('P', lambda x: model(x).squeeze(-1))
-
-# Deterministic function predicate
-pred = Predicate('Q', lambda x: (x > 0).float().mean(dim=-1))
+# Use different t-norms
+logic_loss = compile_logic(expr, predicates, tnorm='rproduct')  # Default
+logic_loss = compile_logic(expr, predicates, tnorm='lukasiewicz')
+logic_loss = compile_logic(expr, predicates, tnorm='godel')
 ```
 
-### Input Handling
+## Examples
 
-Predicates use **explicit routing** to select inputs:
-
-**Single tensor input** (all predicates use the same data):
-```python
-predicates = {
-    'P': Predicate('P', lambda x: model_p(x)),
-    'Q': Predicate('Q', lambda x: model_q(x))
-}
-x = torch.randn(32, 10)
-satisfaction = logic_loss(x)
-```
-
-**Dict input** (predicates explicitly select what they need):
-```python
-predicates = {
-    'P': Predicate('P', lambda x: image_model(x["image"])),
-    'Q': Predicate('Q', lambda x: text_model(x["text"]))
-}
-inputs = {
-    "image": torch.randn(32, 3, 224, 224),
-    "text": torch.randn(32, 512)
-}
-satisfaction = logic_loss(inputs)
-```
-
-**Multi-input predicates** (combining multiple inputs):
-```python
-predicates = {
-    'symmetry': Predicate('symmetry',
-        lambda x: model(torch.cat([x["X1"], x["X2"]], dim=-1)))
-}
-```
-
-### Compiling Logic
-
-The `compile_logic()` function compiles SymPy expressions to differentiable functions:
+### MNIST Digit Classification with Logic
 
 ```python
-logic_loss = compile_logic(
-    expression=expr,         # SymPy logic expression
-    predicates=preds,        # Dict of predicates
-    tnorm='rproduct'         # Optional: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
+from pysignet import Symbol, Variable, compile_logic
+from pysignet.logic import Exists
+
+# "Each image is classified as exactly one digit"
+X, Y = Variable("X Y")
+Digit = Symbol("Digit")
+
+# At least one class has high confidence
+expr = Exists(Y, range(10), Digit(X, Y))
+
+# 10-class classifier
+model = nn.Sequential(
+    nn.Flatten(),
+    nn.Linear(784, 128),
+    nn.ReLU(),
+    nn.Linear(128, 10),
+    nn.Softmax(dim=-1)
 )
 
-# Evaluate satisfaction (higher = better)
-satisfaction = logic_loss(inputs)  # Returns tensor in [0, 1]
+logic_loss = compile_logic(expr, {"Digit": model})
 
-# Compute loss (lower = better)
-loss = logic_loss.loss(inputs, reduction='mean')
+# Training loop
+for images, labels in dataloader:
+    loss = logic_loss.loss(X=images)
+    loss.backward()
+    optimizer.step()
 ```
 
-- TODO: Different relaxations require different post-processing.
-  - For R-Product/S-ProductTNorm, the loss should be negative log satisfaction
-  - For Lukasiewicz, it should just be negative satisfaction
-  - For all of them, the post-processing should be specifiable
+### Mutual Exclusion Constraint
 
-## Extensions & Future Work
+```python
+# "If P(X) is true, then Q(X) must be false"
+P, Q = Symbol("P Q")
+X = Variable("X")
 
-Possible extensions (not yet implemented):
-- Quantifiers (∀, ∃) over batch dimensions
-- Weighted predicates for importance
-- Fuzzy membership functions
-- First-order logic support
-- Temporal logic operators
-- Probabilistic extensions
+expr = sp.Implies(P(X), sp.Not(Q(X)))
+
+logic_loss = compile_logic(expr, {
+    "P": model_p,
+    "Q": model_q
+})
+```
+
+### Multi-Input Predicates
+
+```python
+# Compare two inputs for similarity
+X, Y = Variable("X Y")
+Similar = Symbol("Similar")
+
+# Binary predicate taking two inputs
+expr = Similar(X, Y)
+
+def similarity_fn(x, y):
+    # Concatenate and classify
+    combined = torch.cat([x, y], dim=-1)
+    return similarity_model(combined).squeeze(-1)
+
+predicates = {"Similar": similarity_fn}
+logic_loss = compile_logic(expr, predicates)
+
+# Evaluate with two different inputs
+x1 = torch.randn(32, 10)
+x2 = torch.randn(32, 10)
+satisfaction = logic_loss(X=x1, Y=x2)
+```
+
+## API Reference
+
+### compile_logic
+
+```python
+compile_logic(
+    expression,           # SymPy logic expression with FOL
+    predicates,           # Dict mapping symbol names to callables/models
+    tnorm='rproduct'      # T-norm: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
+) -> LogicLoss
+```
+
+### LogicLoss
+
+```python
+# Evaluation
+satisfaction = logic_loss(X=x, quantify='forall')  # [0, 1]
+log_sat = logic_loss.log_satisfaction(X=x)          # (-inf, 0]
+
+# Loss computation
+loss = logic_loss.loss(X=x, quantify='forall')                    # Scalar
+loss = logic_loss.loss(X=x, quantify='none', reduction='mean')    # Mean of per-element
+loss = logic_loss.loss(X=x, quantify='none', reduction='sum')     # Sum of per-element
+loss = logic_loss.loss(X=x, quantify='none', reduction='none')    # Per-element losses
+```
+
+### Quantify Modes
+
+| Mode | Returns | Meaning |
+|------|---------|---------|
+| `'forall'` | Scalar | ALL batch elements satisfy |
+| `'exists'` | Scalar | AT LEAST ONE element satisfies |
+| `'none'` | (batch,) | Per-element satisfaction |
+
+## See Also
+
+- `examples/` - Comprehensive example scripts
+
+## License
+
+MIT License
