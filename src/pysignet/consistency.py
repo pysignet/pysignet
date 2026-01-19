@@ -4,7 +4,7 @@ This module provides functionality to measure how often logical constraints
 are satisfied by model predictions using discrete (boolean) decisions.
 """
 
-from typing import Dict, Union, Set, Callable, Any
+from typing import Any, Callable, Dict, Set
 
 import sympy as sp
 import torch
@@ -122,7 +122,7 @@ class ConsistencyChecker:
 
     def _evaluate_predicates(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
+        inputs: torch.Tensor | Dict[str, torch.Tensor]
     ) -> Dict[Any, torch.Tensor]:
         """Evaluate all predicate applications on inputs to get boolean decisions.
 
@@ -237,7 +237,7 @@ class ConsistencyChecker:
 
     def __call__(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
+        inputs: torch.Tensor | Dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Check if formula is satisfied on inputs.
 

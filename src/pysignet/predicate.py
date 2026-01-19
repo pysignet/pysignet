@@ -33,7 +33,7 @@ Since both inputs and outputs can be named neurons, input-output constraints
 (relating input features to output predictions) are naturally supported.
 """
 
-from typing import Callable, Union, Optional, Any
+from typing import Any, Callable, Optional
 
 import torch
 
@@ -77,7 +77,7 @@ class Predicate:
 
     def __init__(
         self,
-        func: Union[torch.nn.Module, Callable[..., Any]],
+        func: torch.nn.Module | Callable[..., Any],
         is_model: Optional[bool] = None
     ) -> None:
         """Initialize a predicate wrapping a named neuron.

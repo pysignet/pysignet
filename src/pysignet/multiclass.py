@@ -16,7 +16,9 @@ Usage:
 This is the foundation for full first-order logic support.
 """
 
-from typing import Tuple, Any, Union, TYPE_CHECKING
+from __future__ import annotations
+
+from typing import Any, Tuple, TYPE_CHECKING
 
 import sympy as sp
 from sympy.logic.boolalg import Boolean
@@ -25,7 +27,7 @@ if TYPE_CHECKING:
     from .logic.variable import VariableSymbol
 
 
-def Symbol(names: str) -> Union["PredicateSymbol", Tuple["PredicateSymbol", ...]]:
+def Symbol(names: str) -> "PredicateSymbol" | Tuple["PredicateSymbol", ...]:
     """Create predicate symbols that work as nullary or n-ary based on usage.
 
     Predicates of any arity are declared using SymPy-style syntax.
@@ -111,7 +113,7 @@ class PredicateSymbol(sp.Symbol):  # type: ignore[misc]
     """
 
     def __call__(
-        self, *args: Union[int, "VariableSymbol"]
+        self, *args: int | "VariableSymbol"
     ) -> "PredicateApplication":
         """Call with arguments to create a predicate application (n-ary).
 
@@ -203,7 +205,7 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
     def __init__(
         self,
         predicate_name: str,
-        args: Tuple[Union[int, "VariableSymbol"], ...],
+        args: Tuple[int | "VariableSymbol", ...],
     ) -> None:
         """Initialize a new PredicateApplication instance.
 

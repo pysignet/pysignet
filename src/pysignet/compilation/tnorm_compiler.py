@@ -1,6 +1,6 @@
 """T-norm based logic compilation strategy."""
 
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional
 
 import sympy as sp
 import torch
@@ -45,7 +45,7 @@ class TNormCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]]
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]]
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 

@@ -1,7 +1,7 @@
 """Base class for logic compilation strategies."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Set, Union, cast
+from typing import Any, Callable, Dict, List, Set, cast
 import warnings
 
 import sympy as sp
@@ -46,7 +46,7 @@ class LogicCompiler(ABC):
     def compile(
             self,
             expr: sp.Basic,
-            predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]],
+            predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
@@ -67,7 +67,7 @@ class LogicCompiler(ABC):
     def _wrap_and_validate_predicates(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]]
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]]
     ) -> Dict[str, Predicate]:
         """Wrap, validate, and prepare predicates for compilation.
 

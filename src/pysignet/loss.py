@@ -9,7 +9,7 @@ explicit quantification control:
 The `reduction` parameter is only valid with `quantify='none'`.
 """
 
-from typing import Callable, Union, List, Dict, Literal, Optional
+from typing import Callable, Dict, List, Literal, Optional
 
 import torch
 
@@ -54,9 +54,7 @@ class LogicLoss(BatchHandlerMixin):
     def __init__(
         self,
         compiled_expr: CompiledExpression,
-        post_processing: Union[
-            str, Callable[[torch.Tensor], torch.Tensor]
-        ] = 'linear',
+        post_processing: str | Callable[[torch.Tensor], torch.Tensor] = 'linear',
         tnorm: Optional[TNorm] = None
     ) -> None:
         """Initialize LogicLoss.
@@ -170,9 +168,7 @@ class LogicLoss(BatchHandlerMixin):
         inputs: Optional[Dict[str, torch.Tensor]] = None,
         quantify: Literal['forall', 'exists', 'none'] = 'forall',
         reduction: Literal['mean', 'sum', 'none'] = 'none',
-        post_processing: Union[
-            str, Callable[[torch.Tensor], torch.Tensor], None
-        ] = None,
+        post_processing: str | Callable[[torch.Tensor], torch.Tensor] | None = None,
         **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
         """Compute loss based on logical constraint violation.

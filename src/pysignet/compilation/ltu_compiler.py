@@ -1,6 +1,6 @@
 """Linear Threshold Unit (LTU) based logic compilation strategy."""
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict
 import warnings
 
 import sympy as sp
@@ -67,7 +67,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]]
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]]
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 

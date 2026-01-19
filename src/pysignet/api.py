@@ -1,6 +1,6 @@
 """Convenience API for logic compilation."""
 
-from typing import Dict, Optional, Union, Callable
+from typing import Callable, Dict, Optional
 
 import sympy as sp
 import torch
@@ -13,12 +13,10 @@ from pysignet.tnorms import TNorm, RProductTNorm
 
 def compile_logic(
     expr: sp.Basic,
-    predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]],
+    predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     mode: str = 'tnorm',
     tnorm: Optional[TNorm] = None,
-    post_processing: Optional[
-        Union[str, Callable[[torch.Tensor], torch.Tensor]]
-    ] = None
+    post_processing: str | Callable[[torch.Tensor], torch.Tensor] | None = None
 ) -> LogicLoss:
     """Compile logic expression into a LogicLoss (one-liner convenience API).
 
@@ -77,7 +75,7 @@ def compile_logic(
             ... )
     """
     # Auto-wrap raw callables in Predicate objects
-    wrapped_predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]] = {}
+    wrapped_predicates: Dict[str, Predicate | Callable[..., torch.Tensor]] = {}
     for key, value in predicates.items():
         if isinstance(value, Predicate):
             # Already a Predicate, use as-is
