@@ -13,9 +13,9 @@ from typing import Callable, Union, List, Dict, Literal, Optional
 
 import torch
 
-from .batch_handler import BatchHandlerMixin
-from .compilation.compiled_expression import CompiledExpression
-from .tnorms import TNorm, RProductTNorm
+from pysignet.batch_handler import BatchHandlerMixin
+from pysignet.compilation.compiled_expression import CompiledExpression
+from pysignet.tnorms import TNorm, RProductTNorm
 
 
 class LogicLoss(BatchHandlerMixin):

@@ -7,8 +7,8 @@ and the ground() function for substituting variables with concrete values.
 from typing import Dict, Union, Any
 import sympy as sp
 
-from .variable import VariableSymbol
-from ..multiclass import PredicateApplication
+from pysignet.logic.variable import VariableSymbol
+from pysignet.multiclass import PredicateApplication
 
 
 class Binding:

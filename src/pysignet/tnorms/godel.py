@@ -2,7 +2,7 @@
 
 import torch
 
-from .base import TNorm
+from pysignet.tnorms.base import TNorm
 
 
 class GodelTNorm(TNorm):

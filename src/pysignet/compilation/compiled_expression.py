@@ -14,7 +14,7 @@ from typing import Callable, Dict, Set, List, Union, Optional
 import torch
 import torch.nn as nn
 
-from ..predicate import Predicate
+from pysignet.predicate import Predicate
 
 
 class CompiledExpression:

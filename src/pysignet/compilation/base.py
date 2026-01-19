@@ -8,17 +8,17 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from ..predicate import Predicate
-from ..multiclass import PredicateApplication
-from ..logic import extract_variables, extract_variables_from_application
-from ..logic.quantifier import Quantifier
-from ..logic.expansion import expand_quantifier
-from .arity import validate_predicate_arity
-from .module_utils import (
+from pysignet.predicate import Predicate
+from pysignet.multiclass import PredicateApplication
+from pysignet.logic import extract_variables, extract_variables_from_application
+from pysignet.logic.quantifier import Quantifier
+from pysignet.logic.expansion import expand_quantifier
+from pysignet.compilation.arity import validate_predicate_arity
+from pysignet.compilation.module_utils import (
     infer_module_arity,
     wrap_module_as_predicate
 )
-from .compiled_expression import CompiledExpression
+from pysignet.compilation.compiled_expression import CompiledExpression
 
 
 class LogicCompiler(ABC):
@@ -365,7 +365,7 @@ class LogicCompiler(ABC):
             >>> _parse_predicate_application(app)
             ([X1, X2], [0, 1])
         """
-        from ..logic.variable import VariableSymbol
+        from pysignet.logic.variable import VariableSymbol
 
         # Use dict to preserve order while deduplicating
         free_vars_dict: Dict[str, 'VariableSymbol'] = {}
@@ -408,7 +408,7 @@ class LogicCompiler(ABC):
         Returns:
             Tensor of shape (batch_size,) with values in [0, 1]
         """
-        from ..logic.variable import VariableSymbol
+        from pysignet.logic.variable import VariableSymbol
 
         pred_name = app.predicate_name
         predicate = predicates[pred_name]
@@ -425,7 +425,7 @@ class LogicCompiler(ABC):
         if not is_module and len(constants) > 0:
             # FOL semantics: Pass ALL arguments (free vars + constants) to callable
             # Build args in the order they appear in application_args
-            from ..logic.variable import VariableSymbol
+            from pysignet.logic.variable import VariableSymbol
 
             call_args = []
             for arg in app.application_args:

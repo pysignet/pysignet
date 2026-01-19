@@ -9,8 +9,8 @@ from typing import Dict, Union, Set, Callable, Any
 import sympy as sp
 import torch
 
-from .multiclass import PredicateApplication
-from .logic.variable import VariableSymbol
+from pysignet.multiclass import PredicateApplication
+from pysignet.logic.variable import VariableSymbol
 
 
 class ConsistencyChecker:
@@ -132,7 +132,7 @@ class ConsistencyChecker:
         Returns:
             Dict mapping PredicateApplication instances to boolean tensors
         """
-        from .logic import is_constant
+        from pysignet.logic import is_constant
 
         decisions = {}
 

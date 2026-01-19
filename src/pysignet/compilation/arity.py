@@ -16,8 +16,8 @@ from typing import Dict
 import sympy as sp
 import torch.nn as nn
 
-from ..predicate import Predicate
-from ..multiclass import PredicateApplication
+from pysignet.predicate import Predicate
+from pysignet.multiclass import PredicateApplication
 
 
 def validate_predicate_arity(
@@ -57,7 +57,7 @@ def _validate_arity_recursive(
     Raises:
         ValueError: If arity mismatch found
     """
-    from ..logic.variable import VariableSymbol
+    from pysignet.logic.variable import VariableSymbol
 
     if isinstance(node, PredicateApplication):
         # Validate PredicateApplication: P(X, Y, 0, ...)

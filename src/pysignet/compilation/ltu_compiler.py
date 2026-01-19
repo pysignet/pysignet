@@ -7,12 +7,12 @@ import sympy as sp
 import torch
 
 
-from .base import LogicCompiler
-from .compiled_expression import CompiledExpression
-from ..predicate import Predicate
-from ..context import EvaluationContext
-from ..multiclass import PredicateApplication
-from ..logic import extract_variables
+from pysignet.compilation.base import LogicCompiler
+from pysignet.compilation.compiled_expression import CompiledExpression
+from pysignet.predicate import Predicate
+from pysignet.context import EvaluationContext
+from pysignet.multiclass import PredicateApplication
+from pysignet.logic import extract_variables
 
 
 class LinearThresholdUnitCompiler(LogicCompiler):

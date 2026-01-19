@@ -5,10 +5,10 @@ from typing import Dict, Optional, Union, Callable
 import sympy as sp
 import torch
 
-from .predicate import Predicate
-from .compilation import TNormCompiler
-from .loss import LogicLoss
-from .tnorms import TNorm, RProductTNorm
+from pysignet.predicate import Predicate
+from pysignet.compilation import TNormCompiler
+from pysignet.loss import LogicLoss
+from pysignet.tnorms import TNorm, RProductTNorm
 
 
 def compile_logic(

@@ -8,8 +8,8 @@ constant arguments.
 from typing import Any, Set
 import sympy as sp
 
-from .variable import VariableSymbol
-from ..multiclass import PredicateApplication
+from pysignet.logic.variable import VariableSymbol
+from pysignet.multiclass import PredicateApplication
 
 
 def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
