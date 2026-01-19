@@ -12,7 +12,7 @@ Key principles:
 - Explicit validation: arity must match module output dimensionality
 """
 
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
 import torch
 import torch.nn as nn
@@ -88,7 +88,7 @@ def has_final_activation(module: nn.Module) -> bool:
     return isinstance(final_layer, (nn.Sigmoid, nn.Softmax))
 
 
-def wrap_module_as_predicate(module: nn.Module, arity: int) -> Callable:
+def wrap_module_as_predicate(module: nn.Module, arity: int) -> Callable[..., torch.Tensor]:
     """Wrap nn.Module as predicate with appropriate signature.
 
     Creates a callable wrapper that:
@@ -122,12 +122,12 @@ def wrap_module_as_predicate(module: nn.Module, arity: int) -> Callable:
     """
     # Validate arity matches module
     module_arity = infer_module_arity(module)
-    if module_arity != arity:
-        arity_names = {1: "unary", 2: "binary"}
+    if module_arity is not None and module_arity != arity:
+        arity_names: Dict[int, str] = {1: "unary", 2: "binary"}
         raise ValueError(
-            f"Arity mismatch: module has {arity_names[module_arity]} arity "
+            f"Arity mismatch: module has {arity_names.get(module_arity, str(module_arity))} arity "
             f"(output dim = {_get_output_dim(module)}) but specified arity is "
-            f"{arity_names[arity]}. Ensure module output dimensionality matches usage."
+            f"{arity_names.get(arity, str(arity))}. Ensure module output dimensionality matches usage."
         )
 
     # Check if activation already present
@@ -192,7 +192,7 @@ def _get_output_dim(module: nn.Module) -> int:
         return 0
 
 
-def _wrap_unary(module: nn.Module, has_activation: bool) -> Callable:
+def _wrap_unary(module: nn.Module, has_activation: bool) -> Callable[[torch.Tensor], torch.Tensor]:
     """Create unary predicate wrapper (arity 1).
 
     Args:
@@ -205,7 +205,7 @@ def _wrap_unary(module: nn.Module, has_activation: bool) -> Callable:
     if has_activation:
         # Already has sigmoid - just squeeze
         def wrapper(x: torch.Tensor) -> torch.Tensor:
-            output = module(x)
+            output = cast(torch.Tensor, module(x))
             # Squeeze last dimension if (batch, 1)
             if output.dim() > 1 and output.shape[-1] == 1:
                 return output.squeeze(-1)
@@ -213,7 +213,7 @@ def _wrap_unary(module: nn.Module, has_activation: bool) -> Callable:
     else:
         # Add sigmoid activation
         def wrapper(x: torch.Tensor) -> torch.Tensor:
-            output = module(x)
+            output = cast(torch.Tensor, module(x))
             # Apply sigmoid
             activated = torch.sigmoid(output)
             # Squeeze last dimension if (batch, 1)
@@ -224,7 +224,7 @@ def _wrap_unary(module: nn.Module, has_activation: bool) -> Callable:
     return wrapper
 
 
-def _wrap_binary(module: nn.Module, has_activation: bool) -> Callable:
+def _wrap_binary(module: nn.Module, has_activation: bool) -> Callable[[torch.Tensor, int], torch.Tensor]:
     """Create binary predicate wrapper (arity 2).
 
     Args:
@@ -237,12 +237,12 @@ def _wrap_binary(module: nn.Module, has_activation: bool) -> Callable:
     if has_activation:
         # Already has softmax - just select class
         def wrapper(x: torch.Tensor, y: int) -> torch.Tensor:
-            output = module(x)  # Shape: (batch, num_classes)
+            output = cast(torch.Tensor, module(x))  # Shape: (batch, num_classes)
             return output[:, y]  # Shape: (batch,)
     else:
         # Add softmax activation
         def wrapper(x: torch.Tensor, y: int) -> torch.Tensor:
-            output = module(x)  # Shape: (batch, num_classes)
+            output = cast(torch.Tensor, module(x))  # Shape: (batch, num_classes)
             probabilities = torch.softmax(output, dim=-1)  # Shape: (batch, num_classes)
             return probabilities[:, y]  # Shape: (batch,)
 

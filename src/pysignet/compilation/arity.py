@@ -11,7 +11,7 @@ Key principles:
 """
 
 import inspect
-from typing import Dict
+from typing import Any, Callable, Dict
 
 import sympy as sp
 import torch.nn as nn
@@ -129,7 +129,7 @@ def _validate_application_arity(
         )
 
 
-def _get_callable_arity(func) -> int:
+def _get_callable_arity(func: Callable[..., Any]) -> int:
     """Get the arity (number of parameters) of a callable.
 
     Args:

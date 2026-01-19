@@ -326,25 +326,25 @@ def test_s_product_implication_with_constants() -> None:
     # true -> P: 1 - 1 + 1*0.7 = 0.7
     expr_true_p = sp.Implies(sp.true, P(X))
     logic_loss_true_p = compile_logic(expr_true_p, predicates, tnorm=SProductTNorm())
-    satisfaction_true_p = logic_loss_true_p(x)
+    satisfaction_true_p = logic_loss_true_p(X=x)
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
     # false -> P: 1 - 0 + 0*P = 1
     expr_false_p = sp.Implies(sp.false, P(X))
     logic_loss_false_p = compile_logic(expr_false_p, predicates, tnorm=SProductTNorm())
-    satisfaction_false_p = logic_loss_false_p(x)
+    satisfaction_false_p = logic_loss_false_p(X=x)
     assert torch.allclose(satisfaction_false_p, torch.tensor(1.0), atol=1e-5)
 
     # P -> true: 1 - 0.7 + 0.7*1 = 0.3 + 0.7 = 1.0
     expr_p_true = sp.Implies(P(X), sp.true)
     logic_loss_p_true = compile_logic(expr_p_true, predicates, tnorm=SProductTNorm())
-    satisfaction_p_true = logic_loss_p_true(x)
+    satisfaction_p_true = logic_loss_p_true(X=x)
     assert torch.allclose(satisfaction_p_true, torch.tensor(1.0), atol=1e-5)
 
     # P -> false: 1 - 0.7 + 0.7*0 = 0.3
     expr_p_false = sp.Implies(P(X), sp.false)
     logic_loss_p_false = compile_logic(expr_p_false, predicates, tnorm=SProductTNorm())
-    satisfaction_p_false = logic_loss_p_false(x)
+    satisfaction_p_false = logic_loss_p_false(X=x)
     assert torch.allclose(satisfaction_p_false, torch.tensor(0.3), atol=1e-5)
 
 
@@ -367,14 +367,14 @@ def test_s_product_equivalent_decomposition() -> None:
     # Test P <-> Q
     expr_equiv = sp.Equivalent(P(X), Q(X))
     logic_loss_equiv = compile_logic(expr_equiv, predicates, tnorm=SProductTNorm())
-    satisfaction_equiv = logic_loss_equiv(x)
+    satisfaction_equiv = logic_loss_equiv(X=x)
 
     # Test (P->Q) AND (Q->P)
     expr_decomposed = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), P(X)))
     logic_loss_decomposed = compile_logic(
         expr_decomposed, predicates, tnorm=SProductTNorm()
     )
-    satisfaction_decomposed = logic_loss_decomposed(x)
+    satisfaction_decomposed = logic_loss_decomposed(X=x)
 
     # Should be equal
     assert torch.allclose(satisfaction_equiv, satisfaction_decomposed, atol=1e-5)
@@ -447,8 +447,8 @@ def test_s_product_de_morgans_laws() -> None:
     logic_loss1 = compile_logic(expr1, predicates, tnorm=SProductTNorm())
     logic_loss2 = compile_logic(expr2, predicates, tnorm=SProductTNorm())
 
-    satisfaction1 = logic_loss1(x)
-    satisfaction2 = logic_loss2(x)
+    satisfaction1 = logic_loss1(X=x)
+    satisfaction2 = logic_loss2(X=x)
 
     assert torch.allclose(satisfaction1, satisfaction2, atol=1e-5)
 
@@ -459,8 +459,8 @@ def test_s_product_de_morgans_laws() -> None:
     logic_loss3 = compile_logic(expr3, predicates, tnorm=SProductTNorm())
     logic_loss4 = compile_logic(expr4, predicates, tnorm=SProductTNorm())
 
-    satisfaction3 = logic_loss3(x)
-    satisfaction4 = logic_loss4(x)
+    satisfaction3 = logic_loss3(X=x)
+    satisfaction4 = logic_loss4(X=x)
 
     assert torch.allclose(satisfaction3, satisfaction4, atol=1e-5)
 

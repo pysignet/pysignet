@@ -1,6 +1,6 @@
 """T-norm based logic compilation strategy."""
 
-from typing import Callable, Dict, Union, Optional
+from typing import Callable, Dict, Optional, Union
 
 import sympy as sp
 import torch
@@ -30,7 +30,7 @@ class TNormCompiler(LogicCompiler):
     Example:
         >>> compiler = TNormCompiler(tnorm=RProductTNorm())
         >>> compiled = compiler.compile(expr, predicates)
-        >>> satisfaction = compiled(x)  # Returns tensor in [0, 1]
+        >>> satisfaction = compiled(X=x)  # Returns tensor in [0, 1]
     """
 
     def __init__(self, tnorm: Optional[TNorm] = None) -> None:
@@ -45,7 +45,7 @@ class TNormCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate]
+        predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]]
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
@@ -76,12 +76,12 @@ class TNormCompiler(LogicCompiler):
 
         # Create a closure that evaluates the expression
         def compiled_logic(
-            inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
+            inputs: Dict[str, torch.Tensor]
         ) -> torch.Tensor:
             """Evaluate compiled logic expression.
 
             Args:
-                inputs: Single tensor or dict of tensors
+                inputs: Dict mapping variable names to tensors
 
             Returns:
                 Satisfaction tensor of shape (batch_size,) in [0, 1]
@@ -90,7 +90,7 @@ class TNormCompiler(LogicCompiler):
             # Context manages caching to avoid redundant forward passes
             ctx = EvaluationContext()
 
-            # Evaluate expression (works for both propositional and FOL)
+            # Evaluate expression
             return self._evaluate_expression(
                 expanded_expr, inputs, wrapped_predicates, ctx
             )
@@ -106,7 +106,7 @@ class TNormCompiler(LogicCompiler):
     def _evaluate_expression(
         self,
         expr: sp.Basic,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        inputs: Dict[str, torch.Tensor],
         predicates: Dict[str, Predicate],
         ctx: EvaluationContext
     ) -> torch.Tensor:
@@ -114,7 +114,7 @@ class TNormCompiler(LogicCompiler):
 
         Args:
             expr: SymPy expression to evaluate
-            inputs: Single tensor or dict of tensors
+            inputs: Dict mapping variable names to tensors
             predicates: Dict of predicates
             ctx: Evaluation context for caching
 
@@ -127,9 +127,13 @@ class TNormCompiler(LogicCompiler):
                 expr, inputs, predicates, ctx
             )
 
-        # Base case: predicate symbol (use base class handler)
+        # Reject bare symbols (nullary predicates not supported)
         if isinstance(expr, sp.Symbol):
-            return self._evaluate_symbol(expr, inputs, predicates, ctx)
+            raise ValueError(
+                f"Bare symbol '{expr}' is not supported. "
+                f"All predicates must be called with at least one variable argument "
+                f"(e.g., use P(X) instead of P)."
+            )
 
         # Boolean constants (use base class handler)
         if expr in (sp.true, sp.false):

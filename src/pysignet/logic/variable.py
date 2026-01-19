@@ -8,7 +8,7 @@ from typing import Tuple, Union
 import sympy as sp
 
 
-class VariableSymbol(sp.Symbol):
+class VariableSymbol(sp.Symbol):  # type: ignore[misc]
     """A variable in a first-order logic expression.
 
     Variables are SymPy symbols that represent unknown values to be bound
@@ -19,7 +19,7 @@ class VariableSymbol(sp.Symbol):
     function to create variables.
     """
 
-    def __new__(cls, name: str):
+    def __new__(cls, name: str) -> "VariableSymbol":
         """Create a new VariableSymbol.
 
         We use __new__ instead of __init__ because sp.Symbol is immutable
@@ -33,7 +33,8 @@ class VariableSymbol(sp.Symbol):
         Returns:
             A new VariableSymbol instance
         """
-        return sp.Symbol.__new__(cls, name)
+        instance: VariableSymbol = sp.Symbol.__new__(cls, name)
+        return instance
 
 
 def Variable(

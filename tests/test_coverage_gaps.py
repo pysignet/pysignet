@@ -671,7 +671,7 @@ class TestBaseCompilerEdgeCases:
 
         # Non-dict input when multiple vars - should error
         # Note: CompiledExpression.__call__ handles this
-        with pytest.raises(ValueError, match="non-dict input"):
+        with pytest.raises(ValueError, match="Inputs must be a dict"):
             compiled_expr(x)
 
     def test_missing_var_in_dict_input_multivar(self):

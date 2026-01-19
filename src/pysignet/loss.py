@@ -72,15 +72,18 @@ class LogicLoss(BatchHandlerMixin):
 
     def __call__(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor], None] = None,
+        inputs: Optional[Dict[str, torch.Tensor]] = None,
         quantify: Literal['forall', 'exists', 'none'] = 'forall',
         **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
         """Evaluate compiled expression and return satisfaction degrees.
 
+        IMPORTANT: All inputs must be provided as keyword arguments
+        (e.g., logic_loss(X=tensor)). Positional arguments are not supported.
+
         Args:
-            inputs: For backward compatibility - single tensor or dict.
-                   Use variable_bindings kwargs instead (FOL interface).
+            inputs: Optional dict mapping variable names to tensors.
+                   Prefer using keyword arguments (**variable_bindings) instead.
             quantify: Batch quantification mode:
                 - 'forall': Universal quantification (conjunction) -> scalar
                 - 'exists': Existential quantification (disjunction) -> scalar
@@ -96,8 +99,8 @@ class LogicLoss(BatchHandlerMixin):
             ValueError: If quantify is invalid
 
         Examples:
-            >>> # FOL interface with forall (default)
-            >>> result = logic_loss(X=x)  # scalar
+            >>> # Keyword argument interface (required)
+            >>> result = logic_loss(X=x)  # scalar (forall default)
             >>>
             >>> # Existential quantification
             >>> result = logic_loss(X=x, quantify='exists')  # scalar
@@ -123,7 +126,7 @@ class LogicLoss(BatchHandlerMixin):
 
     def log_satisfaction(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor], None] = None,
+        inputs: Optional[Dict[str, torch.Tensor]] = None,
         quantify: Literal['forall', 'exists', 'none'] = 'forall',
         **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
@@ -134,7 +137,8 @@ class LogicLoss(BatchHandlerMixin):
         log(satisfaction) directly in log space for stability.
 
         Args:
-            inputs: For backward compatibility - single tensor or dict.
+            inputs: Optional dict mapping variable names to tensors.
+                   Prefer using keyword arguments (**variable_bindings) instead.
             quantify: Batch quantification mode (same as __call__)
             **variable_bindings: Variable bindings (e.g., X=x, Y=y)
 
@@ -163,7 +167,7 @@ class LogicLoss(BatchHandlerMixin):
 
     def loss(
         self,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor], None] = None,
+        inputs: Optional[Dict[str, torch.Tensor]] = None,
         quantify: Literal['forall', 'exists', 'none'] = 'forall',
         reduction: Literal['mean', 'sum', 'none'] = 'none',
         post_processing: Union[
@@ -173,9 +177,12 @@ class LogicLoss(BatchHandlerMixin):
     ) -> torch.Tensor:
         """Compute loss based on logical constraint violation.
 
+        IMPORTANT: All inputs must be provided as keyword arguments
+        (e.g., logic_loss.loss(X=tensor)). Positional arguments are not supported.
+
         Args:
-            inputs: For backward compatibility - single tensor or dict.
-                   Use variable_bindings kwargs instead (FOL interface).
+            inputs: Optional dict mapping variable names to tensors.
+                   Prefer using keyword arguments (**variable_bindings) instead.
             quantify: Batch quantification mode:
                 - 'forall': Universal quantification -> scalar loss
                 - 'exists': Existential quantification -> scalar loss
@@ -296,7 +303,7 @@ class LogicLoss(BatchHandlerMixin):
         )
 
     @property
-    def free_variables(self) -> set:
+    def free_variables(self) -> set[str]:
         """Return set of variables that still need to be bound.
 
         Delegates to the underlying CompiledExpression.

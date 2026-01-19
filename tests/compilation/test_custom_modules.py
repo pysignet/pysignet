@@ -37,7 +37,7 @@ class TestCustomUnaryModules:
         batch_size = 5
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -60,7 +60,7 @@ class TestCustomUnaryModules:
         logic_loss = compile_logic(expr, {"P": model})
 
         x = torch.randn(1, 10)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
         loss.backward()
 
         assert model.weight.grad is not None
@@ -89,7 +89,7 @@ class TestCustomUnaryModules:
         batch_size = 3
         x = torch.randn(batch_size, 8)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -116,7 +116,7 @@ class TestCustomUnaryModules:
 
         # Training step
         x = torch.randn(1, 5)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -155,7 +155,7 @@ class TestCustomBinaryModules:
         batch_size = 3
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -183,7 +183,7 @@ class TestCustomBinaryModules:
         batch_size = 5
         x = torch.randn(batch_size, 8)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -216,7 +216,7 @@ class TestCustomBinaryModules:
         logic_loss = compile_logic(expr, {"Digit": model})
 
         x = torch.randn(1, 10)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
         loss.backward()
 
         # Check gradients exist
@@ -251,7 +251,7 @@ class TestCustomModulesWithPredicate:
         batch_size = 5
         x = torch.randn(batch_size, 3)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -318,6 +318,6 @@ class TestMixedCustomAndSequential:
         batch_size = 5
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)

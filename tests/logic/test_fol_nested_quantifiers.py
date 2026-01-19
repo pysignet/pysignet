@@ -295,7 +295,7 @@ class TestTripleNesting:
 
         w = torch.randn(3, 5)
         # Use quantify='none' to get per-batch results
-        result = compiled(w, quantify='none')
+        result = compiled(W=w, quantify='none')
 
         assert result.shape == (3,)
 
@@ -316,7 +316,7 @@ class TestTripleNesting:
 
         w = torch.randn(3, 5)
         # Use quantify='none' to get per-batch results
-        result = compiled(w, quantify='none')
+        result = compiled(W=w, quantify='none')
 
         assert result.shape == (3,)
 
@@ -337,7 +337,7 @@ class TestTripleNesting:
 
         w = torch.randn(2, 6)
         # Use quantify='none' to get per-batch results
-        result = compiled(w, quantify='none')
+        result = compiled(W=w, quantify='none')
 
         assert result.shape == (2,)
 
@@ -451,7 +451,7 @@ class TestGradientFlow:
 
         x = torch.randn(3, 5)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 
@@ -474,7 +474,7 @@ class TestGradientFlow:
 
         x = torch.randn(3, 4)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 
@@ -495,7 +495,7 @@ class TestGradientFlow:
 
         x = torch.randn(3, 5)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 
@@ -517,7 +517,7 @@ class TestGradientFlow:
 
         w = torch.randn(3, 5)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(w)
+        loss = compiled.loss(W=w)
 
         loss.backward()
 

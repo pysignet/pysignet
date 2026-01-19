@@ -9,7 +9,7 @@ results with shape (batch_size,). Batch reduction (quantification) and loss
 computation are handled by LogicLoss, which uses BatchHandlerMixin.
 """
 
-from typing import Callable, Dict, Set, List, Union, Optional
+from typing import Callable, Dict, Set, List, Optional
 
 import torch
 import torch.nn as nn
@@ -24,9 +24,9 @@ class CompiledExpression:
     (e.g., And(P(X), Q(Y))) into a differentiable PyTorch computation graph.
     It supports:
 
-    - Evaluation with variable bindings: compiled(X=x, Y=y) → Tensor
-    - Partial binding: compiled.partial(X=x) → CompiledExpression
-    - Introspection: compiled.free_variables → Set[str]
+    - Evaluation with variable bindings: compiled(X=x, Y=y) -> Tensor
+    - Partial binding: compiled.partial(X=x) -> CompiledExpression
+    - Introspection: compiled.free_variables -> Set[str]
 
     CompiledExpression performs PURE EVALUATION - it always returns per-batch
     results with shape (batch_size,). No batch reduction is applied. For
@@ -36,9 +36,13 @@ class CompiledExpression:
     not just a temporary store of bindings. This enables future optimizations
     like constant propagation, dead code elimination, and graph rewriting.
 
+    IMPORTANT: All inputs must be provided as keyword arguments (e.g., X=tensor).
+    Positional arguments are not supported. This ensures clear, unambiguous
+    variable binding.
+
     Args:
         compiled_logic: Callable that evaluates the expression given variable
-                       bindings as a dict
+                       bindings as a dict mapping variable names to tensors
         free_variables: Set of variable names that must be bound for evaluation
         predicates: Dict mapping predicate names to Predicate objects
         partial_bindings: Dict of variables already bound in this expression
@@ -62,9 +66,7 @@ class CompiledExpression:
 
     def __init__(
         self,
-        compiled_logic: Callable[
-            [Union[torch.Tensor, Dict[str, torch.Tensor]]], torch.Tensor
-        ],
+        compiled_logic: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
         free_variables: Set[str],
         predicates: Dict[str, Predicate],
         partial_bindings: Optional[Dict[str, torch.Tensor]] = None
@@ -72,8 +74,8 @@ class CompiledExpression:
         """Initialize CompiledExpression.
 
         Args:
-            compiled_logic: Callable that evaluates expression with inputs.
-                           Accepts either a single tensor or a dict of bindings.
+            compiled_logic: Callable that evaluates expression with inputs
+                           as a dict mapping variable names to tensors.
             free_variables: Set of variable names in the original expression
             predicates: Dict of predicate objects
             partial_bindings: Dict of variables already bound (default: empty)
@@ -100,7 +102,7 @@ class CompiledExpression:
 
     def __call__(
         self,
-        inputs: Optional[Union[torch.Tensor, Dict[str, torch.Tensor]]] = None,
+        inputs: Optional[Dict[str, torch.Tensor]] = None,
         **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
         """Evaluate compiled expression with variable bindings.
@@ -112,9 +114,12 @@ class CompiledExpression:
         results with shape (batch_size,). No batch reduction is applied.
         For quantification over batch dimensions, wrap with LogicLoss.
 
+        IMPORTANT: All inputs must be provided as keyword arguments
+        (e.g., compiled(X=tensor)). Positional arguments are not supported.
+
         Args:
-            inputs: For backward compatibility - single tensor or dict.
-                   Use variable_bindings kwargs instead (FOL interface).
+            inputs: Optional dict mapping variable names to tensors.
+                   Prefer using keyword arguments (**variable_bindings) instead.
             **variable_bindings: Variable bindings (X=x, Y=y, etc.)
 
         Returns:
@@ -126,7 +131,7 @@ class CompiledExpression:
             ValueError: If both inputs and variable_bindings provided
 
         Example:
-            >>> # FOL interface (preferred)
+            >>> # Keyword argument interface (required)
             >>> result = compiled(X=x, Y=y)  # shape: (batch_size,)
             >>>
             >>> # With partial bindings
@@ -134,37 +139,37 @@ class CompiledExpression:
             >>> result = partial(Y=y)  # shape: (batch_size,)
         """
         # Merge partial bindings with new bindings
-        if self._partial_bindings or variable_bindings:
-            # Start with partial bindings
-            all_bindings = dict(self._partial_bindings)
+        all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
 
-            # Add new bindings
-            if variable_bindings:
-                if inputs is not None:
-                    raise ValueError(
-                        "Cannot provide both positional 'inputs' and variable "
-                        "bindings (**kwargs). Use one or the other."
-                    )
-                all_bindings.update(variable_bindings)
-
-            inputs = all_bindings if all_bindings else (inputs or {})
-        # Handle no-input case (constant-only predicates)
-        elif inputs is None:
-            inputs = {}
+        # Add new bindings from kwargs
+        if variable_bindings:
+            if inputs is not None:
+                raise ValueError(
+                    "Cannot provide both 'inputs' dict and keyword arguments. "
+                    "Use one or the other."
+                )
+            all_bindings.update(variable_bindings)
+        elif inputs is not None:
+            if not isinstance(inputs, dict):
+                raise ValueError(
+                    "Inputs must be a dict mapping variable names to tensors. "
+                    "Use keyword arguments like compiled(X=tensor) instead of "
+                    "positional arguments like compiled(tensor)."
+                )
+            all_bindings.update(inputs)
 
         # Validate all free variables are bound
-        if self._free_variables and isinstance(inputs, dict):
-            provided = set(inputs.keys())
-            missing = self._free_variables - provided
-            if missing:
-                raise ValueError(
-                    f"Missing input bindings for variables: {sorted(missing)}. "
-                    f"Expected bindings for: {sorted(self._free_variables)}"
-                )
+        provided = set(all_bindings.keys())
+        missing = self._free_variables - provided
+        if missing:
+            raise ValueError(
+                f"Missing input bindings for variables: {sorted(missing)}. "
+                f"Expected bindings for: {sorted(self._free_variables)}"
+            )
 
         # Evaluate the expression and return per-batch results
         # No batch reduction - LogicLoss handles quantification
-        return self._compiled_logic(inputs)
+        return self._compiled_logic(all_bindings)
 
     def partial(self, **variable_bindings: torch.Tensor) -> 'CompiledExpression':
         """Create new CompiledExpression with some variables bound.

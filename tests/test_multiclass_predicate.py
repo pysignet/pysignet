@@ -354,7 +354,7 @@ class TestGradientFlow:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(1, 10, requires_grad=True)
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 
@@ -375,7 +375,7 @@ class TestGradientFlow:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(1, 10, requires_grad=True)
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 
@@ -427,11 +427,11 @@ class TestCacheClearing:
 
         # First batch
         x1 = torch.randn(1, 10)
-        result1 = compiled(x1)
+        result1 = compiled(X=x1)
 
         # Second batch (different input)
         x2 = torch.randn(1, 10)
-        result2 = compiled(x2)
+        result2 = compiled(X=x2)
 
         # Results should be different (cache was cleared)
         assert not torch.allclose(result1, result2)
@@ -643,7 +643,7 @@ class TestLossComputation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(1, 10)
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         assert isinstance(loss, torch.Tensor)
         assert loss.ndim == 0  # Scalar
@@ -659,7 +659,7 @@ class TestLossComputation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(1, 10)
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         # Should be able to backpropagate
         loss.backward()

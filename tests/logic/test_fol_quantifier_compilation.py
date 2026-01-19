@@ -156,7 +156,7 @@ class TestGradientFlow:
         compiled = compile_logic(expr, {"Digit": model})
 
         x = torch.randn(1, 5)
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 
@@ -177,7 +177,7 @@ class TestGradientFlow:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(1, 4)
-        loss = compiled.loss(x)
+        loss = compiled.loss(X=x)
 
         loss.backward()
 

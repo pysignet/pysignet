@@ -22,7 +22,7 @@ def test_empty_batch() -> None:
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(0, 5)  # Empty batch
     # Use quantify='none' to get per-batch results for shape check
-    satisfaction = logic_loss(x, quantify='none')
+    satisfaction = logic_loss(X=x, quantify='none')
 
     assert satisfaction.shape == (0,)
     assert satisfaction.numel() == 0
@@ -43,7 +43,7 @@ def test_single_element_batch() -> None:
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 5)  # Single element
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     assert satisfaction.shape == ()  # Scalar with forall
     assert torch.allclose(satisfaction, torch.tensor(0.35), atol=1e-5)
@@ -62,7 +62,7 @@ def test_very_large_batch() -> None:
     batch_size = 10000
     x = torch.randn(batch_size, 5)
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(x, quantify='none')
+    satisfaction = logic_loss(X=x, quantify='none')
 
     assert satisfaction.shape == (batch_size,)
     assert satisfaction.min() >= 0.0
@@ -81,7 +81,7 @@ def test_nan_handling() -> None:
     logic_loss = compile_logic(expr, predicates)
     x = torch.tensor([[float("nan"), 1.0, 2.0]])
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # sigmoid(nan) = nan, clamped to [0,1] doesn't fix NaN
     assert satisfaction.shape == ()  # Scalar with forall
@@ -105,14 +105,14 @@ def test_inf_handling() -> None:
     # Test positive infinity
     # Default quantify='forall' with batch_size=1 returns scalar
     x_pos_inf = torch.tensor([[float("inf"), 1.0, 2.0]])
-    satisfaction_pos = logic_loss(x_pos_inf)
+    satisfaction_pos = logic_loss(X=x_pos_inf)
     assert satisfaction_pos.shape == ()  # Scalar with forall
     # sigmoid(+inf) = 1.0
     assert torch.allclose(satisfaction_pos, torch.tensor(1.0), atol=1e-5)
 
     # Test negative infinity
     x_neg_inf = torch.tensor([[float("-inf"), 1.0, 2.0]])
-    satisfaction_neg = logic_loss(x_neg_inf)
+    satisfaction_neg = logic_loss(X=x_neg_inf)
     assert satisfaction_neg.shape == ()  # Scalar with forall
     # sigmoid(-inf) = 0.0
     assert torch.allclose(satisfaction_neg, torch.tensor(0.0), atol=1e-5)
@@ -164,7 +164,7 @@ def test_zero_dimension_input() -> None:
     batch_size = 5
     x = torch.randn(batch_size, 0)  # 5 samples, 0 features
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(x, quantify='none')
+    satisfaction = logic_loss(X=x, quantify='none')
 
     assert satisfaction.shape == (batch_size,)
     assert torch.allclose(satisfaction, torch.ones(batch_size) * 0.5)
@@ -184,7 +184,7 @@ def test_very_small_values() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Product t-norm: 1e-10 * 1e-10 = 1e-20
     assert satisfaction.min() >= 0.0
@@ -206,7 +206,7 @@ def test_values_near_one() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     assert satisfaction.min() >= 0.0
     assert satisfaction.max() <= 1.0
@@ -237,7 +237,7 @@ def test_deeply_nested_expression() -> None:
     batch_size = 10
     x = torch.randn(batch_size, 5)
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(x, quantify='none')
+    satisfaction = logic_loss(X=x, quantify='none')
 
     # Should compute without error
     assert satisfaction.shape == (batch_size,)
@@ -262,7 +262,7 @@ def test_many_predicates() -> None:
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Product t-norm: 0.9^10 ≈ 0.3487
     assert satisfaction.shape == ()  # Scalar with forall
@@ -281,7 +281,7 @@ def test_single_predicate_expression() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Should just return predicate value
     assert torch.allclose(satisfaction, torch.tensor(0.75))
@@ -301,7 +301,7 @@ def test_mixed_batch_dimensions() -> None:
     # Test different batch sizes sequentially with quantify='none' for per-batch results
     for batch_size in [1, 5, 10, 32]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
         assert satisfaction.shape == (batch_size,)
         assert satisfaction.min() >= 0.0
         assert satisfaction.max() <= 1.0

@@ -1,18 +1,19 @@
 """Base class for logic compilation strategies."""
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Union, Set
+from typing import Any, Callable, Dict, List, Set, Union, cast
 import warnings
 
 import sympy as sp
 import torch
 import torch.nn as nn
 
+from pysignet.context import EvaluationContext
 from pysignet.predicate import Predicate
 from pysignet.multiclass import PredicateApplication
-from pysignet.logic import extract_variables, extract_variables_from_application
 from pysignet.logic.quantifier import Quantifier
 from pysignet.logic.expansion import expand_quantifier
+from pysignet.logic.variable import VariableSymbol
 from pysignet.compilation.arity import validate_predicate_arity
 from pysignet.compilation.module_utils import (
     infer_module_arity,
@@ -45,13 +46,14 @@ class LogicCompiler(ABC):
     def compile(
             self,
             expr: sp.Basic,
-            predicates: Dict[str, Predicate],
+            predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]],
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
         Args:
             expr: SymPy logic expression (e.g., sp.And(P, sp.Or(Q, sp.Not(R))))
-            predicates: Dict mapping predicate names to Predicate objects
+            predicates: Dict mapping predicate names to Predicate objects or to
+                callables that produce tensors
 
         Returns:
             CompiledExpression that can be evaluated with variable bindings,
@@ -65,7 +67,7 @@ class LogicCompiler(ABC):
     def _wrap_and_validate_predicates(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate]
+        predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]]
     ) -> Dict[str, Predicate]:
         """Wrap, validate, and prepare predicates for compilation.
 
@@ -99,7 +101,7 @@ class LogicCompiler(ABC):
         wrapped_predicates: Dict[str, Predicate] = {}
         for key, value in predicates.items():
             # Extract module if wrapped in Predicate
-            module_to_check = None
+            module_to_check: nn.Module | None = None
             if isinstance(value, nn.Module):
                 module_to_check = value
             elif isinstance(value, Predicate) and isinstance(value.func, nn.Module):
@@ -346,7 +348,7 @@ class LogicCompiler(ABC):
     def _parse_predicate_application(
         self,
         app: PredicateApplication
-    ) -> tuple:
+    ) -> tuple[list[VariableSymbol], list[Any]]:
         """Parse PredicateApplication into free variables and constants.
 
         Extracts and deduplicates free variables, preserving order of first
@@ -365,11 +367,9 @@ class LogicCompiler(ABC):
             >>> _parse_predicate_application(app)
             ([X1, X2], [0, 1])
         """
-        from pysignet.logic.variable import VariableSymbol
-
         # Use dict to preserve order while deduplicating
-        free_vars_dict: Dict[str, 'VariableSymbol'] = {}
-        constants: list = []
+        free_vars_dict: Dict[str, VariableSymbol] = {}
+        constants: list[Any] = []
 
         for arg in app.application_args:
             if isinstance(arg, VariableSymbol):
@@ -386,29 +386,42 @@ class LogicCompiler(ABC):
     def _evaluate_predicate_application(
         self,
         app: PredicateApplication,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        inputs: Dict[str, torch.Tensor],
         predicates: Dict[str, Predicate],
-        ctx
+        ctx: EvaluationContext
     ) -> torch.Tensor:
-        """Evaluate PredicateApplication with mixed variable/constant arguments.
+        """Evaluate PredicateApplication with variable and constant arguments.
 
-        This method is completely compiler-agnostic and handles:
-        - Extracting free variables and constants
-        - Routing to appropriate handler based on variable count
-        - Backwards compatibility for old API (Digit(0) with tensor)
-        - Output channel selection for constants
-        - Caching via EvaluationContext
+        All predicates must have at least one free variable. Inputs must be
+        provided as a dict mapping variable names to tensors.
+
+        For regular callables: all arguments (variables + constants) are passed
+        in the order they appear in the application.
+
+        For nn.Module: variable inputs are passed to the module, and constants
+        are used as output indices to select specific output channels.
 
         Args:
-            app: PredicateApplication to evaluate
-            inputs: Single tensor or dict of tensors
+            app: PredicateApplication to evaluate (e.g., P(X), Q(X, 0))
+            inputs: Dict mapping variable names to tensors (e.g., {"X": tensor})
             predicates: Dict of predicates
             ctx: EvaluationContext for caching
 
         Returns:
             Tensor of shape (batch_size,) with values in [0, 1]
+
+        Raises:
+            ValueError: If inputs is not a dict
+            ValueError: If predicate has no free variables
+            ValueError: If required variable is missing from inputs
         """
-        from pysignet.logic.variable import VariableSymbol
+        # Require dict inputs (keyword argument API)
+        if not isinstance(inputs, dict):
+            raise ValueError(
+                "Inputs must be a dict mapping variable names to tensors. "
+                "Use keyword arguments like compiled(X=tensor) instead of "
+                "positional arguments like compiled(tensor)."
+            )
 
         pred_name = app.predicate_name
         predicate = predicates[pred_name]
@@ -417,199 +430,163 @@ class LogicCompiler(ABC):
         # Parse application into free vars and constants
         free_vars, constants = self._parse_predicate_application(app)
 
-        # Determine how to handle constants:
-        # - nn.Module: Use constants as output indices (old behavior for multiclass)
-        # - Regular callables: Pass constants as arguments (new FOL behavior)
+        # Determine how to handle based on predicate type
         is_module = isinstance(func, torch.nn.Module)
 
-        if not is_module and len(constants) > 0:
-            # FOL semantics: Pass ALL arguments (free vars + constants) to callable
-            # Build args in the order they appear in application_args
-            from pysignet.logic.variable import VariableSymbol
-
-            call_args = []
-            for arg in app.application_args:
-                if isinstance(arg, VariableSymbol):
-                    # Free variable - get from inputs
-                    var_name = str(arg)
-                    if isinstance(inputs, dict):
-                        if var_name not in inputs:
-                            raise ValueError(
-                                f"Missing input for variable '{var_name}'. "
-                                f"Expected key in input dict."
-                            )
-                        call_args.append(inputs[var_name])
-                    else:
-                        # Single tensor input (only valid if single free var)
-                        if len(free_vars) > 1:
-                            var_names = ", ".join(str(v) for v in free_vars)
-                            raise ValueError(
-                                f"Predicate '{pred_name}' has multiple free variables "
-                                f"({var_names}) but received non-dict input."
-                            )
-                        call_args.append(inputs)
-                else:
-                    # Constant - pass as-is
-                    call_args.append(arg)
-
-            # Call with all arguments (using predicate for clamping)
-            cache_key = (id(func), tuple(
-                id(a) if isinstance(a, torch.Tensor) else a for a in call_args
-            ))
-            result = ctx.get_or_compute(cache_key, lambda: predicate(*call_args))
-            return result
-
-        # Handle nn.Module or no-constants case (old behavior)
-        # Route based on number of free variables
-        if len(free_vars) == 0:
-            # No free variables - either nullary or constant-only predicate
-
-            # If non-module callable with constants, pass constants as arguments
-            if not is_module and len(constants) > 0:
-                cache_key = (id(func), tuple(constants))
-                result = ctx.get_or_compute(
-                    cache_key,
-                    lambda: predicate(*constants)
-                )
-                return result
-
-            # True nullary predicate (no variables, no constants)
-            cache_key = (id(func), "nullary")
-            result = ctx.get_or_compute(cache_key, lambda: predicate())
-
-            # Convert to tensor if needed
-            if not isinstance(result, torch.Tensor):
-                result = torch.tensor(result)
-
-            # Handle constants as output indices if present (nn.Module case)
-            if len(constants) > 0 and result.dim() > 0:
-                for const in constants:
-                    if result.dim() == 0:
-                        break
-                    result = (result[const] if result.dim() == 1
-                             else result[:, const])
-
-            return result
-
-        elif len(free_vars) == 1:
-            # Single free variable
-            var = free_vars[0]
-            var_name = str(var)
-
-            # Get input for this variable
-            if isinstance(inputs, dict):
-                if var_name not in inputs:
-                    raise ValueError(
-                        f"Missing input for variable '{var_name}'. "
-                        f"Expected key in input dict."
-                    )
-                var_input = inputs[var_name]
-            else:
-                # Single tensor input - use directly (convenience)
-                var_input = inputs
-
-            # Call predicate with single argument (using predicate for clamping)
-            cache_key = (id(func), id(var_input))
-            full_output = ctx.get_or_compute(
-                cache_key,
-                lambda: predicate(var_input)
+        if is_module:
+            # nn.Module: pass variable inputs, use constants as output indices
+            return self._evaluate_module_predicate(
+                app, inputs, predicate, free_vars, constants, ctx
             )
-
         else:
-            # Multiple free variables
-            # Must have dict inputs
-            if not isinstance(inputs, dict):
-                var_names = ", ".join(str(v) for v in free_vars)
-                raise ValueError(
-                    f"Predicate '{pred_name}' has multiple free variables "
-                    f"({var_names}) but received non-dict input. "
-                    f"Expected dict with keys for each variable."
-                )
+            # Regular callable: pass all arguments in order
+            return self._evaluate_callable_predicate(
+                app, inputs, predicate, ctx
+            )
 
-            # Extract inputs for each variable (in order of appearance)
-            var_inputs = []
-            for var in free_vars:
-                var_name = str(var)
+    def _evaluate_callable_predicate(
+        self,
+        app: PredicateApplication,
+        inputs: Dict[str, torch.Tensor],
+        predicate: Predicate,
+        ctx: EvaluationContext
+    ) -> torch.Tensor:
+        """Evaluate a regular callable predicate.
+
+        Passes all arguments (variables and constants) in the order they
+        appear in the application.
+
+        Args:
+            app: PredicateApplication
+            inputs: Dict of variable bindings
+            predicate: Predicate to call
+            ctx: EvaluationContext for caching
+
+        Returns:
+            Tensor of shape (batch_size,)
+        """
+        func = predicate.func
+
+        # Build args in the order they appear in application_args
+        call_args: List[Any] = []
+        for arg in app.application_args:
+            if isinstance(arg, VariableSymbol):
+                var_name = str(arg)
                 if var_name not in inputs:
                     raise ValueError(
                         f"Missing input for variable '{var_name}'. "
                         f"Expected key in input dict."
                     )
-                var_inputs.append(inputs[var_name])
+                call_args.append(inputs[var_name])
+            else:
+                # Constant - pass as-is
+                call_args.append(arg)
 
-            # Create cache key from function and input identities
-            cache_key = (id(func), tuple(id(inp) for inp in var_inputs))
+        # Create cache key
+        cache_key = (id(func), tuple(
+            id(a) if isinstance(a, torch.Tensor) else a for a in call_args
+        ))
 
-            # Call predicate with multiple arguments (using predicate for clamping)
-            full_output = ctx.get_or_compute(
-                cache_key,
-                lambda: predicate(*var_inputs)
-            )
+        # Call with all arguments
+        result = ctx.get_or_compute(cache_key, lambda: predicate(*call_args))
+        return cast(torch.Tensor, result)
 
-        # Handle constants as output indices (nn.Module or no FOL constants)
+    def _evaluate_module_predicate(
+        self,
+        app: PredicateApplication,
+        inputs: Dict[str, torch.Tensor],
+        predicate: Predicate,
+        free_vars: List[VariableSymbol],
+        constants: List[Any],
+        ctx: EvaluationContext
+    ) -> torch.Tensor:
+        """Evaluate an nn.Module predicate.
+
+        Passes variable inputs to the module, then uses constants as output
+        indices to select specific channels.
+
+        Args:
+            app: PredicateApplication
+            inputs: Dict of variable bindings
+            predicate: Predicate wrapping nn.Module
+            free_vars: List of free variables in the application
+            constants: List of constant indices
+            ctx: EvaluationContext for caching
+
+        Returns:
+            Tensor of shape (batch_size,)
+        """
+        func = predicate.func
+
+        # Extract variable inputs in order
+        var_inputs: List[torch.Tensor] = []
+        for var in free_vars:
+            var_name = str(var)
+            if var_name not in inputs:
+                raise ValueError(
+                    f"Missing input for variable '{var_name}'. "
+                    f"Expected key in input dict."
+                )
+            var_inputs.append(inputs[var_name])
+
+        # Create cache key
+        cache_key = (id(func), tuple(id(inp) for inp in var_inputs))
+
+        # Call module with variable inputs
+        full_output = ctx.get_or_compute(
+            cache_key,
+            lambda: predicate(*var_inputs)
+        )
+        full_output = cast(torch.Tensor, full_output)
+
+        # Handle constants as output indices
         if len(constants) > 0:
-            # Multi-output predicate - select specific output channel(s)
             result = full_output
             for const in constants:
                 if result.dim() == 1:
                     # Already a batch of scalars, can't index further
                     break
                 elif result.dim() == 2:
-                    # Shape: (batch, num_outputs)
-                    # Select column for this constant
+                    # Shape: (batch, num_outputs) - select column
                     result = result[:, const]
                 else:
                     # Higher dimensional - index first non-batch dimension
                     result = result.select(dim=1, index=const)
             return result
         else:
-            # No constants - return full output
-            # Squeeze if output is (batch, 1) instead of (batch,)
+            # No constants - return full output, squeeze if needed
             if full_output.dim() == 2 and full_output.shape[1] == 1:
                 return full_output.squeeze(-1)
             return full_output
 
-    def _evaluate_symbol(
-        self,
-        symbol: sp.Symbol,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
-        predicates: Dict[str, Predicate],
-        ctx
-    ) -> torch.Tensor:
-        """Evaluate nullary predicate symbol.
-
-        Args:
-            symbol: SymPy symbol representing nullary predicate
-            inputs: Single tensor or dict of tensors
-            predicates: Dict of predicates
-            ctx: EvaluationContext for caching
-
-        Returns:
-            Tensor of shape (batch_size,) with values in [0, 1]
-        """
-        pred_name = str(symbol)
-        predicate = predicates[pred_name]
-        return predicate(inputs)
-
     def _evaluate_boolean_constant(
         self,
         const: sp.Basic,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
+        inputs: Dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Evaluate boolean constant (sp.true or sp.false).
 
         Args:
             const: sp.true or sp.false
-            inputs: Single tensor or dict of tensors (to determine batch size)
+            inputs: Dict mapping variable names to tensors (to determine batch size)
 
         Returns:
             Tensor of ones (true) or zeros (false) with shape (batch_size,)
+
+        Raises:
+            ValueError: If inputs is not a dict or is empty
         """
-        # Determine batch size from inputs
-        if isinstance(inputs, dict):
-            sample_input = next(iter(inputs.values()))
-        else:
-            sample_input = inputs
+        if not isinstance(inputs, dict):
+            raise ValueError(
+                "Inputs must be a dict mapping variable names to tensors. "
+                "Use keyword arguments like compiled(X=tensor) instead of "
+                "positional arguments like compiled(tensor)."
+            )
+        if not inputs:
+            raise ValueError("Inputs dict cannot be empty.")
+
+        # Determine batch size from first input
+        sample_input = next(iter(inputs.values()))
         batch_size = sample_input.shape[0]
 
         if const == sp.true:

@@ -13,7 +13,7 @@ from pysignet.tnorms import TNorm, RProductTNorm
 
 def compile_logic(
     expr: sp.Basic,
-    predicates: Dict[str, Predicate],
+    predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]],
     mode: str = 'tnorm',
     tnorm: Optional[TNorm] = None,
     post_processing: Optional[
@@ -28,7 +28,8 @@ def compile_logic(
 
     Args:
         expr: SymPy logic expression (e.g., sp.And(P, sp.Or(Q, sp.Not(R))))
-        predicates: Dict mapping predicate names to Predicate objects
+        predicates: Dict mapping predicate names to Predicate objects or to
+            callables that produce torch Tensors
         mode: Compilation mode - 'tnorm' (default), or 'semantic' (future)
         tnorm: T-norm for mode='tnorm' (default: RProductTNorm)
         post_processing: Post-processing mode - 'log', 'linear', callable,
@@ -76,7 +77,7 @@ def compile_logic(
             ... )
     """
     # Auto-wrap raw callables in Predicate objects
-    wrapped_predicates: Dict[str, Predicate] = {}
+    wrapped_predicates: Dict[str, Union[Predicate, Callable[..., torch.Tensor]]] = {}
     for key, value in predicates.items():
         if isinstance(value, Predicate):
             # Already a Predicate, use as-is

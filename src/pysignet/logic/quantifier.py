@@ -7,26 +7,30 @@ values from the domain.
 Multiple variables are handled via nesting quantifiers.
 """
 
-from typing import Any, Iterable
+from typing import Any, Iterable, Tuple
 import sympy as sp
 
-from pysignet.logic.variable import Variable
+from pysignet.logic.variable import VariableSymbol
 
 
-class Quantifier(sp.Basic):
+class Quantifier(sp.Basic):  # type: ignore[misc]
     """Base class for quantifiers.
 
     Quantifiers bind a variable to values from a domain and evaluate
     an expression (body) for each binding.
 
     Args:
-        variable: The variable to bind (single Variable instance).
+        variable: The variable to bind (single VariableSymbol instance).
         domain: Iterable of values the variable can take.
         body: The expression to evaluate (SymPy expression).
     """
 
-    def __init__(self, variable: Variable, domain: Iterable[Any],
-                 body: sp.Basic):
+    def __init__(
+        self,
+        variable: VariableSymbol,
+        domain: Iterable[Any],
+        body: sp.Basic
+    ) -> None:
         """Initialize a new quantifier instance.
 
         Args:
@@ -39,7 +43,7 @@ class Quantifier(sp.Basic):
         self._body = body
 
     @property
-    def variable(self) -> Variable:
+    def variable(self) -> VariableSymbol:
         """The variable bound by this quantifier."""
         return self._variable
 
@@ -54,7 +58,7 @@ class Quantifier(sp.Basic):
         return self._body
 
     @property
-    def args(self):
+    def args(self) -> Tuple[VariableSymbol, sp.Basic]:
         """Return args tuple for SymPy compatibility.
 
         Returns:
@@ -64,7 +68,7 @@ class Quantifier(sp.Basic):
         """
         return (self._variable, self._body)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Check equality with another quantifier.
 
         Args:
@@ -103,7 +107,7 @@ class Quantifier(sp.Basic):
             # If conversion fails, try direct comparison
             return self.domain == other.domain
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Hash for use in sets/dicts.
 
         Returns:
@@ -131,14 +135,14 @@ class ForAll(Quantifier):
         body: Expression that must hold for all domain values.
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation of ForAll."""
         domain_str = str(list(self.domain)[:5])  # Show first 5 elements
         if hasattr(self.domain, '__len__') and len(list(self.domain)) > 5:
             domain_str = domain_str[:-1] + ", ...]"
         return f"ForAll({self.variable}, {domain_str}, {self.body})"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Repr for ForAll."""
         return self.__str__()
 
@@ -161,13 +165,13 @@ class Exists(Quantifier):
         body: Expression that must hold for at least one domain value.
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         """String representation of Exists."""
         domain_str = str(list(self.domain)[:5])  # Show first 5 elements
         if hasattr(self.domain, '__len__') and len(list(self.domain)) > 5:
             domain_str = domain_str[:-1] + ", ...]"
         return f"Exists({self.variable}, {domain_str}, {self.body})"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Repr for Exists."""
         return self.__str__()

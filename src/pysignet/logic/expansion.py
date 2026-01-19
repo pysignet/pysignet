@@ -4,6 +4,8 @@ This module provides functionality to expand ForAll and Exists quantifiers
 over their specified domains into conjunctions and disjunctions.
 """
 
+from typing import Any, List
+
 import sympy as sp
 
 from pysignet.logic.quantifier import ForAll, Exists, Quantifier
@@ -86,7 +88,7 @@ def expand_quantifier(quantifier: Quantifier) -> sp.Basic:
 
 
 def _substitute_variable(expr: sp.Basic, variable: VariableSymbol,
-                        value: any) -> sp.Basic:
+                        value: Any) -> sp.Basic:
     """Substitute a variable with a value in an expression.
 
     Handles both standard SymPy expressions and PredicateApplications.
@@ -123,9 +125,11 @@ def _substitute_variable(expr: sp.Basic, variable: VariableSymbol,
 
     # For other SymPy expressions, recursively substitute in args
     if hasattr(expr, 'args') and expr.args:
-        new_args = [_substitute_variable(arg, variable, value)
-                    for arg in expr.args]
-        return expr.func(*new_args)
+        substituted_args: List[sp.Basic] = [
+            _substitute_variable(arg, variable, value)
+            for arg in expr.args
+        ]
+        return expr.func(*substituted_args)
 
     # Leaf node: if it's the variable, replace it; otherwise return as-is
     if expr == variable:

@@ -32,7 +32,7 @@ def test_basic_gradient_flow() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Check gradients exist
@@ -59,7 +59,7 @@ def test_gradient_flow_and() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -92,7 +92,7 @@ def test_gradient_flow_or() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -120,7 +120,7 @@ def test_gradient_flow_not() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Gradients should flow through NOT
@@ -149,7 +149,7 @@ def test_gradient_flow_implies() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -180,7 +180,7 @@ def test_gradient_flow_equivalent() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -213,7 +213,7 @@ def test_gradient_flow_complex_expression() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # All three models should have gradients
@@ -247,7 +247,7 @@ def test_gradient_flow_product_tnorm() -> None:
     logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients
@@ -278,7 +278,7 @@ def test_gradient_flow_lukasiewicz_tnorm() -> None:
     logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients (may be zero in some cases)
@@ -309,7 +309,7 @@ def test_gradient_flow_godel_tnorm() -> None:
     logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Both models should have gradients (may be zero for non-minimum)
@@ -338,7 +338,7 @@ def test_gradient_accumulation() -> None:
 
     # First backward pass
     x1 = torch.randn(1, 5)
-    loss1 = logic_loss.loss(x1)
+    loss1 = logic_loss.loss(X=x1)
     loss1.backward()  # type: ignore[no-untyped-call]
 
     # Save first gradients
@@ -349,7 +349,7 @@ def test_gradient_accumulation() -> None:
 
     # Second backward pass (accumulate)
     x2 = torch.randn(1, 5)
-    loss2 = logic_loss.loss(x2)
+    loss2 = logic_loss.loss(X=x2)
     loss2.backward()  # type: ignore[no-untyped-call]
 
     # Gradients should have accumulated
@@ -377,7 +377,7 @@ def test_gradient_zero() -> None:
 
     # First backward pass
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Gradients should exist
@@ -422,7 +422,7 @@ def test_gradient_no_nan_or_inf() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Check no NaN or Inf in gradients
@@ -456,7 +456,7 @@ def test_get_trainable_parameters_for_optimization() -> None:
     optimizer = torch.optim.SGD(params, lr=0.01)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # Optimizer step should work
@@ -464,7 +464,7 @@ def test_get_trainable_parameters_for_optimization() -> None:
     optimizer.zero_grad()
 
     # Should be able to continue training
-    loss2 = logic_loss.loss(x)
+    loss2 = logic_loss.loss(X=x)
     loss2.backward()  # type: ignore[no-untyped-call]
 
 
@@ -490,7 +490,7 @@ def test_gradient_with_multiple_models() -> None:
     logic_loss = compile_logic(expr, predicates)
 
     x = torch.randn(1, 5)
-    loss = logic_loss.loss(x)
+    loss = logic_loss.loss(X=x)
     loss.backward()  # type: ignore[no-untyped-call]
 
     # All parameters should have gradients
@@ -517,7 +517,7 @@ def test_gradient_independent_of_batch_size() -> None:
     # Test with different batch sizes
     for batch_size in [1]:
         x = torch.randn(batch_size, 5, requires_grad=True)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
         loss.backward()  # type: ignore[no-untyped-call]
 
         # Input should have gradients

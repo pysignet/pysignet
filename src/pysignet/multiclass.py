@@ -63,7 +63,7 @@ def Symbol(names: str) -> Union["PredicateSymbol", Tuple["PredicateSymbol", ...]
     return tuple(predicates) if len(predicates) > 1 else predicates[0]
 
 
-class PredicateSymbol(sp.Symbol):
+class PredicateSymbol(sp.Symbol):  # type: ignore[misc]
     """Symbol that can be used as nullary or called with arguments for n-ary.
 
     PredicateSymbol inherits from sp.Symbol, so it works seamlessly with
@@ -154,7 +154,7 @@ class PredicateSymbol(sp.Symbol):
         return PredicateApplication(str(self), args)
 
 
-class PredicateApplication(Boolean):
+class PredicateApplication(Boolean):  # type: ignore[misc]
     """AST node representing application of predicate to arguments.
 
     PredicateApplication represents the application of a PredicateSymbol
@@ -215,7 +215,7 @@ class PredicateApplication(Boolean):
         self.application_args = args
 
     @property
-    def args(self) -> Tuple:
+    def args(self) -> Tuple[()]:
         """Return args for SymPy compatibility.
 
         SymPy expects Basic objects to have an args property.

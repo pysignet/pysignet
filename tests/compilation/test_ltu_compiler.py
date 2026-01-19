@@ -276,7 +276,7 @@ class TestGradientFlow:
         logic_loss = LogicLoss(compiled_fn)
 
         x = torch.randn(1, 5)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()
 

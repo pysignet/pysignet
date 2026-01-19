@@ -48,7 +48,7 @@ class TestLogicLossBasics:
 
         x = torch.randn(10, 5)
         # Use quantify='none' to get per-batch satisfaction values
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
 
         # Should return satisfaction values in [0, 1]
         assert isinstance(satisfaction, torch.Tensor)
@@ -71,7 +71,7 @@ class TestLogicLossBasics:
         logic_loss = LogicLoss(compiled)
 
         x = torch.randn(1, 5)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         # Should return scalar loss (mean reduction by default)
         assert isinstance(loss, torch.Tensor)
@@ -97,7 +97,7 @@ class TestLogicLossPostProcessing:
         logic_loss = LogicLoss(compiled, post_processing="log")
 
         x = torch.randn(1, 5)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         # Log post-processing: loss = -log(satisfaction) = -log(0.5)
         expected_loss = -torch.log(torch.tensor(0.5))
@@ -117,15 +117,10 @@ class TestLogicLossPostProcessing:
         logic_loss = LogicLoss(compiled, post_processing="linear")
 
         x = torch.randn(1, 5)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         # Linear post-processing: loss = 1 - satisfaction = 1 - 0.7 = 0.3
         assert torch.allclose(loss, torch.tensor(0.3), atol=1e-5)
-
-    def test_post_processing_auto(self) -> None:
-        """Test post_processing='auto' detects from compiler."""
-        # Note: 'auto' mode not implemented in current LogicLoss
-        pytest.skip("auto post-processing mode not yet implemented")
 
     def test_post_processing_custom_callable(self) -> None:
         """Test custom post-processing function."""
@@ -147,7 +142,7 @@ class TestLogicLossPostProcessing:
         )
 
         x = torch.randn(1, 5)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         # Custom: (1 - 0.6)^2 = 0.4^2 = 0.16
         assert torch.allclose(loss, torch.tensor(0.16), atol=1e-5)
@@ -169,7 +164,7 @@ class TestLogicLossPostProcessing:
 
         # Should raise ValueError when trying to compute loss
         with pytest.raises(ValueError, match="Unknown post-processing"):
-            logic_loss.loss(x)
+            logic_loss.loss(X=x)
 
 
 class TestLogicLossReductionModes:
@@ -190,7 +185,7 @@ class TestLogicLossReductionModes:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none' to get per-batch losses first
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
         # Should return scalar (mean of per-sample losses)
         assert isinstance(loss, torch.Tensor)
@@ -213,7 +208,7 @@ class TestLogicLossReductionModes:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none' to get per-batch losses first
-        loss = logic_loss.loss(x, quantify='none', reduction="sum")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="sum")
 
         # Should return scalar (sum of per-sample losses)
         assert isinstance(loss, torch.Tensor)
@@ -236,7 +231,7 @@ class TestLogicLossReductionModes:
 
         x = torch.randn(10, 5)
         # quantify='none' gives per-batch losses, reduction='none' keeps them
-        loss = logic_loss.loss(x, quantify='none', reduction="none")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="none")
 
         # Should return per-sample losses
         assert isinstance(loss, torch.Tensor)
@@ -262,7 +257,7 @@ class TestLogicLossReductionModes:
         # Should raise ValueError for invalid reduction mode
         # reduction requires quantify='none'
         with pytest.raises(ValueError, match="Invalid reduction"):
-            logic_loss.loss(x, quantify='none', reduction="invalid_mode")
+            logic_loss.loss(X=x, quantify='none', reduction="invalid_mode")
 
 
 class TestLogicLossCombinedPostProcessingAndReduction:
@@ -283,7 +278,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
         # Log post-processing: -log(0.5), mean reduction
         expected_loss = -torch.log(torch.tensor(0.5))
@@ -306,7 +301,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="sum")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="sum")
 
         # Linear post-processing: 1 - 0.7 = 0.3, sum over batch of 10 = 3.0
         assert isinstance(loss, torch.Tensor)
@@ -334,7 +329,7 @@ class TestLogicLossCombinedPostProcessingAndReduction:
                 logic_loss = LogicLoss(compiled, post_processing=post_proc)
                 x = torch.randn(10, 5)
                 # reduction requires quantify='none'
-                loss = logic_loss.loss(x, quantify='none', reduction=reduction)
+                loss = logic_loss.loss(X=x, quantify='none', reduction=reduction)
 
                 # Verify loss is computed without error
                 assert isinstance(loss, torch.Tensor)
@@ -372,7 +367,7 @@ class TestLogicLossGradientFlow:
         logic_loss = LogicLoss(compiled)
 
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(x)
+        satisfaction = logic_loss(X=x)
 
         # Compute some scalar from satisfaction and backprop
         scalar_output = satisfaction.mean()
@@ -407,7 +402,7 @@ class TestLogicLossGradientFlow:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
         # Backprop through loss
         loss.backward()
@@ -441,7 +436,7 @@ class TestLogicLossGradientFlow:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
         # Backprop through log post-processing
         loss.backward()
@@ -475,7 +470,7 @@ class TestLogicLossGradientFlow:
 
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
         # Backprop through linear post-processing
         loss.backward()
@@ -558,7 +553,7 @@ class TestLogicLossTrainableParameters:
         # Run one optimization step
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -587,14 +582,14 @@ class TestLogicLossBoundaryConditions:
         logic_loss_linear = LogicLoss(compiled, post_processing="linear")
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss_linear = logic_loss_linear.loss(x, quantify='none', reduction="mean")
+        loss_linear = logic_loss_linear.loss(X=x, quantify='none', reduction="mean")
 
         # Linear: loss = 1 - 1 = 0
         assert torch.allclose(loss_linear, torch.tensor(0.0), atol=1e-5)
 
         # Test with log post-processing (log(1) = 0)
         logic_loss_log = LogicLoss(compiled, post_processing="log")
-        loss_log = logic_loss_log.loss(x, quantify='none', reduction="mean")
+        loss_log = logic_loss_log.loss(X=x, quantify='none', reduction="mean")
 
         # Log: loss = -log(1) = 0
         assert torch.allclose(loss_log, torch.tensor(0.0), atol=1e-5)
@@ -616,14 +611,14 @@ class TestLogicLossBoundaryConditions:
         logic_loss_linear = LogicLoss(compiled, post_processing="linear")
         x = torch.randn(10, 5)
         # reduction requires quantify='none'
-        loss_linear = logic_loss_linear.loss(x, quantify='none', reduction="mean")
+        loss_linear = logic_loss_linear.loss(X=x, quantify='none', reduction="mean")
 
         # Linear: loss = 1 - 1e-7 ≈ 1
         assert torch.allclose(loss_linear, torch.tensor(1.0), atol=1e-5)
 
         # Test with log post-processing (log should give large positive value)
         logic_loss_log = LogicLoss(compiled, post_processing="log")
-        loss_log = logic_loss_log.loss(x, quantify='none', reduction="mean")
+        loss_log = logic_loss_log.loss(X=x, quantify='none', reduction="mean")
 
         # Log: loss = -log(1e-7) is large and positive
         expected_log_loss = -torch.log(torch.tensor(1e-7))
@@ -651,9 +646,11 @@ class TestLogicLossBoundaryConditions:
                 compiled,
                 post_processing="linear",
             )
-            x = {"X": torch.randn(10, 5), "Y": val}
+            inputs = {"X": torch.randn(10, 5), "Y": val}
             # reduction requires quantify='none'
-            loss_linear = logic_loss_linear.loss(x, quantify='none', reduction="mean")
+            loss_linear = logic_loss_linear.loss(
+                **inputs, quantify='none', reduction="mean"
+            )
 
             # Should not produce NaN or inf
             assert not torch.isnan(loss_linear)
@@ -662,7 +659,7 @@ class TestLogicLossBoundaryConditions:
 
             # Log post-processing should also be stable (though large)
             logic_loss_log = LogicLoss(compiled, post_processing="log")
-            loss_log = logic_loss_log.loss(x, quantify='none', reduction="mean")
+            loss_log = logic_loss_log.loss(**inputs, quantify='none', reduction="mean")
 
             # Should not produce NaN (inf is possible for very small values)
             assert not torch.isnan(loss_log)
@@ -688,9 +685,11 @@ class TestLogicLossBoundaryConditions:
             logic_loss_linear = LogicLoss(
                 compiled, post_processing="linear"
             )
-            x = {"X": torch.randn(10, 5), "Y": val}
+            inputs = {"X": torch.randn(10, 5), "Y": val}
             # reduction requires quantify='none'
-            loss_linear = logic_loss_linear.loss(x, quantify='none', reduction="mean")
+            loss_linear = logic_loss_linear.loss(
+                **inputs, quantify='none', reduction="mean"
+            )
 
             # Should not produce NaN or inf
             assert not torch.isnan(loss_linear)
@@ -700,7 +699,7 @@ class TestLogicLossBoundaryConditions:
 
             # Log post-processing should also be stable
             logic_loss_log = LogicLoss(compiled, post_processing="log")
-            loss_log = logic_loss_log.loss(x, quantify='none', reduction="mean")
+            loss_log = logic_loss_log.loss(**inputs, quantify='none', reduction="mean")
 
             # Should not produce NaN or inf
             assert not torch.isnan(loss_log)
@@ -731,9 +730,9 @@ class TestLogicLossInputHandling:
         # Single tensor input
         x = torch.randn(10, 5)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
         # reduction requires quantify='none'
-        loss = logic_loss.loss(x, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
         # Should work without errors
         assert isinstance(satisfaction, torch.Tensor)
@@ -790,11 +789,11 @@ class TestLogicLossInputHandling:
         for batch_size in batch_sizes:
             x = torch.randn(batch_size, 5)
             # Use quantify='none' to get per-batch results
-            satisfaction = logic_loss(x, quantify='none')
+            satisfaction = logic_loss(X=x, quantify='none')
             # reduction requires quantify='none'
-            loss_none = logic_loss.loss(x, quantify='none', reduction="none")
-            loss_mean = logic_loss.loss(x, quantify='none', reduction="mean")
-            loss_sum = logic_loss.loss(x, quantify='none', reduction="sum")
+            loss_none = logic_loss.loss(X=x, quantify='none', reduction="none")
+            loss_mean = logic_loss.loss(X=x, quantify='none', reduction="mean")
+            loss_sum = logic_loss.loss(X=x, quantify='none', reduction="sum")
 
             # Check shapes
             assert satisfaction.shape == (batch_size,)

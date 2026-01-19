@@ -147,7 +147,7 @@ class TestTernaryPredicates:
         batch_size = 4
         x = torch.randn(batch_size, 5)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 

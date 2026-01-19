@@ -130,7 +130,7 @@ class TestPredicateNameAssignment:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
@@ -153,7 +153,7 @@ class TestPredicateNameAssignment:
         assert pred.name == "P"
 
         x = torch.randn(1, 10)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()  # type: ignore[no-untyped-call]
 
@@ -308,7 +308,7 @@ class TestPredicateNameReassignmentValidation:
 
         # Should still work
         x = torch.randn(1, 5)
-        result = compiled2(x)
+        result = compiled2(X=x)
         assert result.shape == (1,)
 
     def test_multiple_predicates_one_reused_raises_error(self) -> None:
@@ -430,7 +430,7 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(x, quantify='none')
+        result = logic_loss(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
         assert (result >= 0).all()
@@ -501,7 +501,7 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
@@ -556,7 +556,7 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
 
         # Model outputs (batch, 1) which should be squeezed correctly
         assert satisfaction.shape == (batch_size,)
@@ -601,7 +601,7 @@ class TestAutomaticPredicateWrapping:
         logic_loss = compile_logic(expr, predicates)
 
         x = torch.randn(1, 10)
-        loss = logic_loss.loss(x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()  # type: ignore[no-untyped-call]
 
@@ -628,7 +628,7 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 5)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
@@ -675,7 +675,7 @@ class TestBackwardCompatibility:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()

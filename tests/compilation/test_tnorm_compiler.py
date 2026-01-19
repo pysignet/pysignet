@@ -329,9 +329,9 @@ class TestTNormCompilerWithDifferentTNorms:
         lukasiewicz_compiler = TNormCompiler(tnorm=LukasiewiczTNorm())
         godel_compiler = TNormCompiler(tnorm=GodelTNorm())
 
-        r_product_result = r_product_compiler.compile(expr, predicates)(x)
-        lukasiewicz_result = lukasiewicz_compiler.compile(expr, predicates)(x)
-        godel_result = godel_compiler.compile(expr, predicates)(x)
+        r_product_result = r_product_compiler.compile(expr, predicates)(X=x)
+        lukasiewicz_result = lukasiewicz_compiler.compile(expr, predicates)(X=x)
+        godel_result = godel_compiler.compile(expr, predicates)(X=x)
 
         # They should produce different results
         # R-Product: 0.48, Lukasiewicz: 0.4, Godel: 0.6
@@ -536,7 +536,7 @@ class TestTNormCompilerInputHandling:
         x_q = torch.randn(1, 3)
         inputs = {"X": x_p, "Y": x_q}
 
-        result = compiled(inputs)
+        result = compiled(**inputs)
 
         assert isinstance(result, torch.Tensor)
         assert result.shape == (1,)
@@ -603,8 +603,8 @@ class TestTNormCompilerReusability:
         compiled2 = compiler.compile(expr2, predicates)
 
         x = torch.randn(1, 5)
-        result1 = compiled1(x)
-        result2 = compiled2(x)
+        result1 = compiled1(X=x)
+        result2 = compiled2(X=x)
 
         # Should produce different results (AND vs OR)
         assert torch.allclose(result1, torch.tensor(0.48), atol=1e-5)  # AND
@@ -657,10 +657,10 @@ class TestTNormCompilerBooleanConstants:
         compiler = TNormCompiler()
         compiled_true = compiler.compile(expr_true, {})
 
-        # Test with different batch sizes
+        # Test with different batch sizes (need dict input for batch size)
         for batch_size in [1]:
             x = torch.randn(batch_size, 5)
-            result = compiled_true(x)
+            result = compiled_true(X=x)  # Use X= to provide batch size
             assert result.shape == (batch_size,)
             assert torch.allclose(result, torch.ones(batch_size), atol=1e-5)
 
@@ -670,7 +670,7 @@ class TestTNormCompilerBooleanConstants:
 
         for batch_size in [1]:
             x = torch.randn(batch_size, 5)
-            result = compiled_false(x)
+            result = compiled_false(X=x)  # Use X= to provide batch size
             assert result.shape == (batch_size,)
             assert torch.allclose(result, torch.zeros(batch_size), atol=1e-5)
 

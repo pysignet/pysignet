@@ -31,8 +31,8 @@ def test_deterministic_predicate() -> None:
     x_pos = torch.ones(1, 3)
     x_neg = -torch.ones(1, 3)
 
-    assert (logic_loss(x_pos) == 1.0).all()
-    assert (logic_loss(x_neg) == 0.0).all()
+    assert (logic_loss(X=x_pos) == 1.0).all()
+    assert (logic_loss(X=x_neg) == 0.0).all()
 
 
 def test_model_predicate_auto_detection() -> None:
@@ -111,7 +111,7 @@ def test_non_tensor_predicate_return() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Should convert 0.75 to tensor
     assert isinstance(satisfaction, torch.Tensor)
@@ -132,7 +132,7 @@ def test_predicate_clamping_above_one() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Should be clamped to 1.0
     assert torch.allclose(satisfaction, torch.tensor(1.0))
@@ -153,7 +153,7 @@ def test_predicate_clamping_below_zero() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Should be clamped to 0.0
     assert torch.allclose(satisfaction, torch.tensor(0.0))
@@ -179,7 +179,7 @@ def test_predicate_with_neural_network() -> None:
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 5)
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Should return values in [0, 1] due to sigmoid
     assert satisfaction.shape == ()  # Scalar with forall quantification
@@ -209,7 +209,7 @@ def test_predicate_with_multiple_models() -> None:
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 5)
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(x)
+    satisfaction = logic_loss(X=x)
 
     # Should compute correctly with all models
     assert satisfaction.shape == ()  # Scalar with forall quantification
