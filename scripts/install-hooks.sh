@@ -30,6 +30,11 @@ NC='\033[0m' # No Color
 # Track failures
 FAILED=0
 
+# 0. Install
+echo ""
+echo "Installing ..."
+poetry install
+
 # 1. Run tests with coverage
 echo ""
 echo "1. Running tests with coverage check..."
@@ -43,7 +48,7 @@ fi
 # 2. Run mypy type checking
 echo ""
 echo "2. Running mypy type checking..."
-if poetry run mypy src/ --ignore-missing-imports --no-error-summary 2>/dev/null; then
+if poetry run python -m mypy src/ --ignore-missing-imports --no-error-summary 2>/dev/null; then
     echo -e "${GREEN}[PASS]${NC} Type checking passed"
 else
     echo -e "${RED}[FAIL]${NC} Type checking failed"
