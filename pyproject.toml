@@ -12,6 +12,7 @@ dependencies = [
     "sympy (>=1.14.0,<2.0.0)",
     "numpy (>=2.4.0,<3.0.0)"
 ]
+license = "MIT"
 
 [tool.poetry]
 packages = [{include = "pysignet", from = "src"}]
