@@ -1,5 +1,7 @@
 # pysignet: Logic-as-Loss for Neural Networks
 
+![Pysignet logo](assets/pysignet-logo.png)
+
 ## What is this project?
 
 A PyTorch library that converts symbolic predicate logic expressions (written in
