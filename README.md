@@ -21,7 +21,7 @@ This library bridges symbolic logic (SymPy) with differentiable optimization
 import torch
 import torch.nn as nn
 import sympy as sp
-from pysignet import Symbol, Variable, compile_logic
+from pysignet import Symbol, Variable, logic_to_loss
 
 # Define symbols and variables
 P, Q = Symbol("P Q")
@@ -41,8 +41,8 @@ predicates = {
     "Q": lambda x: model_q(x).squeeze(-1)
 }
 
-# Compile the logic expression
-logic_loss = compile_logic(expr, predicates)
+# Compile the logic expression for training
+logic_loss = logic_to_loss(expr, predicates)
 
 # Use in training
 x = torch.randn(32, 10)  # batch of 32 inputs
@@ -138,10 +138,10 @@ expr = Exists(Y, range(10), Digit(X, Y))
 
 ### Batch Quantification
 
-Control how batch dimensions are handled:
+Control how batch dimensions are handled with `logic_to_loss`:
 
 ```python
-logic_loss = compile_logic(expr, predicates)
+logic_loss = logic_to_loss(expr, predicates)
 x = torch.randn(32, 10)
 
 # Universal quantification (default): ALL batch elements must satisfy
@@ -152,6 +152,13 @@ satisfaction = logic_loss(X=x, quantify='exists')  # Scalar
 
 # No quantification: per-element satisfaction
 satisfaction = logic_loss(X=x, quantify='none')  # Shape: (32,)
+```
+
+For per-batch results only (without quantification), use `compile_logic`:
+
+```python
+compiled = compile_logic(expr, predicates)
+per_batch = compiled(X=x)  # Shape: (32,) - always per-batch
 ```
 
 ### T-Norms
@@ -196,7 +203,7 @@ model = nn.Sequential(
     nn.Softmax(dim=-1)
 )
 
-logic_loss = compile_logic(expr, {"Digit": model})
+logic_loss = logic_to_loss(expr, {"Digit": model})
 
 # Training loop
 for images, labels in dataloader:
@@ -214,7 +221,14 @@ X = Variable("X")
 
 expr = sp.Implies(P(X), sp.Not(Q(X)))
 
-logic_loss = compile_logic(expr, {
+# For training with loss computation
+logic_loss = logic_to_loss(expr, {
+    "P": model_p,
+    "Q": model_q
+})
+
+# For per-batch evaluation only
+compiled = compile_logic(expr, {
     "P": model_p,
     "Q": model_q
 })
@@ -236,32 +250,63 @@ def similarity_fn(x, y):
     return similarity_model(combined).squeeze(-1)
 
 predicates = {"Similar": similarity_fn}
-logic_loss = compile_logic(expr, predicates)
 
-# Evaluate with two different inputs
+# For per-batch evaluation
+compiled = compile_logic(expr, predicates)
 x1 = torch.randn(32, 10)
 x2 = torch.randn(32, 10)
-satisfaction = logic_loss(X=x1, Y=x2)
+satisfaction = compiled(X=x1, Y=x2)  # Shape: (32,)
+
+# For training with quantification and loss
+logic_loss = logic_to_loss(expr, predicates)
+satisfaction = logic_loss(X=x1, Y=x2)  # Scalar (forall)
 ```
 
 ## API Reference
 
 ### compile_logic
 
+Returns `CompiledExpression` for per-batch evaluation:
+
 ```python
 compile_logic(
+    expression,           # SymPy logic expression with FOL
+    predicates,           # Dict mapping symbol names to callables/models
+    tnorm='rproduct'      # T-norm: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
+) -> CompiledExpression
+```
+
+### logic_to_loss
+
+Returns `LogicLoss` with quantification and loss methods:
+
+```python
+logic_to_loss(
     expression,           # SymPy logic expression with FOL
     predicates,           # Dict mapping symbol names to callables/models
     tnorm='rproduct'      # T-norm: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
 ) -> LogicLoss
 ```
 
+### CompiledExpression
+
+```python
+# Evaluation (always per-batch)
+satisfaction = compiled(X=x)  # Shape: (batch_size,)
+
+# Partial binding
+partial = compiled.partial(X=x)
+result = partial(Y=y)
+```
+
 ### LogicLoss
 
 ```python
-# Evaluation
-satisfaction = logic_loss(X=x, quantify='forall')  # [0, 1]
-log_sat = logic_loss.log_satisfaction(X=x)          # (-inf, 0]
+# Evaluation with quantification
+satisfaction = logic_loss(X=x, quantify='forall')  # Scalar [0, 1]
+satisfaction = logic_loss(X=x, quantify='exists')  # Scalar [0, 1]
+satisfaction = logic_loss(X=x, quantify='none')    # Shape: (batch_size,)
+log_sat = logic_loss.log_satisfaction(X=x)         # (-inf, 0]
 
 # Loss computation
 loss = logic_loss.loss(X=x, quantify='forall')                    # Scalar

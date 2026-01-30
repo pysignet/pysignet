@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic, Predicate
+from pysignet import Symbol, Variable, compile_logic, logic_to_loss, Predicate
 from pysignet.logic.extraction import (
     extract_variables_from_application,
     extract_constants_from_application,
@@ -333,7 +333,8 @@ class TestCompilationBaseEdgeCases:
         x = torch.randn(4, 10)
         y = torch.randn(4, 10)
         result = compiled(X=x, Y=y)
-        assert result.shape == ()  # Scalar with default quantify='forall'
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
     def test_module_arity_mismatch_unary_used_as_binary(self):
         """Test error when unary module used with multiple arguments."""
@@ -383,8 +384,8 @@ class TestCompilationBaseEdgeCases:
         x = torch.randn(4, 10)
         result = compiled(X=x)
 
-        # Should work
-        assert result.shape == ()
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
     def test_predicate_not_callable_error(self):
         """Test error when predicate value is not callable."""
@@ -420,7 +421,7 @@ class TestQuantifyModes:
             result[0] = 1.0  # First element satisfied
             return result
 
-        compiled = compile_logic(expr, {"P": p_func})
+        compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(10, 5)
 
         result = compiled(X=x, quantify='exists')
@@ -439,7 +440,7 @@ class TestQuantifyModes:
             result[0] = 0.0  # First element NOT satisfied
             return result
 
-        compiled = compile_logic(expr, {"P": p_func})
+        compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(10, 5)
 
         result = compiled(X=x, quantify='forall')
@@ -457,7 +458,7 @@ class TestLossEdgeCases:
         expr = P(X)
 
         predicates = {"P": lambda x: torch.sigmoid(x.sum(dim=-1))}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(8, 10)
         loss = compiled.loss(X=x, quantify='none', reduction='sum')
@@ -471,7 +472,7 @@ class TestLossEdgeCases:
         expr = P(X)
 
         predicates = {"P": lambda x: torch.sigmoid(x.sum(dim=-1))}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(8, 10)
         loss = compiled.loss(X=x, quantify='none', reduction='none')
@@ -485,7 +486,7 @@ class TestLossEdgeCases:
         expr = P(X)
 
         predicates = {"P": lambda x: torch.sigmoid(x.sum(dim=-1))}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(8, 10)
         log_sat = compiled.log_satisfaction(X=x)
@@ -518,7 +519,8 @@ class TestCompiledExpressionEdgeCases:
         partial2 = partial1.partial(Y=y)
         result = partial2(Z=z)
 
-        assert result.shape == ()  # Scalar
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
     def test_partial_binding_loss(self):
         """Test computing loss from partial binding."""
@@ -530,7 +532,7 @@ class TestCompiledExpressionEdgeCases:
             "P": lambda x: torch.sigmoid(x.sum(dim=-1)),
             "Q": lambda y: torch.sigmoid(y.mean(dim=-1)),
         }
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(4, 10)
         y = torch.randn(4, 10)
@@ -572,7 +574,8 @@ class TestCompiledExpressionEdgeCases:
         # After binding X, we can still call with Y
         y = torch.randn(4, 10)
         result = partial(Y=y)
-        assert result.shape == ()  # Scalar
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
 
 class TestArityValidationEdgeCases:
@@ -588,7 +591,7 @@ class TestArityValidationEdgeCases:
             # Use all args to satisfy arity
             return torch.sigmoid(x.sum(dim=-1) + a + b + c)
 
-        compiled = compile_logic(expr, {"P": multi_arg_func})
+        compiled = logic_to_loss(expr, {"P": multi_arg_func})
         x = torch.randn(4, 10)
         result = compiled(X=x)
 
@@ -600,7 +603,7 @@ class TestArityValidationEdgeCases:
         X = Variable("X")
         expr = P(X)
 
-        compiled = compile_logic(expr, {
+        compiled = logic_to_loss(expr, {
             "P": lambda x: torch.sigmoid(x.sum(dim=-1))
         })
 
@@ -621,13 +624,13 @@ class TestTNormOperators:
         a = torch.tensor([0.0, 0.5, 1.0])
         b = torch.tensor([1.0, 0.5, 0.0])
 
-        # AND = min
-        result_and = tnorm.conjunction(a, b)
+        # AND = min (now takes tensor input with dim-0 reduction)
+        result_and = tnorm.conjunction(torch.stack([a, b]))
         expected_and = torch.tensor([0.0, 0.5, 0.0])
         assert torch.allclose(result_and, expected_and)
 
-        # OR = max
-        result_or = tnorm.disjunction(a, b)
+        # OR = max (now takes tensor input with dim-0 reduction)
+        result_or = tnorm.disjunction(torch.stack([a, b]))
         expected_or = torch.tensor([1.0, 0.5, 1.0])
         assert torch.allclose(result_or, expected_or)
 
@@ -639,13 +642,13 @@ class TestTNormOperators:
         a = torch.tensor([0.0, 0.5, 1.0])
         b = torch.tensor([1.0, 0.5, 0.0])
 
-        # AND = max(0, a+b-1)
-        result_and = tnorm.conjunction(a, b)
+        # AND = max(0, sum - (n-1)) (now takes tensor input with dim-0 reduction)
+        result_and = tnorm.conjunction(torch.stack([a, b]))
         expected_and = torch.tensor([0.0, 0.0, 0.0])
         assert torch.allclose(result_and, expected_and)
 
-        # OR = min(1, a+b)
-        result_or = tnorm.disjunction(a, b)
+        # OR = min(1, sum) (now takes tensor input with dim-0 reduction)
+        result_or = tnorm.disjunction(torch.stack([a, b]))
         expected_or = torch.tensor([1.0, 1.0, 1.0])
         assert torch.allclose(result_or, expected_or)
 
@@ -712,7 +715,8 @@ class TestBaseCompilerEdgeCases:
         x = torch.randn(4, 10)
         result = compiled(X=x)
 
-        assert result.shape == ()  # Scalar after reduction
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
     def test_invalid_boolean_constant_error(self):
         """Test error for invalid boolean constant (line 620)."""
@@ -731,7 +735,8 @@ class TestBaseCompilerEdgeCases:
         x = torch.randn(4, 10)
         result = compiled(X=x)
 
-        assert result.shape == ()
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
 
 class TestLTUCompilerEdgeCases:
@@ -906,7 +911,8 @@ class TestArityUninspectable:
         x = torch.randn(4, 10)
         result = compiled(X=x)
 
-        assert result.shape == ()
+        # CompiledExpression returns per-batch results
+        assert result.shape == (4,)
 
 
 class TestModuleUtilsEdgeCases:
@@ -1013,7 +1019,7 @@ class TestLossEdgeCasesAdditional:
         X = Variable("X")
         expr = P(X)
 
-        compiled = compile_logic(expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.5})
+        compiled = logic_to_loss(expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.5})
         x = torch.randn(4, 10)
 
         log_sat = compiled.log_satisfaction(X=x, quantify='exists')
@@ -1030,7 +1036,7 @@ class TestLossEdgeCasesAdditional:
         X = Variable("X")
         expr = P(X)
 
-        compiled = compile_logic(expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.9})
+        compiled = logic_to_loss(expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.9})
         x = torch.randn(4, 10)
 
         log_sat = compiled.log_satisfaction(X=x, quantify='forall')
@@ -1045,7 +1051,7 @@ class TestLossEdgeCasesAdditional:
         X = Variable("X")
         expr = P(X)
 
-        compiled = compile_logic(expr, {"P": lambda x: torch.ones(x.shape[0])})
+        compiled = logic_to_loss(expr, {"P": lambda x: torch.ones(x.shape[0])})
         x = torch.randn(4, 10)
 
         with pytest.raises(ValueError, match="Invalid quantify"):

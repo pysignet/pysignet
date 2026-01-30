@@ -21,8 +21,8 @@ class TNormCompiler(LogicCompiler):
     Godel, etc.) to convert crisp logical operators into differentiable
     operations over [0,1].
 
-    The compile() method returns a closure that evaluates the expression when
-    called with inputs.
+    The compile() method returns a CompiledExpression that evaluates the
+    expression when called with inputs.
 
     Args:
         tnorm: T-norm instance for relaxation (default: RProductTNorm)
@@ -40,7 +40,40 @@ class TNormCompiler(LogicCompiler):
             tnorm: T-norm for logical operator relaxation. If None, uses
                   RProductTNorm as default.
         """
-        self.tnorm = tnorm or RProductTNorm()
+        self._tnorm = tnorm or RProductTNorm()
+
+    @property
+    def recommended_postprocessing(self) -> str:
+        """Delegate to t-norm's recommendation."""
+        return self._tnorm.recommended_postprocessing
+
+    def conjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Delegate to t-norm conjunction."""
+        return self._tnorm.conjunction(values)
+
+    def disjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Delegate to t-norm disjunction."""
+        return self._tnorm.disjunction(values)
+
+    def negation(self, a: torch.Tensor) -> torch.Tensor:
+        """Delegate to t-norm negation."""
+        return self._tnorm.negation(a)
+
+    def implication(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor
+    ) -> torch.Tensor:
+        """Delegate to t-norm implication."""
+        return self._tnorm.implication(a, b)
+
+    def equivalence(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor
+    ) -> torch.Tensor:
+        """Delegate to t-norm equivalence."""
+        return self._tnorm.equivalence(a, b)
 
     def compile(
         self,
@@ -95,13 +128,13 @@ class TNormCompiler(LogicCompiler):
                 expanded_expr, inputs, wrapped_predicates, ctx
             )
 
-        # Return CompiledExpression (no batch reduction - handled by LogicLoss)
+        # Return CompiledExpression with compiler reference
         return CompiledExpression(
             compiled_logic=compiled_logic,
             free_variables=set(v.name for v in free_vars),
-            predicates=wrapped_predicates
+            predicates=wrapped_predicates,
+            compiler=self
         )
-
 
     def _evaluate_expression(
         self,
@@ -131,7 +164,8 @@ class TNormCompiler(LogicCompiler):
         if isinstance(expr, sp.Symbol):
             raise ValueError(
                 f"Bare symbol '{expr}' is not supported. "
-                f"All predicates must be called with at least one variable argument "
+                f"All predicates must be called with at least one "
+                f"variable argument "
                 f"(e.g., use P(X) instead of P)."
             )
 
@@ -139,42 +173,46 @@ class TNormCompiler(LogicCompiler):
         if expr in (sp.true, sp.false):
             return self._evaluate_boolean_constant(expr, inputs)
 
-        # Logical operators
+        # Logical operators - use self (LogicCompiler) methods
         if isinstance(expr, sp.And):
-            # Conjoin all arguments
-            result = self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
-            for arg in expr.args[1:]:
-                result = self.tnorm.conjunction(
-                    result,
-                    self._evaluate_expression(arg, inputs, predicates, ctx)
-                )
-            return result
+            args = [
+                self._evaluate_expression(a, inputs, predicates, ctx)
+                for a in expr.args
+            ]
+            return self.conjunction(torch.stack(args))
 
         if isinstance(expr, sp.Or):
-            # Disjoin all arguments
-            result = self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
-            for arg in expr.args[1:]:
-                result = self.tnorm.disjunction(
-                    result,
-                    self._evaluate_expression(arg, inputs, predicates, ctx)
-                )
-            return result
+            args = [
+                self._evaluate_expression(a, inputs, predicates, ctx)
+                for a in expr.args
+            ]
+            return self.disjunction(torch.stack(args))
 
         if isinstance(expr, sp.Not):
-            return self.tnorm.negation(
-                self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
+            return self.negation(
+                self._evaluate_expression(
+                    expr.args[0], inputs, predicates, ctx
+                )
             )
 
         if isinstance(expr, sp.Implies):
-            return self.tnorm.implication(
-                self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
-                self._evaluate_expression(expr.args[1], inputs, predicates, ctx)
+            return self.implication(
+                self._evaluate_expression(
+                    expr.args[0], inputs, predicates, ctx
+                ),
+                self._evaluate_expression(
+                    expr.args[1], inputs, predicates, ctx
+                )
             )
 
         if isinstance(expr, sp.Equivalent):
-            return self.tnorm.equivalence(
-                self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
-                self._evaluate_expression(expr.args[1], inputs, predicates, ctx)
+            return self.equivalence(
+                self._evaluate_expression(
+                    expr.args[0], inputs, predicates, ctx
+                ),
+                self._evaluate_expression(
+                    expr.args[1], inputs, predicates, ctx
+                )
             )
 
         raise ValueError(f"Unsupported expression type: {type(expr)}")

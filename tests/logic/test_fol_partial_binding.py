@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, compile_logic, logic_to_loss
 from pysignet.logic import Variable
 
 
@@ -33,14 +33,14 @@ class TestBasicPartialBinding:
         compiled = compile_logic(expr, predicates)
 
         # Partial bind X
-        x = torch.randn(1, 10)
+        batch_size = 4
+        x = torch.randn(batch_size, 10)
         partial = compiled.partial(X=x)
 
-        # Now bind Y
-        batch_size = 4
+        # Now bind Y with same batch size
         y = torch.randn(batch_size, 10)
-        # Use quantify='none' to get per-batch results
-        result = partial(Y=y, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = partial(Y=y)
 
         assert result.shape == torch.Size([batch_size])
         assert torch.all((result >= 0) & (result <= 1))
@@ -138,8 +138,8 @@ class TestMultiplePartialBindings:
         y = torch.randn(1, 10)
         z = torch.randn(1, 10)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled.partial(X=x).partial(Y=y)(Z=z, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled.partial(X=x).partial(Y=y)(Z=z)
 
         assert result.shape == torch.Size([1])
         assert torch.all((result >= 0) & (result <= 1))
@@ -334,8 +334,8 @@ class TestPartialBindingWithDifferentExpressions:
         partial = compiled.partial(X=x)
 
         # Call with no more arguments needed
-        # Use quantify='none' to get per-batch results
-        result = partial(quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = partial()
 
         assert result.shape == torch.Size([1])
 
@@ -355,17 +355,17 @@ class TestPartialBindingLoss:
             "Q": lambda y: torch.sigmoid(y.sum(dim=-1))
         }
 
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10)
         y = torch.randn(1, 10)
 
         # Partial bind and compute loss
-        partial = compiled.partial(X=x)
+        partial = logic_loss.partial(X=x)
         loss = partial.loss(Y=y)
 
         # Compare to full binding
-        loss_full = compiled.loss(X=x, Y=y)
+        loss_full = logic_loss.loss(X=x, Y=y)
 
         assert torch.allclose(loss, loss_full)
 
@@ -381,13 +381,13 @@ class TestPartialBindingLoss:
             "Q": lambda y: torch.sigmoid(y.sum(dim=-1))
         }
 
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10, requires_grad=True)
         y = torch.randn(1, 10, requires_grad=True)
 
         # Partial bind and compute loss
-        partial = compiled.partial(X=x)
+        partial = logic_loss.partial(X=x)
         loss = partial.loss(Y=y)
 
         # Backward pass

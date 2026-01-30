@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import compile_logic, Symbol, Variable
+from pysignet import compile_logic, logic_to_loss, Symbol, Variable
 from pysignet.multiclass import PredicateApplication
 from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm
 
@@ -255,7 +255,7 @@ class TestEvaluation:
         )
 
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -326,7 +326,7 @@ class TestGradientFlow:
             nn.Softmax(dim=-1)
         )
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10, requires_grad=True)
@@ -351,7 +351,7 @@ class TestGradientFlow:
         )
 
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10, requires_grad=True)
         loss = compiled.loss(X=x)
@@ -372,7 +372,7 @@ class TestGradientFlow:
 
         classifier = nn.Linear(10, 3)
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10, requires_grad=True)
         loss = compiled.loss(X=x)
@@ -399,7 +399,7 @@ class TestBatchSizes:
         )
 
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
@@ -486,7 +486,7 @@ class TestMixedPredicates:
             "Regular": regular_func
         }
 
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -548,7 +548,7 @@ class TestTNormCompatibility:
         )
 
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiled = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -569,7 +569,7 @@ class TestTNormCompatibility:
         )
 
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+        compiled = logic_to_loss(expr, predicates, tnorm=LukasiewiczTNorm())
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -640,7 +640,7 @@ class TestLossComputation:
         )
 
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10)
         loss = compiled.loss(X=x)
@@ -656,7 +656,7 @@ class TestLossComputation:
 
         classifier = nn.Linear(10, 3)
         predicates = {"Digit": classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10)
         loss = compiled.loss(X=x)

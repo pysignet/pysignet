@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic
+from pysignet import Symbol, Variable, logic_to_loss
 
 
 class TestSymbolAPI:
@@ -68,7 +68,7 @@ class TestSymbolAPI:
 
         predicates = {"P": binary_model_p, "Q": binary_model_q, "Digit": multiclass}
 
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         # Should evaluate successfully
         x = torch.randn(3, 10)
@@ -89,7 +89,7 @@ class TestSymbolAPI:
 
         # Should raise ValueError at compile time
         with pytest.raises(ValueError, match="Predicate 'P' used inconsistently"):
-            compile_logic(expr, predicates)
+            logic_to_loss(expr, predicates)
 
     def test_validation_rejects_multiclass_without_args(self):
         """Test validation when predicate used with different arities."""
@@ -103,7 +103,7 @@ class TestSymbolAPI:
 
         # Should raise ValueError
         with pytest.raises(ValueError, match="used inconsistently"):
-            compile_logic(expr, predicates)
+            logic_to_loss(expr, predicates)
 
     def test_validation_tracks_arity(self):
         """Test that validation tracks specific arity (not just nullary vs unary)."""
@@ -117,7 +117,7 @@ class TestSymbolAPI:
 
         # Should raise ValueError about inconsistent arity
         with pytest.raises(ValueError, match="used inconsistently"):
-            compile_logic(expr, predicates)
+            logic_to_loss(expr, predicates)
 
 
 class TestSymbolAPIUsagePatterns:
@@ -148,7 +148,7 @@ class TestSymbolAPIUsagePatterns:
         )
 
         predicates = {"Digit": digit_classifier}
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         # Evaluate
         x = torch.randn(3, 784)
@@ -174,7 +174,7 @@ class TestSymbolAPIUsagePatterns:
             "VehicleType": nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1)),
         }
 
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 10)
         result = compiled(X=x)
@@ -194,7 +194,7 @@ class TestSymbolAPIUsagePatterns:
             "R": lambda x: torch.sigmoid(x[:, 2]),
         }
 
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 10)
         result = compiled(X=x)
@@ -217,7 +217,7 @@ class TestSymbolAPIUsagePatterns:
             "Shape": nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1)),
         }
 
-        compiled = compile_logic(expr, predicates)
+        compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 10)
         result = compiled(X=x)

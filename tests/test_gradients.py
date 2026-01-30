@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from pysignet import (
-    compile_logic,
+    logic_to_loss,
     Symbol,
     Variable,
     Predicate,
@@ -29,7 +29,7 @@ def test_basic_gradient_flow() -> None:
     model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
     predicates = {"P": Predicate(lambda x: model(x).squeeze(-1))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -56,7 +56,7 @@ def test_gradient_flow_and() -> None:
         "Q": Predicate(lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -89,7 +89,7 @@ def test_gradient_flow_or() -> None:
         "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -117,7 +117,7 @@ def test_gradient_flow_not() -> None:
         "P": Predicate( lambda x: torch.sigmoid(model(x).squeeze(-1)))
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -146,7 +146,7 @@ def test_gradient_flow_implies() -> None:
         "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -177,7 +177,7 @@ def test_gradient_flow_equivalent() -> None:
         "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -210,7 +210,7 @@ def test_gradient_flow_complex_expression() -> None:
         "R": Predicate( lambda x: torch.sigmoid(model_r(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -244,7 +244,7 @@ def test_gradient_flow_product_tnorm() -> None:
         "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
+    logic_loss = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -275,7 +275,7 @@ def test_gradient_flow_lukasiewicz_tnorm() -> None:
         "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    logic_loss = logic_to_loss(expr, predicates, tnorm=LukasiewiczTNorm())
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -306,7 +306,7 @@ def test_gradient_flow_godel_tnorm() -> None:
         "Q": Predicate( lambda x: torch.sigmoid(model_q(x).squeeze(-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    logic_loss = logic_to_loss(expr, predicates, tnorm=GodelTNorm())
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -334,7 +334,7 @@ def test_gradient_accumulation() -> None:
         "P": Predicate( lambda x: torch.sigmoid(model(x).squeeze(-1)))
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # First backward pass
     x1 = torch.randn(1, 5)
@@ -373,7 +373,7 @@ def test_gradient_zero() -> None:
         "P": Predicate( lambda x: torch.sigmoid(model(x).squeeze(-1)))
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # First backward pass
     x = torch.randn(1, 5)
@@ -419,7 +419,7 @@ def test_gradient_no_nan_or_inf() -> None:
         ),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -449,7 +449,7 @@ def test_get_trainable_parameters_for_optimization() -> None:
         "Q": Predicate( lambda x: (x > 0).float().mean(dim=-1)),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     params = logic_loss.get_trainable_parameters()
 
     # Create optimizer with trainable parameters
@@ -487,7 +487,7 @@ def test_gradient_with_multiple_models() -> None:
         "Q": Predicate( lambda x: model_q(x).squeeze(-1)),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     x = torch.randn(1, 5)
     loss = logic_loss.loss(X=x)
@@ -512,7 +512,7 @@ def test_gradient_independent_of_batch_size() -> None:
 
     predicates = {"P": Predicate( lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Test with different batch sizes
     for batch_size in [1]:

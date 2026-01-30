@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, compile_logic, logic_to_loss
 from pysignet.logic import Variable, ForAll, Exists, expand_quantifier
 
 
@@ -32,22 +32,22 @@ class TestBasicAutoBatching:
         # Create a simple multi-class model
         model = nn.Sequential(nn.Linear(10, 10), nn.Softmax(dim=-1))
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"Digit": model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Evaluate with batch
         batch_size = 5
         x = torch.randn(batch_size, 10)
 
-        # Should work - X is auto-batched
-        result = compiled({"X": x})
+        # Should work - X is auto-batched, forall quantification gives scalar
+        result = logic_loss({"X": x})
 
         # Result should be a scalar (batch reduction via AND)
         assert result.shape == ()
         assert 0 <= result.item() <= 1
 
-    
+
     def test_single_free_variable_batched(self):
         """Single free variable is batched."""
         X = Variable("X")
@@ -59,14 +59,14 @@ class TestBasicAutoBatching:
         # Model
         model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"P": model}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Evaluate
         batch_size = 8
         x = torch.randn(batch_size, 5)
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Scalar result (batch reduction)
         assert result.shape == ()
@@ -83,16 +83,16 @@ class TestBasicAutoBatching:
         # Binary predicate model
         model = lambda x, y: torch.sigmoid(x.sum(dim=-1) + y)
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"P": model}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Evaluate
         batch_size = 4
         x = torch.randn(batch_size, 3)
         y = torch.randint(0, 10, (batch_size,))
 
-        result = compiled({"X": x, "Y": y})
+        result = logic_loss({"X": x, "Y": y})
 
         # Scalar result
         assert result.shape == ()
@@ -117,15 +117,15 @@ class TestMixedQuantification:
         # Model
         model = nn.Sequential(nn.Linear(5, 10), nn.Softmax(dim=-1))
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"Digit": model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Evaluate
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Should be scalar
         assert result.shape == ()
@@ -147,15 +147,15 @@ class TestMixedQuantification:
         # Model
         model = nn.Sequential(nn.Linear(5, 10), nn.Softmax(dim=-1))
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"Digit": model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Evaluate
         batch_size = 4
         x = torch.randn(batch_size, 5)
 
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Scalar result
         assert result.shape == ()
@@ -179,15 +179,15 @@ class TestMixedQuantification:
             # Simple function for testing
             return torch.sigmoid(x.sum(dim=-1) + y + z)
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"P": ternary_model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Evaluate
         batch_size = 2
         x = torch.randn(batch_size, 4)
 
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Scalar
         assert result.shape == ()
@@ -212,15 +212,15 @@ class TestBatchReduction:
 
         model = TestModel()
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"P": model}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Create batch with specific values
         batch_size = 3
         x = torch.tensor([[0.9], [0.8], [0.7]])
 
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Result should be minimum (AND semantics with R-Product)
         # With R-Product: AND = product
@@ -238,12 +238,12 @@ class TestBatchReduction:
         model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
 
         predicates = {"P": model}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Empty batch
         x = torch.randn(0, 5)
 
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Should return 1.0 (vacuously true)
         assert result.item() == 1.0
@@ -269,16 +269,16 @@ class TestGradientFlow:
             nn.Softmax(dim=-1)
         )
 
-        # Compile
+        # Compile with logic_to_loss for loss computation
         predicates = {"Digit": model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Evaluate
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
         # Compute loss
-        loss = compiled.loss({"X": x})
+        loss = logic_loss.loss({"X": x})
 
         # Backward
         loss.backward()
@@ -302,16 +302,16 @@ class TestGradientFlow:
         # Model
         model = nn.Sequential(nn.Linear(4, 5), nn.Softmax(dim=-1))
 
-        # Compile
+        # Compile with logic_to_loss for loss computation
         predicates = {"P": model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Evaluate
         batch_size = 2
         x = torch.randn(batch_size, 4)
 
         # Loss
-        loss = compiled.loss({"X": x})
+        loss = logic_loss.loss({"X": x})
 
         # Backward
         loss.backward()
@@ -345,23 +345,23 @@ class TestRealWorldPatterns:
             nn.Softmax(dim=-1)
         )
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {"Digit": model}
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Batch of "images"
         batch_size = 4
         x = torch.randn(batch_size, 784)
 
         # Evaluate
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         # Should be scalar in [0, 1]
         assert result.shape == ()
         assert 0 <= result.item() <= 1
 
         # Should be able to compute loss
-        loss = compiled.loss({"X": x})
+        loss = logic_loss.loss({"X": x})
         assert loss.shape == ()
 
     
@@ -381,19 +381,19 @@ class TestRealWorldPatterns:
         digit_model = nn.Sequential(nn.Linear(10, 10), nn.Softmax(dim=-1))
         even_model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
-        # Compile
+        # Compile with logic_to_loss for batch quantification
         predicates = {
             "Digit": digit_model,
             "Even": even_model
         }
-        compiled = compile_logic(expanded, predicates)
+        logic_loss = logic_to_loss(expanded, predicates)
 
         # Batch
         batch_size = 3
         x = torch.randn(batch_size, 10)
 
         # Evaluate
-        result = compiled({"X": x})
+        result = logic_loss({"X": x})
 
         assert result.shape == ()
         assert 0 <= result.item() <= 1

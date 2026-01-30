@@ -26,11 +26,11 @@ class TestTNormCompilerBasics:
         """Test TNormCompiler can be initialized with a t-norm."""
         # Test with explicit t-norm
         compiler = TNormCompiler(tnorm=RProductTNorm())
-        assert isinstance(compiler.tnorm, RProductTNorm)
+        assert isinstance(compiler._tnorm, RProductTNorm)
 
         # Test with default (should be RProductTNorm)
         compiler_default = TNormCompiler()
-        assert isinstance(compiler_default.tnorm, RProductTNorm)
+        assert isinstance(compiler_default._tnorm, RProductTNorm)
 
     def test_compile_returns_callable(self) -> None:
         """Test that compile() returns a callable."""

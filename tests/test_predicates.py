@@ -8,7 +8,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import Symbol, Variable, compile_logic, Predicate
+from pysignet import Symbol, Variable, compile_logic, logic_to_loss, Predicate
 
 
 def test_deterministic_predicate() -> None:
@@ -176,7 +176,7 @@ def test_predicate_with_neural_network() -> None:
 
     predicates = {"P": Predicate( lambda x: model(x).squeeze(-1))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(X=x)
@@ -206,7 +206,7 @@ def test_predicate_with_multiple_models() -> None:
         "R": Predicate( lambda x: model_r(x).squeeze(-1)),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(X=x)

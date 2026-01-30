@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, compile_logic, logic_to_loss
 from pysignet.logic import Variable, ForAll, Exists
 
 
@@ -34,8 +34,8 @@ class TestForAllForAllNesting:
 
         # Evaluate with batch
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         # Result should be (3,) - per-batch satisfaction
         assert result.shape == (3,)
@@ -58,8 +58,8 @@ class TestForAllForAllNesting:
         compiled = compile_logic(expr, {"R": model})
 
         x = torch.randn(2, 4)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (2,)
 
@@ -82,8 +82,8 @@ class TestForAllForAllNesting:
         compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
 
@@ -105,8 +105,8 @@ class TestForAllForAllNesting:
         compiled = compile_logic(expr, {"P": model_func})
 
         x = torch.randn(4, 3)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (4,)
 
@@ -129,8 +129,8 @@ class TestExistsExistsNesting:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         # Existential quantification over batch
         assert result.shape == (3,)
@@ -150,8 +150,8 @@ class TestExistsExistsNesting:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(2, 4)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (2,)
 
@@ -175,8 +175,8 @@ class TestExistsExistsNesting:
         compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
 
@@ -199,8 +199,8 @@ class TestMixedQuantifierNesting:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -220,8 +220,8 @@ class TestMixedQuantifierNesting:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
 
@@ -245,8 +245,8 @@ class TestMixedQuantifierNesting:
         compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(2, 4)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (2,)
 
@@ -269,8 +269,8 @@ class TestMixedQuantifierNesting:
         compiled = compile_logic(expr, {"P": p_model, "Q": q_func})
 
         x = torch.randn(2, 3)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (2,)
 
@@ -294,8 +294,8 @@ class TestTripleNesting:
         compiled = compile_logic(expr, {"P": model})
 
         w = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(W=w, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(W=w)
 
         assert result.shape == (3,)
 
@@ -315,8 +315,8 @@ class TestTripleNesting:
         compiled = compile_logic(expr, {"P": model})
 
         w = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(W=w, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(W=w)
 
         assert result.shape == (3,)
 
@@ -336,8 +336,8 @@ class TestTripleNesting:
         compiled = compile_logic(expr, {"P": model})
 
         w = torch.randn(2, 6)
-        # Use quantify='none' to get per-batch results
-        result = compiled(W=w, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(W=w)
 
         assert result.shape == (2,)
 
@@ -363,8 +363,8 @@ class TestVariableScoping:
         compiled = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(3, 4)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
 
@@ -386,8 +386,8 @@ class TestVariableScoping:
 
         # X is the free batch variable
         x = torch.randn(3, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
 
@@ -406,8 +406,8 @@ class TestVariableScoping:
 
         # Should accept just X
         x = torch.randn(4, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (4,)
 
@@ -427,8 +427,8 @@ class TestVariableScoping:
 
         # X is the batch variable
         x = torch.randn(2, 3)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         # Batch dimension preserved
         assert result.shape == (2,)
@@ -447,11 +447,11 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(5, 4), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         x = torch.randn(3, 5)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(X=x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()
 
@@ -470,11 +470,11 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(4, 4), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         x = torch.randn(3, 4)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(X=x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()
 
@@ -491,11 +491,11 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(5, 4), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         x = torch.randn(3, 5)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(X=x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()
 
@@ -513,11 +513,11 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(5, 4), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         w = torch.randn(3, 5)
         # Default quantify='forall' returns scalar, suitable for loss
-        loss = compiled.loss(W=w)
+        loss = logic_loss.loss(W=w)
 
         loss.backward()
 
@@ -545,8 +545,8 @@ class TestRealWorldPatterns:
         compiled = compile_logic(expr, {"Similar": model})
 
         x = torch.randn(4, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (4,)
 
@@ -569,8 +569,8 @@ class TestRealWorldPatterns:
         compiled = compile_logic(expr, {"Digit": digit_model, "Prime": prime_func})
 
         x = torch.randn(3, 8)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)
 
@@ -590,8 +590,8 @@ class TestRealWorldPatterns:
         compiled = compile_logic(expr, {"Class": model})
 
         x = torch.randn(2, 12)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (2,)
 
@@ -615,8 +615,8 @@ class TestEdgeCases:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(2, 3)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         # Should be all 1.0 (vacuously true)
         assert result.shape == (2,)
@@ -637,8 +637,8 @@ class TestEdgeCases:
         compiled = compile_logic(expr, {"P": model})
 
         x = torch.randn(2, 3)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         # Should be all 1.0
         assert result.shape == (2,)
@@ -661,7 +661,7 @@ class TestEdgeCases:
         compiled = compile_logic(expr, {"P": model_func})
 
         x = torch.randn(3, 3)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (3,)

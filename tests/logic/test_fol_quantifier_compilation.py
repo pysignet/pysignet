@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, compile_logic, logic_to_loss
 from pysignet.logic import Variable, ForAll, Exists
 
 
@@ -34,8 +34,7 @@ class TestBasicQuantifierCompilation:
         # Evaluate
         batch_size = 4
         x = torch.randn(batch_size, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled(X=x)
 
         # Should return (batch_size,) - one value per batch element
         assert result.shape == (batch_size,)
@@ -59,8 +58,7 @@ class TestBasicQuantifierCompilation:
         # Evaluate
         batch_size = 4
         x = torch.randn(batch_size, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -83,8 +81,7 @@ class TestBasicQuantifierCompilation:
         # Evaluate
         batch_size = 3
         x = torch.randn(batch_size, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
 
@@ -153,10 +150,10 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(5, 10), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {"Digit": model})
+        logic_loss = logic_to_loss(expr, {"Digit": model})
 
         x = torch.randn(1, 5)
-        loss = compiled.loss(X=x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()
 
@@ -174,10 +171,10 @@ class TestGradientFlow:
 
         model = nn.Sequential(nn.Linear(4, 5), nn.Softmax(dim=-1))
 
-        compiled = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         x = torch.randn(1, 4)
-        loss = compiled.loss(X=x)
+        loss = logic_loss.loss(X=x)
 
         loss.backward()
 
@@ -206,8 +203,7 @@ class TestRealWorldPatterns:
         # Batch of "images"
         batch_size = 4
         x = torch.randn(batch_size, 784)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -234,8 +230,7 @@ class TestRealWorldPatterns:
 
         batch_size = 3
         x = torch.randn(batch_size, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))

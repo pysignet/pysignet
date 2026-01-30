@@ -9,12 +9,15 @@ results with shape (batch_size,). Batch reduction (quantification) and loss
 computation are handled by LogicLoss, which uses BatchHandlerMixin.
 """
 
-from typing import Callable, Dict, Set, List, Optional
+from typing import Callable, Dict, Set, List, Optional, TYPE_CHECKING
 
 import torch
 import torch.nn as nn
 
 from pysignet.predicate import Predicate
+
+if TYPE_CHECKING:
+    from pysignet.compilation.base import LogicCompiler
 
 
 class CompiledExpression:
@@ -27,6 +30,7 @@ class CompiledExpression:
     - Evaluation with variable bindings: compiled(X=x, Y=y) -> Tensor
     - Partial binding: compiled.partial(X=x) -> CompiledExpression
     - Introspection: compiled.free_variables -> Set[str]
+    - Compiler access: compiled.compiler -> LogicCompiler
 
     CompiledExpression performs PURE EVALUATION - it always returns per-batch
     results with shape (batch_size,). No batch reduction is applied. For
@@ -47,6 +51,7 @@ class CompiledExpression:
         predicates: Dict mapping predicate names to Predicate objects
         partial_bindings: Dict of variables already bound in this expression
                          (used internally for partial binding)
+        compiler: Optional LogicCompiler that produced this expression
 
     Example:
         >>> # Create compiled expression
@@ -62,28 +67,46 @@ class CompiledExpression:
         >>> # Introspection
         >>> print(compiled.free_variables)  # {'X', 'Y'}
         >>> print(partial.free_variables)   # {'Y'}
+        >>> print(compiled.compiler)        # TNormCompiler(...)
     """
 
     def __init__(
         self,
-        compiled_logic: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
+        compiled_logic: Callable[
+            [Dict[str, torch.Tensor]], torch.Tensor
+        ],
         free_variables: Set[str],
         predicates: Dict[str, Predicate],
-        partial_bindings: Optional[Dict[str, torch.Tensor]] = None
+        partial_bindings: Optional[Dict[str, torch.Tensor]] = None,
+        compiler: Optional['LogicCompiler'] = None
     ) -> None:
         """Initialize CompiledExpression.
 
         Args:
             compiled_logic: Callable that evaluates expression with inputs
                            as a dict mapping variable names to tensors.
-            free_variables: Set of variable names in the original expression
+            free_variables: Set of variable names in the original
+                expression
             predicates: Dict of predicate objects
-            partial_bindings: Dict of variables already bound (default: empty)
+            partial_bindings: Dict of variables already bound
+                (default: empty)
+            compiler: Optional LogicCompiler that produced this
+                expression
         """
         self._compiled_logic = compiled_logic
         self._free_variables = free_variables
         self._predicates = predicates
         self._partial_bindings = partial_bindings or {}
+        self._compiler = compiler
+
+    @property
+    def compiler(self) -> Optional['LogicCompiler']:
+        """Return the LogicCompiler that produced this expression.
+
+        Returns:
+            LogicCompiler instance or None
+        """
+        return self._compiler
 
     @property
     def free_variables(self) -> Set[str]:
@@ -119,12 +142,14 @@ class CompiledExpression:
 
         Args:
             inputs: Optional dict mapping variable names to tensors.
-                   Prefer using keyword arguments (**variable_bindings) instead.
+                   Prefer using keyword arguments (**variable_bindings)
+                   instead.
             **variable_bindings: Variable bindings (X=x, Y=y, etc.)
 
         Returns:
-            Satisfaction tensor of shape (batch_size,) with values in [0, 1].
-            Always returns per-batch results, never reduced to scalar.
+            Satisfaction tensor of shape (batch_size,) with values in
+            [0, 1]. Always returns per-batch results, never reduced
+            to scalar.
 
         Raises:
             ValueError: If any free variable is not bound
@@ -139,22 +164,25 @@ class CompiledExpression:
             >>> result = partial(Y=y)  # shape: (batch_size,)
         """
         # Merge partial bindings with new bindings
-        all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
+        all_bindings: Dict[str, torch.Tensor] = dict(
+            self._partial_bindings
+        )
 
         # Add new bindings from kwargs
         if variable_bindings:
             if inputs is not None:
                 raise ValueError(
-                    "Cannot provide both 'inputs' dict and keyword arguments. "
-                    "Use one or the other."
+                    "Cannot provide both 'inputs' dict and keyword "
+                    "arguments. Use one or the other."
                 )
             all_bindings.update(variable_bindings)
         elif inputs is not None:
             if not isinstance(inputs, dict):
                 raise ValueError(
-                    "Inputs must be a dict mapping variable names to tensors. "
-                    "Use keyword arguments like compiled(X=tensor) instead of "
-                    "positional arguments like compiled(tensor)."
+                    "Inputs must be a dict mapping variable names "
+                    "to tensors. Use keyword arguments like "
+                    "compiled(X=tensor) instead of positional "
+                    "arguments like compiled(tensor)."
                 )
             all_bindings.update(inputs)
 
@@ -163,20 +191,23 @@ class CompiledExpression:
         missing = self._free_variables - provided
         if missing:
             raise ValueError(
-                f"Missing input bindings for variables: {sorted(missing)}. "
-                f"Expected bindings for: {sorted(self._free_variables)}"
+                f"Missing input bindings for variables: "
+                f"{sorted(missing)}. Expected bindings for: "
+                f"{sorted(self._free_variables)}"
             )
 
         # Evaluate the expression and return per-batch results
         # No batch reduction - LogicLoss handles quantification
         return self._compiled_logic(all_bindings)
 
-    def partial(self, **variable_bindings: torch.Tensor) -> 'CompiledExpression':
+    def partial(
+        self, **variable_bindings: torch.Tensor
+    ) -> 'CompiledExpression':
         """Create new CompiledExpression with some variables bound.
 
-        This creates a NEW computation graph where the bound variables are
-        substituted with their values. The returned CompiledExpression has
-        fewer free variables.
+        This creates a NEW computation graph where the bound variables
+        are substituted with their values. The returned
+        CompiledExpression has fewer free variables.
 
         Future optimizations will use this to:
         - Constant-fold operations on bound variables
@@ -185,7 +216,7 @@ class CompiledExpression:
         - Rewrite the computation graph for efficiency
 
         Args:
-            **variable_bindings: Variable bindings to fix (e.g., X=x, Y=y)
+            **variable_bindings: Variable bindings to fix (X=x, Y=y)
 
         Returns:
             New CompiledExpression with fewer free variables
@@ -207,7 +238,9 @@ class CompiledExpression:
             >>> partial = compiled.partial(X=x, Y=y)
         """
         if not variable_bindings:
-            raise ValueError("Must provide at least one variable binding")
+            raise ValueError(
+                "Must provide at least one variable binding"
+            )
 
         # Check for duplicate bindings
         duplicates = set(variable_bindings.keys()) & set(
@@ -220,11 +253,14 @@ class CompiledExpression:
             )
 
         # Check for non-existent variables
-        unknown = set(variable_bindings.keys()) - self._free_variables
+        unknown = (
+            set(variable_bindings.keys()) - self._free_variables
+        )
         if unknown:
             raise ValueError(
                 f"Variable(s) not in expression: {sorted(unknown)}. "
-                f"Free variables are: {sorted(self._free_variables)}"
+                f"Free variables are: "
+                f"{sorted(self._free_variables)}"
             )
 
         # Create new CompiledExpression with merged bindings
@@ -235,14 +271,16 @@ class CompiledExpression:
             compiled_logic=self._compiled_logic,
             free_variables=self._free_variables,
             predicates=self._predicates,
-            partial_bindings=new_bindings
+            partial_bindings=new_bindings,
+            compiler=self._compiler
         )
 
     def get_trainable_parameters(self) -> List[nn.Parameter]:
         """Get all trainable parameters from model-based predicates.
 
         Returns:
-            List of torch.nn.Parameter objects from all model-based predicates
+            List of torch.nn.Parameter objects from all model-based
+            predicates
 
         Example:
             >>> params = compiled.get_trainable_parameters()

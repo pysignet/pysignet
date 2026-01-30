@@ -8,8 +8,8 @@ from pysignet.tnorms.base import TNorm
 class SProductTNorm(TNorm):
     """S-Product t-norm (S-logics: implication as disjunction).
 
-    - AND: a * b
-    - OR: a + b - a * b
+    - AND: prod(values) along dim=0
+    - OR: 1 - prod(1 - values) along dim=0
     - IMPLIES: 1 - a + a * b (treats implication as NOT(a) OR b)
 
     S-Product uses the standard implication-as-disjunction approach.
@@ -23,28 +23,20 @@ class SProductTNorm(TNorm):
         """S-Product recommends logarithmic post-processing."""
         return 'log'
 
-    def conjunction(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
-        """Product conjunction."""
-        return a * b
+    def conjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Product conjunction: prod(values) along dim=0."""
+        return values.prod(dim=0)
 
-    def disjunction(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
-        """Product disjunction."""
-        return a + b - a * b
+    def disjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Product disjunction: 1 - prod(1 - values) along dim=0."""
+        return 1.0 - (1.0 - values).prod(dim=0)
 
 
 class RProductTNorm(SProductTNorm):
     """R-Product t-norm (R-logics: axiomatic residuum-based implication).
 
-    - AND: a * b (inherited from S-Product)
-    - OR: a + b - a * b (inherited from S-Product)
+    - AND: prod(values) along dim=0 (inherited from S-Product)
+    - OR: 1 - prod(1 - values) along dim=0 (inherited from S-Product)
     - IMPLIES: 1 if a <= b else b/a (residuum, overrides S-Product)
 
     R-Product defines implication axiomatically using residua rather than

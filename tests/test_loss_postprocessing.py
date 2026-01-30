@@ -15,7 +15,7 @@ import sympy as sp
 from pysignet import (
     Symbol,
     Variable,
-    compile_logic,
+    logic_to_loss,
     Predicate,
     RProductTNorm,
     SProductTNorm,
@@ -39,7 +39,7 @@ class TestRProductPostProcessing:
             "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
 
         # Get satisfaction
@@ -64,7 +64,7 @@ class TestRProductPostProcessing:
             "P": Predicate( lambda x: torch.tensor([0.5, 0.8, 0.2]))
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
 
         # Use quantify='none' to get per-batch losses, then mean reduction
@@ -86,7 +86,7 @@ class TestRProductPostProcessing:
             "P": Predicate( lambda x: torch.tensor([1e-10, 1e-8, 0.01]))
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
 
         loss = compiler.loss(X=x, reduction="none")
@@ -113,7 +113,7 @@ class TestSProductPostProcessing:
             "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=SProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(1, 5)
 
         satisfaction = compiler(X=x)
@@ -139,7 +139,7 @@ class TestLukasiewiczPostProcessing:
             "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        compiler = compile_logic(
+        compiler = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         x = torch.randn(1, 5)
@@ -162,7 +162,7 @@ class TestLukasiewiczPostProcessing:
             "P": Predicate( lambda x: torch.tensor([0.3, 0.7, 0.9]))
         }
 
-        compiler = compile_logic(
+        compiler = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         x = torch.randn(1, 5)
@@ -194,7 +194,7 @@ class TestGodelPostProcessing:
             "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=GodelTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=GodelTNorm())
         x = torch.randn(1, 5)
 
         satisfaction = compiler(X=x)
@@ -222,7 +222,7 @@ class TestCustomPostProcessing:
         def custom_loss(satisfaction: torch.Tensor) -> torch.Tensor:
             return (1.0 - satisfaction) ** 2
 
-        compiler = compile_logic(expr, predicates)
+        compiler = logic_to_loss(expr, predicates)
         x = torch.randn(1, 5)
 
         # Use custom post-processing with quantify='none' for per-batch losses
@@ -252,7 +252,7 @@ class TestCustomPostProcessing:
         def custom_loss(satisfaction: torch.Tensor) -> torch.Tensor:
             return torch.abs(satisfaction - 0.5)
 
-        compiler = compile_logic(expr, predicates)
+        compiler = logic_to_loss(expr, predicates)
         batch_size = 10
         x = torch.randn(batch_size, 5)
 
@@ -285,7 +285,7 @@ class TestPostProcessingDifferentiability:
             )
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         batch_size = 10
         x = torch.randn(batch_size, 5)
 
@@ -313,7 +313,7 @@ class TestPostProcessingDifferentiability:
             )
         }
 
-        compiler = compile_logic(
+        compiler = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         batch_size = 10
@@ -344,14 +344,14 @@ class TestBoundaryValues:
         }
 
         # Test R-Product (log)
-        compiler_log = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler_log = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 3)
         loss_log = compiler_log.loss(X=x, reduction="none")
         # -log(1) = 0
         assert torch.allclose(loss_log, torch.zeros(5), atol=1e-5)
 
         # Test Lukasiewicz (linear)
-        compiler_linear = compile_logic(
+        compiler_linear = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         loss_linear = compiler_linear.loss(X=x, reduction="none")
@@ -371,7 +371,7 @@ class TestBoundaryValues:
         }
 
         # Test R-Product (log)
-        compiler_log = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler_log = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 3)
         loss_log = compiler_log.loss(X=x, reduction="none")
         # -log(~0) should be large but finite
@@ -379,7 +379,7 @@ class TestBoundaryValues:
         assert not torch.isinf(loss_log).any()
 
         # Test Lukasiewicz (linear)
-        compiler_linear = compile_logic(
+        compiler_linear = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         loss_linear = compiler_linear.loss(X=x, reduction="none")
@@ -400,14 +400,14 @@ class TestBoundaryValues:
         x = torch.randn(1, 3)
 
         # Test R-Product (log)
-        compiler_log = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler_log = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         loss_log = compiler_log.loss(X=x, reduction="none")
         # -log(0.5) ≈ 0.693
         expected_log = -torch.log(torch.tensor(0.5))
         assert torch.allclose(loss_log, expected_log.expand(5), atol=1e-3)
 
         # Test Lukasiewicz (linear)
-        compiler_linear = compile_logic(
+        compiler_linear = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         loss_linear = compiler_linear.loss(X=x, reduction="none")
@@ -433,7 +433,7 @@ class TestReductionModes:
             "P": Predicate( lambda x: torch.tensor([0.3, 0.6, 0.9]))
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
+        compiler = logic_to_loss(expr, predicates, tnorm=tnorm_class())
         x = torch.randn(1, 5)
 
         # Use quantify='none' to get per-batch losses, then apply reductions
@@ -459,7 +459,7 @@ class TestReductionModes:
             "P": Predicate( lambda x: torch.tensor([0.3, 0.6, 0.9]))
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
+        compiler = logic_to_loss(expr, predicates, tnorm=tnorm_class())
         x = torch.randn(1, 5)
 
         # Use quantify='none' to get per-batch losses, then apply reductions
@@ -486,7 +486,7 @@ class TestReductionModes:
             "P": Predicate( lambda x: torch.rand(batch_size))
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
+        compiler = logic_to_loss(expr, predicates, tnorm=tnorm_class())
         x = torch.randn(batch_size, 5)
 
         # Use quantify='none' to get per-batch losses with no reduction
@@ -529,7 +529,7 @@ class TestCombinedPostProcessingAndReduction:
             "Q": Predicate( lambda x: torch.rand(x.shape[0])),
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=tnorm_class())
+        compiler = logic_to_loss(expr, predicates, tnorm=tnorm_class())
         x = torch.randn(batch_size, 5)
 
         # Use quantify='none' to get per-batch losses, then apply reduction
@@ -563,7 +563,7 @@ class TestPostProcessingParameterOverride:
             "P": Predicate( lambda x: torch.tensor([0.8]))
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
 
         # Default should be log
@@ -590,7 +590,7 @@ class TestPostProcessingParameterOverride:
             "P": Predicate( lambda x: torch.tensor([0.6]))
         }
 
-        compiler = compile_logic(
+        compiler = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         x = torch.randn(1, 5)
@@ -617,7 +617,7 @@ class TestPostProcessingParameterOverride:
             "P": Predicate( lambda x: torch.tensor([0.5]))
         }
 
-        compiler = compile_logic(expr, predicates)
+        compiler = logic_to_loss(expr, predicates)
         x = torch.randn(1, 5)
 
         # Invalid string should raise error
@@ -636,7 +636,7 @@ class TestPostProcessingParameterOverride:
         }
 
         # R-Product recommends log
-        compiler_r = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler_r = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
 
         loss_none = compiler_r.loss(X=x, reduction="none", post_processing=None)
@@ -662,7 +662,7 @@ class TestComplexExpressions:
             "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
-        compiler = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 3)
 
         satisfaction = compiler(X=x)
@@ -685,7 +685,7 @@ class TestComplexExpressions:
             "R": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        compiler = compile_logic(
+        compiler = logic_to_loss(
             expr, predicates, tnorm=LukasiewiczTNorm()
         )
         x = torch.randn(1, 3)

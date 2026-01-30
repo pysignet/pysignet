@@ -14,7 +14,8 @@ from pysignet import (
     Predicate,
     Symbol,
     Variable,
-    compile_logic
+    compile_logic,
+    logic_to_loss
 )
 
 
@@ -30,7 +31,7 @@ def test_basic_and() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
 
     # Default quantify='forall' with batch_size=1 returns scalar
@@ -53,7 +54,7 @@ def test_basic_and_per_batch() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(10, 5)
 
     # Use quantify='none' for per-batch results
@@ -76,7 +77,7 @@ def test_basic_or() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     satisfaction = logic_loss(X=x)
 
@@ -95,7 +96,7 @@ def test_negation() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     satisfaction = logic_loss(X=x)
 
@@ -115,7 +116,7 @@ def test_implication() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     satisfaction = logic_loss(X=x)
 
@@ -138,7 +139,7 @@ def test_equivalence_operator() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
     satisfaction = logic_loss(X=x)
 
@@ -168,7 +169,7 @@ def test_complex_expression() -> None:
         "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     satisfaction = logic_loss(X=x)
 

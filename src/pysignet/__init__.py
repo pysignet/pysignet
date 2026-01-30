@@ -32,7 +32,8 @@ Advanced Usage:
 from .predicate import Predicate
 from .compilation import TNormCompiler
 from .loss import LogicLoss
-from .api import compile_logic
+from .api import compile_logic, logic_to_loss
+from .compilation.compiled_expression import CompiledExpression
 
 # Symbol API for predicates
 from .multiclass import Symbol, PredicateSymbol, PredicateApplication
@@ -49,6 +50,8 @@ __version__ = "0.2.0"
 __all__ = [
     # Core API
     "compile_logic",
+    "logic_to_loss",
+    "CompiledExpression",
     "LogicLoss",
     "TNormCompiler",
     "Predicate",

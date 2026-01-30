@@ -10,7 +10,15 @@ import torch.nn as nn
 import pytest
 
 # Import from current location (will be moved to neural_logic later)
-from pysignet import LogicLoss, Predicate, Symbol, Variable, compile_logic
+from pysignet import (
+    LogicLoss,
+    Predicate,
+    Symbol,
+    Variable,
+    compile_logic,
+    logic_to_loss,
+)
+from pysignet.compilation import CompiledExpression
 from pysignet.tnorms import (
     RProductTNorm,
     SProductTNorm,
@@ -37,8 +45,8 @@ class TestCompileLogicBasics:
         # Should return satisfaction values
         assert torch.allclose(satisfaction, torch.tensor(0.7), atol=1e-5)
 
-    def test_compile_logic_returns_logic_loss(self) -> None:
-        """Test compile_logic returns LogicLoss instance."""
+    def test_compile_logic_returns_compiled_expression(self) -> None:
+        """Test compile_logic returns CompiledExpression instance."""
         X = Variable("X")
         # pylint: disable=invalid-name
         P = Symbol("P")
@@ -46,10 +54,10 @@ class TestCompileLogicBasics:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
-        # Should return LogicLoss instance
-        assert isinstance(logic_loss, LogicLoss)
+        # Should return CompiledExpression instance
+        assert isinstance(compiled, CompiledExpression)
 
     def test_compile_logic_default_mode(self) -> None:
         """Test compile_logic uses tnorm as default mode."""
@@ -164,7 +172,7 @@ class TestCompileLogicPostProcessing:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
         x = torch.randn(1, 5)
         loss = logic_loss.loss(X=x)
 
@@ -181,7 +189,7 @@ class TestCompileLogicPostProcessing:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-        logic_loss = compile_logic(expr, predicates, post_processing="log")
+        logic_loss = logic_to_loss(expr, predicates, post_processing="log")
         x = torch.randn(1, 5)
         loss = logic_loss.loss(X=x)
 
@@ -198,7 +206,7 @@ class TestCompileLogicPostProcessing:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
-        logic_loss = compile_logic(expr, predicates, post_processing="linear")
+        logic_loss = logic_to_loss(expr, predicates, post_processing="linear")
         x = torch.randn(1, 5)
         loss = logic_loss.loss(X=x)
 
@@ -218,7 +226,7 @@ class TestCompileLogicPostProcessing:
         def custom_postprocessing(satisfaction):
             return (1 - satisfaction) ** 2
 
-        logic_loss = compile_logic(
+        logic_loss = logic_to_loss(
             expr, predicates, post_processing=custom_postprocessing
         )
         x = torch.randn(1, 5)
@@ -233,14 +241,14 @@ class TestCompileLogicUsability:
     """Test compile_logic is easy to use."""
 
     def test_one_liner_usage(self) -> None:
-        """Test compile_logic enables one-liner usage."""
+        """Test logic_to_loss enables one-liner usage."""
         X = Variable("X")
         # pylint: disable=invalid-name
         P, Q = Symbol("P Q")
         expr = sp.And(P(X), Q(X))
 
         # One-liner API
-        logic_loss = compile_logic(
+        logic_loss = logic_to_loss(
             expr,
             {
                 "P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8),
@@ -316,7 +324,7 @@ class TestCompileLogicUsability:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.4)}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
         x = torch.randn(1, 5)
         loss = logic_loss.loss(X=x)
 
@@ -569,7 +577,7 @@ class TestCompileLogicGradients:
         model = SimpleModel()
         predicates = {"P": model}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Forward pass
         x = torch.randn(1, 5)
@@ -602,7 +610,7 @@ class TestCompileLogicGradients:
         model = SimpleModel()
         predicates = {"P": model}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Get initial weight
         initial_weight = model.weight.item()

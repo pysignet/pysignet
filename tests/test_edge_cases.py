@@ -7,7 +7,7 @@ error conditions, and boundary scenarios.
 import sympy as sp
 import torch
 
-from pysignet import Predicate, Symbol, Variable, compile_logic
+from pysignet import Predicate, Symbol, Variable, logic_to_loss
 
 
 def test_empty_batch() -> None:
@@ -19,7 +19,7 @@ def test_empty_batch() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(0, 5)  # Empty batch
     # Use quantify='none' to get per-batch results for shape check
     satisfaction = logic_loss(X=x, quantify='none')
@@ -40,7 +40,7 @@ def test_single_element_batch() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)  # Single element
     # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(X=x)
@@ -58,7 +58,7 @@ def test_very_large_batch() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     batch_size = 10000
     x = torch.randn(batch_size, 5)
     # Use quantify='none' to get per-batch results
@@ -78,7 +78,7 @@ def test_nan_handling() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.tensor([[float("nan"), 1.0, 2.0]])
     # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(X=x)
@@ -100,7 +100,7 @@ def test_inf_handling() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Test positive infinity
     # Default quantify='forall' with batch_size=1 returns scalar
@@ -129,7 +129,7 @@ def test_missing_predicate_raises_error() -> None:
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
     try:
-        compile_logic(expr, predicates)
+        logic_to_loss(expr, predicates)
         assert False, "Should have raised ValueError"
     except ValueError as e:
         assert "Missing predicates" in str(e)
@@ -160,7 +160,7 @@ def test_zero_dimension_input() -> None:
     # Predicate that doesn't depend on input dimension
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     batch_size = 5
     x = torch.randn(batch_size, 0)  # 5 samples, 0 features
     # Use quantify='none' to get per-batch results
@@ -182,7 +182,7 @@ def test_very_small_values() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 1e-10),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
     satisfaction = logic_loss(X=x)
 
@@ -204,7 +204,7 @@ def test_values_near_one() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.9999999),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
     satisfaction = logic_loss(X=x)
 
@@ -233,7 +233,7 @@ def test_deeply_nested_expression() -> None:
         "S": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     batch_size = 10
     x = torch.randn(batch_size, 5)
     # Use quantify='none' to get per-batch results
@@ -259,7 +259,7 @@ def test_many_predicates() -> None:
         for sym in symbols_list[:10]
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
     # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss(X=x)
@@ -279,7 +279,7 @@ def test_single_predicate_expression() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.75)}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
     satisfaction = logic_loss(X=x)
 
@@ -296,7 +296,7 @@ def test_mixed_batch_dimensions() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Test different batch sizes sequentially with quantify='none' for per-batch results
     for batch_size in [1, 5, 10, 32]:

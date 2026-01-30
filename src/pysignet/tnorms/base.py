@@ -6,7 +6,19 @@ import torch
 
 
 class TNorm(ABC):
-    """Base class for t-norms (continuous relaxations of logic ops)."""
+    """Base class for t-norms (continuous relaxations of logic ops).
+
+    Conjunction and disjunction operate on a tensor, reducing along
+    dim=0. This supports both n-ary expression evaluation (stacking
+    multiple per-batch tensors) and batch reduction (reducing a 1D
+    tensor to a scalar).
+
+    Args:
+        values: Tensor of shape (n, ...) where n >= 1.
+
+    Returns:
+        Tensor of shape (...) with the operation applied along dim=0.
+    """
 
     @property
     @abstractmethod
@@ -18,20 +30,26 @@ class TNorm(ABC):
         """
 
     @abstractmethod
-    def conjunction(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
-        """Relaxed AND operation."""
+    def conjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Relaxed AND operation, reducing along dim=0.
+
+        Args:
+            values: Tensor of shape (n, ...) with values in [0, 1].
+
+        Returns:
+            Tensor of shape (...) with conjunction applied.
+        """
 
     @abstractmethod
-    def disjunction(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
-        """Relaxed OR operation."""
+    def disjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Relaxed OR operation, reducing along dim=0.
+
+        Args:
+            values: Tensor of shape (n, ...) with values in [0, 1].
+
+        Returns:
+            Tensor of shape (...) with disjunction applied.
+        """
 
     def negation(self, a: torch.Tensor) -> torch.Tensor:
         """Relaxed NOT operation (standard across all t-norms)."""
@@ -43,17 +61,16 @@ class TNorm(ABC):
         a: torch.Tensor,
         b: torch.Tensor
     ) -> torch.Tensor:
-        """Relaxed IMPLIES operation: a → b ≡ ¬a ∨ b."""
-        return self.disjunction(self.negation(a), b)
+        """Relaxed IMPLIES operation: a -> b = NOT(a) OR b."""
+        return self.disjunction(torch.stack([self.negation(a), b]))
 
     def equivalence(
         self,
         a: torch.Tensor,
         b: torch.Tensor
     ) -> torch.Tensor:
-        """Relaxed EQUIVALENCE: a ↔ b ≡ (a → b) ∧ (b → a)."""
-        # pylint: disable=arguments-out-of-order
-        return self.conjunction(
+        """Relaxed EQUIVALENCE: a <-> b = (a -> b) AND (b -> a)."""
+        return self.conjunction(torch.stack([
             self.implication(a, b),
             self.implication(b, a)
-        )
+        ]))

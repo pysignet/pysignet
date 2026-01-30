@@ -30,8 +30,8 @@ class TestLogicLossBasics:
         logic_loss = LogicLoss(compiled)
 
         assert logic_loss._compiled_expr is compiled
-        # predicates now internal to CompiledExpression
-        assert logic_loss.default_post_processing == "linear"
+        # Default TNormCompiler uses RProductTNorm which recommends 'log'
+        assert logic_loss.default_post_processing == "log"
 
     def test_logic_loss_call_returns_satisfaction(self) -> None:
         """Test that calling LogicLoss returns satisfaction values."""
@@ -76,8 +76,9 @@ class TestLogicLossBasics:
         # Should return scalar loss (mean reduction by default)
         assert isinstance(loss, torch.Tensor)
         assert loss.shape == ()  # Scalar
-        # Linear post-processing: loss = 1 - satisfaction = 1 - 0.7 = 0.3
-        assert torch.allclose(loss, torch.tensor(0.3), atol=1e-5)
+        # Default post-processing is 'log': loss = -log(satisfaction) = -log(0.7)
+        expected_loss = -torch.log(torch.tensor(0.7))
+        assert torch.allclose(loss, expected_loss, atol=1e-5)
 
 
 class TestLogicLossPostProcessing:

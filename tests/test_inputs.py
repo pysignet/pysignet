@@ -7,7 +7,7 @@ handling, and input routing to predicates.
 import sympy as sp
 import torch
 
-from pysignet import Predicate, Symbol, Variable, compile_logic
+from pysignet import Predicate, Symbol, Variable, logic_to_loss
 
 
 def test_single_tensor_input() -> None:
@@ -22,7 +22,7 @@ def test_single_tensor_input() -> None:
         "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Single tensor input - same tensor passed to all predicates
     batch_size = 10
@@ -47,7 +47,7 @@ def test_dict_input_per_predicate() -> None:
         "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     batch_size = 10
     inputs = {
@@ -70,7 +70,7 @@ def test_batching_various_sizes() -> None:
     # Predicate that depends on input
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Different batch sizes with quantify='none' to get per-batch results
     for batch_size in [1, 5, 10, 32]:
@@ -94,7 +94,7 @@ def test_different_feature_dimensions() -> None:
         "R": Predicate(lambda x: torch.sigmoid(x[:, 0])),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     batch_size = 10
     inputs = {
@@ -117,7 +117,7 @@ def test_input_preserves_device() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # CPU tensor
     x_cpu = torch.randn(1, 3)
@@ -134,7 +134,7 @@ def test_input_preserves_dtype() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # float32 (default)
     x_float32 = torch.randn(1, 3, dtype=torch.float32)
@@ -159,7 +159,7 @@ def test_multidimensional_features() -> None:
     # Predicate that flattens multi-dimensional features
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.flatten(1).sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # 3D input: (batch, height, width)
     batch_size = 5
@@ -181,7 +181,7 @@ def test_sequential_calls_same_input() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
 
     # Multiple calls should give same result
@@ -200,7 +200,7 @@ def test_sequential_calls_different_inputs() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))}
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Different inputs should give potentially different results
     x1 = torch.ones(1, 3)  # Positive
@@ -229,7 +229,7 @@ def test_dict_input_subset_of_predicates() -> None:
         "R": Predicate(lambda x: torch.sigmoid(x.max(dim=-1)[0])),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     # Provide specific data for P and shared data for Q and R
     batch_size = 5
@@ -256,7 +256,7 @@ def test_consistent_batch_size_required() -> None:
         "Q": Predicate(lambda x: torch.sigmoid(x.mean(dim=-1))),
     }
 
-    logic_loss = compile_logic(expr, predicates)
+    logic_loss = logic_to_loss(expr, predicates)
 
     batch_size = 10
     inputs = {

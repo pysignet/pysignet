@@ -14,7 +14,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, compile_logic, logic_to_loss
 from pysignet.logic import Variable
 
 
@@ -42,8 +42,8 @@ class TestMixedArgumentArityValidation:
         x1 = torch.randn(batch_size, 5)
         x2 = torch.randn(batch_size, 4)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X1": x1, "X2": x2}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X1": x1, "X2": x2})
 
         # Should return satisfaction for batch
         assert result.shape == (batch_size,)
@@ -84,8 +84,8 @@ class TestMixedArgumentArityValidation:
         batch_size = 4
         x = torch.randn(batch_size, 5)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X": x}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X": x})
 
         assert result.shape == (batch_size,)
 
@@ -111,8 +111,8 @@ class TestMixedArgumentArityValidation:
         x2 = torch.randn(batch_size, 4)
         x3 = torch.randn(batch_size, 2)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X1": x1, "X2": x2, "X3": x3}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X1": x1, "X2": x2, "X3": x3})
 
         assert result.shape == (batch_size,)
 
@@ -135,8 +135,8 @@ class TestMixedArgumentArityValidation:
         x1 = torch.randn(batch_size, 5)
         x2 = torch.randn(batch_size, 4)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X1": x1, "X2": x2}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X1": x1, "X2": x2})
 
         assert result.shape == (batch_size,)
 
@@ -161,8 +161,8 @@ class TestMixedArgumentEvaluation:
         batch_size = 4
         x = torch.randn(batch_size, 5)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X": x}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X": x})
 
         # Should return satisfaction for batch
         # Value should be in [0, 1] (probabilities for class 0)
@@ -186,8 +186,8 @@ class TestMixedArgumentEvaluation:
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X": x}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X": x})
 
         assert result.shape == (batch_size,)
 
@@ -222,8 +222,8 @@ class TestMixedArgumentEvaluation:
         x1 = torch.randn(batch_size, 5)
         x2 = torch.randn(batch_size, 4)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X1": x1, "X2": x2}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X1": x1, "X2": x2})
 
         assert result.shape == (batch_size,)
 
@@ -272,8 +272,8 @@ class TestEdgeCases:
         batch_size = 2
         x = torch.randn(batch_size, 5)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X": x}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X": x})
 
         assert result.shape == (batch_size,)
 
@@ -294,8 +294,8 @@ class TestEdgeCases:
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X": x}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X": x})
 
         assert result.shape == (batch_size,)
 
@@ -327,7 +327,7 @@ class TestGradientFlow:
         model = BinaryPredicate()
 
         predicates = {"P": model}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Evaluate
         batch_size = 2
@@ -335,7 +335,7 @@ class TestGradientFlow:
         x2 = torch.randn(batch_size, 4)
 
         # Compute loss
-        loss = compiled.loss({"X1": x1, "X2": x2})
+        loss = logic_loss.loss({"X1": x1, "X2": x2})
 
         # Backward
         loss.backward()
@@ -392,8 +392,8 @@ class TestArityValidationErrors:
 
         batch_size = 3
         x = torch.randn(batch_size, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled({"X": x}, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled({"X": x})
 
         assert result.shape == (batch_size,)
 

@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Predicate, Symbol, Variable, compile_logic
+from pysignet import Predicate, Symbol, Variable, compile_logic, logic_to_loss
 from pysignet.compilation import TNormCompiler
 
 
@@ -120,7 +120,7 @@ class TestPredicateNameAssignment:
 
         predicates = {"P": pred_p, "Q": pred_q}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Verify names were assigned
         assert pred_p.name == "P"
@@ -148,7 +148,7 @@ class TestPredicateNameAssignment:
         pred = Predicate(model)
         predicates = {"P": pred}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         assert pred.name == "P"
 
@@ -199,7 +199,7 @@ class TestPredicateNameAssignment:
 
         predicates = {"P": pred_p, "Q": pred_q}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Verify names assigned
         assert pred_p.name == "P"
@@ -425,7 +425,7 @@ class TestAutomaticPredicateWrapping:
         # Pass raw function
         predicates = {"P": my_predicate}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -454,8 +454,8 @@ class TestAutomaticPredicateWrapping:
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         # Model outputs (batch, 1), which should be squeezed for satisfaction
         # With auto-wrap, this should work correctly
@@ -477,8 +477,8 @@ class TestAutomaticPredicateWrapping:
 
         batch_size = 10
         x = torch.randn(batch_size, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
         assert torch.allclose(result, torch.ones(batch_size) * 0.7)
@@ -496,7 +496,7 @@ class TestAutomaticPredicateWrapping:
             "R": lambda x: torch.ones(x.shape[0]) * 0.4,  # Auto-wrapped
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -529,8 +529,8 @@ class TestAutomaticPredicateWrapping:
         # The test is that compilation succeeds and execution works
         batch_size = 4
         x = torch.randn(batch_size, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
 
@@ -551,7 +551,7 @@ class TestAutomaticPredicateWrapping:
             "Q": lambda x: torch.sigmoid(x.sum(dim=-1)),  # Should detect as function
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -598,7 +598,7 @@ class TestAutomaticPredicateWrapping:
         # Auto-wrap model
         predicates = {"P": model}
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(1, 10)
         loss = logic_loss.loss(X=x)
@@ -622,8 +622,8 @@ class TestAutomaticPredicateWrapping:
             "Q": lambda x: torch.ones(x.shape[0]) * 0.7,
         }
 
-        # Should auto-wrap via compile_logic
-        logic_loss = compile_logic(expr, predicates)
+        # Should auto-wrap via logic_to_loss
+        logic_loss = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 5)
@@ -670,7 +670,7 @@ class TestBackwardCompatibility:
             "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         batch_size = 4
         x = torch.randn(batch_size, 10)

@@ -27,11 +27,21 @@ class LogicCompiler(ABC):
     computations.
 
     LogicCompiler defines the interface for different compilation strategies
-    (t-norms, semantic loss, etc.). Each strategy compiles a SymPy logic
+    (t-norms, LTU, semantic loss, etc.). Each strategy compiles a SymPy logic
     expression into a PyTorch callable that returns satisfaction degrees.
 
-    The compiled callable can be used directly or wrapped in a LogicLoss for
-    loss computation.
+    Subclasses must implement:
+    - compile(): Compile SymPy expression to CompiledExpression
+    - conjunction(values): Relaxed AND, reducing along dim=0
+    - disjunction(values): Relaxed OR, reducing along dim=0
+    - recommended_postprocessing: 'log' or 'linear'
+
+    Default implementations are provided for negation (1 - a),
+    implication (NOT a OR b), and equivalence ((a -> b) AND (b -> a)).
+
+    Conjunction and disjunction operate on a tensor reducing along dim=0.
+    This supports both n-ary expression evaluation (stacking multiple
+    per-batch tensors) and batch reduction (reducing a 1D tensor to scalar).
 
     Class Attributes:
         MAX_DOMAIN_SIZE: Maximum allowed domain size for quantifiers (default: 1000)
@@ -41,6 +51,87 @@ class LogicCompiler(ABC):
     # Configurable domain size limits for quantifier expansion
     MAX_DOMAIN_SIZE = 1000
     WARN_DOMAIN_SIZE = 100
+
+    @property
+    @abstractmethod
+    def recommended_postprocessing(self) -> str:
+        """Return recommended loss post-processing mode.
+
+        Returns:
+            'log' for -log(satisfaction) or 'linear' for 1 - satisfaction
+        """
+
+    @abstractmethod
+    def conjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Relaxed AND operation, reducing along dim=0.
+
+        Args:
+            values: Tensor of shape (n, ...) with values in [0, 1].
+
+        Returns:
+            Tensor of shape (...) with conjunction applied.
+        """
+
+    @abstractmethod
+    def disjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Relaxed OR operation, reducing along dim=0.
+
+        Args:
+            values: Tensor of shape (n, ...) with values in [0, 1].
+
+        Returns:
+            Tensor of shape (...) with disjunction applied.
+        """
+
+    def negation(self, a: torch.Tensor) -> torch.Tensor:
+        """Relaxed NOT operation: 1 - a.
+
+        Args:
+            a: Tensor with values in [0, 1].
+
+        Returns:
+            Tensor of same shape with negation applied.
+        """
+        result: torch.Tensor = 1.0 - a
+        return result
+
+    def implication(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor
+    ) -> torch.Tensor:
+        """Relaxed IMPLIES: a -> b = NOT(a) OR b.
+
+        Subclasses may override for custom implication semantics
+        (e.g., R-Product residuum).
+
+        Args:
+            a: Antecedent tensor (values in [0, 1])
+            b: Consequent tensor (values in [0, 1])
+
+        Returns:
+            Implication result tensor.
+        """
+        return self.disjunction(torch.stack([self.negation(a), b]))
+
+    def equivalence(
+        self,
+        a: torch.Tensor,
+        b: torch.Tensor
+    ) -> torch.Tensor:
+        """Relaxed EQUIVALENCE: a <-> b = (a -> b) AND (b -> a).
+
+        Args:
+            a: Left tensor (values in [0, 1])
+            b: Right tensor (values in [0, 1])
+
+        Returns:
+            Equivalence result tensor.
+        """
+        return self.conjunction(torch.stack([
+            self.implication(a, b),
+            self.implication(b, a)
+        ]))
 
     @abstractmethod
     def compile(
@@ -482,10 +573,16 @@ class LogicCompiler(ABC):
                 # Constant - pass as-is
                 call_args.append(arg)
 
-        # Create cache key
-        cache_key = (id(func), tuple(
-            id(a) if isinstance(a, torch.Tensor) else a for a in call_args
-        ))
+        # Create cache key - handle tensors and dicts with id()
+        def _make_hashable(a: Any) -> Any:
+            if isinstance(a, torch.Tensor):
+                return id(a)
+            elif isinstance(a, dict):
+                # For dicts, use the id to avoid unhashable type error
+                return ('dict', id(a))
+            else:
+                return a
+        cache_key = (id(func), tuple(_make_hashable(a) for a in call_args))
 
         # Call with all arguments
         result = ctx.get_or_compute(cache_key, lambda: predicate(*call_args))

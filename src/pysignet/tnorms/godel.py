@@ -1,4 +1,4 @@
-"""Gödel t-norm implementation."""
+"""Godel t-norm implementation."""
 
 import torch
 
@@ -6,31 +6,23 @@ from pysignet.tnorms.base import TNorm
 
 
 class GodelTNorm(TNorm):
-    """Gödel t-norm (minimum/maximum).
+    """Godel t-norm (minimum/maximum).
 
-    - AND: min(a, b)
-    - OR: max(a, b)
+    - AND: min(values) along dim=0
+    - OR: max(values) along dim=0
 
     Most conservative option, but can have gradient issues.
     """
 
     @property
     def recommended_postprocessing(self) -> str:
-        """Gödel recommends linear post-processing."""
+        """Godel recommends linear post-processing."""
         return 'linear'
 
-    def conjunction(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
-        """Gödel conjunction."""
-        return torch.minimum(a, b)
+    def conjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Godel conjunction: min along dim=0."""
+        return values.min(dim=0).values
 
-    def disjunction(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
-        """Gödel disjunction."""
-        return torch.maximum(a, b)
+    def disjunction(self, values: torch.Tensor) -> torch.Tensor:
+        """Godel disjunction: max along dim=0."""
+        return values.max(dim=0).values

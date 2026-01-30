@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic
+from pysignet import Symbol, compile_logic, logic_to_loss
 from pysignet.logic import Variable
 
 
@@ -29,10 +29,10 @@ class TestConstantOnlyPredicates:
             return torch.tensor([0.8])
 
         predicates = {"P": predicate_fn}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Should evaluate without any variable bindings
-        result = compiled()
+        result = logic_loss()
         # Shape is whatever the predicate returns (no batch dimension)
         assert result.shape == ()
         assert result.item() == pytest.approx(0.8)
@@ -52,10 +52,10 @@ class TestConstantOnlyPredicates:
             return torch.tensor([0.9])
 
         predicates = {"Rel": predicate_fn}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Should evaluate without variable bindings
-        result = compiled()
+        result = logic_loss()
         assert result.shape == ()
         assert result.item() == pytest.approx(0.9)
 
@@ -96,12 +96,12 @@ class TestMixedVariableAndConstant:
         # Lambda that selects the constant class
         predicates = {"Digit": lambda x, label: model(x)[:, label]}
 
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Only bind X, not the constant 5
         x = torch.randn(1, 10)
         # Default quantify='forall' with batch_size=1 returns scalar
-        result = compiled(X=x)
+        result = logic_loss(X=x)
 
         assert result.shape == ()
         assert torch.all((result >= 0) & (result <= 1))
@@ -120,11 +120,11 @@ class TestMixedVariableAndConstant:
             return torch.sigmoid(x.sum(dim=-1))
 
         predicates = {"P": predicate_fn}
-        compiled = compile_logic(expr, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         # Only bind X
         x = torch.randn(10, 10)
-        result = compiled(X=x)
+        result = logic_loss(X=x)
 
         assert result.shape == ()
 
@@ -148,8 +148,8 @@ class TestMixedVariableAndConstant:
         # Bind both variables, constant passed automatically
         x = torch.randn(4, 5)
         y = torch.randn(4, 5)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, Y=y, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x, Y=y)
 
         assert result.shape == torch.Size([4])
 
@@ -173,8 +173,8 @@ class TestMixedVariableAndConstant:
 
         x = torch.randn(3, 4)
         y = torch.randn(3, 4)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, Y=y, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x, Y=y)
 
         assert result.shape == torch.Size([3])
 
@@ -195,8 +195,8 @@ class TestConstantsNotInBindings:
 
         # Should only need to bind X, not the constant 5
         x = torch.randn(4, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')  # No error even though 5 not bound
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)  # No error even though 5 not bound
 
         assert result.shape == torch.Size([4])
 
@@ -240,8 +240,8 @@ class TestConstantsNotInBindings:
 
         # Only bind X
         x = torch.randn(4, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([4])
 
@@ -264,8 +264,8 @@ class TestConstantInterpretation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(8, 784)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([8])
         assert torch.all((result >= 0) & (result <= 1))
@@ -287,8 +287,8 @@ class TestConstantInterpretation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(5, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([5])
 
@@ -307,8 +307,8 @@ class TestConstantInterpretation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(6, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([6])
         assert torch.all((result == 0) | (result == 1))
@@ -329,8 +329,8 @@ class TestConstantInterpretation:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(3, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([3])
 
@@ -355,8 +355,8 @@ class TestComplexExpressions:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(4, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([4])
 
@@ -374,8 +374,8 @@ class TestComplexExpressions:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(8, 784)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([8])
 
@@ -397,8 +397,8 @@ class TestComplexExpressions:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(8, 784)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([8])
 
@@ -420,8 +420,8 @@ class TestComplexExpressions:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(4, 10)
-        # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        result = compiled(X=x)
 
         assert result.shape == torch.Size([4])
 
@@ -495,8 +495,8 @@ class TestRealWorldPatterns:
 
         # Batch of images
         x = torch.randn(32, 784)
-        # Use quantify='none' to get per-batch results
-        satisfaction = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        satisfaction = compiled(X=x)
 
         assert satisfaction.shape == torch.Size([32])
         assert torch.all((satisfaction >= 0) & (satisfaction <= 1))
@@ -520,8 +520,8 @@ class TestRealWorldPatterns:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(16, 784)
-        # Use quantify='none' to get per-batch results
-        satisfaction = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        satisfaction = compiled(X=x)
 
         assert satisfaction.shape == torch.Size([16])
 
@@ -547,7 +547,7 @@ class TestRealWorldPatterns:
         compiled = compile_logic(expr, predicates)
 
         x = torch.randn(10, 100)
-        # Use quantify='none' to get per-batch results
-        satisfaction = compiled(X=x, quantify='none')
+        # CompiledExpression returns per-batch results by default
+        satisfaction = compiled(X=x)
 
         assert satisfaction.shape == torch.Size([10])

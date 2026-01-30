@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic, Predicate
+from pysignet import Symbol, Variable, compile_logic, logic_to_loss, Predicate
 from pysignet.compilation import TNormCompiler
 from pysignet.loss import LogicLoss
 
@@ -57,7 +57,7 @@ class TestCustomUnaryModules:
                 return torch.sigmoid((x * self.weight).sum(dim=-1))
 
         model = CustomUnary()
-        logic_loss = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         x = torch.randn(1, 10)
         loss = logic_loss.loss(X=x)
@@ -108,7 +108,7 @@ class TestCustomUnaryModules:
                 return torch.sigmoid(self.linear(x).squeeze(-1))
 
         model = CustomModel()
-        logic_loss = compile_logic(expr, {"P": model})
+        logic_loss = logic_to_loss(expr, {"P": model})
 
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 
@@ -213,7 +213,7 @@ class TestCustomBinaryModules:
                 return torch.softmax(x, dim=-1)
 
         model = DigitClassifier()
-        logic_loss = compile_logic(expr, {"Digit": model})
+        logic_loss = logic_to_loss(expr, {"Digit": model})
 
         x = torch.randn(1, 10)
         loss = logic_loss.loss(X=x)

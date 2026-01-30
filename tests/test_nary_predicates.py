@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic
+from pysignet import Symbol, Variable, logic_to_loss
 from pysignet.logic.quantifier import ForAll
 
 
@@ -29,7 +29,7 @@ class TestTernaryPredicates:
             batch_size = x.shape[0] if isinstance(x, torch.Tensor) else y.shape[0]
             return torch.ones(batch_size) * 0.8
 
-        logic_loss = compile_logic(expr, {"P": ternary_func})
+        logic_loss = logic_to_loss(expr, {"P": ternary_func})
 
         batch_size = 5
         x = torch.randn(batch_size, 10)
@@ -69,7 +69,7 @@ class TestTernaryPredicates:
         # Adjust model input size
         model[0] = nn.Linear(18, 12)  # 10 + 8 features
 
-        logic_loss = compile_logic(expr, {"P": ternary_pred})
+        logic_loss = logic_to_loss(expr, {"P": ternary_pred})
 
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -103,7 +103,7 @@ class TestTernaryPredicates:
             output = torch.sigmoid(combiner(combined).squeeze(-1))
             return output
 
-        logic_loss = compile_logic(expr, {"P": ternary_pred})
+        logic_loss = logic_to_loss(expr, {"P": ternary_pred})
 
         x = torch.randn(1, 5)
         y = torch.randn(1, 4)
@@ -142,7 +142,7 @@ class TestTernaryPredicates:
 
             return output[:, idx]
 
-        logic_loss = compile_logic(expr, {"P": ternary_pred})
+        logic_loss = logic_to_loss(expr, {"P": ternary_pred})
 
         batch_size = 4
         x = torch.randn(batch_size, 5)
@@ -168,7 +168,7 @@ class TestQuaternaryPredicates:
                      y.mean(dim=-1) + z.mean(dim=-1)) / 4
             return torch.sigmoid(score)
 
-        logic_loss = compile_logic(expr, {"P": quaternary_func})
+        logic_loss = logic_to_loss(expr, {"P": quaternary_func})
 
         batch_size = 4
         w = torch.randn(batch_size, 5)
@@ -204,7 +204,7 @@ class TestQuaternaryPredicates:
             combined = torch.cat([feat_w, feat_x, feat_y, feat_z], dim=-1)
             return torch.sigmoid(final(combined).squeeze(-1))
 
-        logic_loss = compile_logic(expr, {"P": quaternary_pred})
+        logic_loss = logic_to_loss(expr, {"P": quaternary_pred})
 
         w = torch.randn(1, 3)
         x = torch.randn(1, 3)
@@ -233,7 +233,7 @@ class TestQuaternaryPredicates:
             combined = torch.cat([w, x, y, z], dim=-1)
             return torch.sigmoid(model(combined).squeeze(-1))
 
-        logic_loss = compile_logic(expr, {"P": quaternary_pred})
+        logic_loss = logic_to_loss(expr, {"P": quaternary_pred})
 
         optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 
@@ -270,7 +270,7 @@ class TestHighArityPredicates:
                    v4.mean(dim=-1) + v5.mean(dim=-1)) / 5
             return torch.sigmoid(avg)
 
-        logic_loss = compile_logic(expr, {"P": quinary_func})
+        logic_loss = logic_to_loss(expr, {"P": quinary_func})
 
         batch_size = 4
         inputs = {f"V{i}": torch.randn(batch_size, 2) for i in range(1, 6)}
@@ -300,7 +300,7 @@ class TestHighArityPredicates:
         # Adjust model input size
         model[0] = nn.Linear(8, 8)  # 5 + 3 features
 
-        logic_loss = compile_logic(expr, {"P": high_arity_pred})
+        logic_loss = logic_to_loss(expr, {"P": high_arity_pred})
 
         batch_size = 4
         x = torch.randn(batch_size, 5)
@@ -328,7 +328,7 @@ class TestNaryPredicatesWithComplexExpressions:
         def ternary_q(x, y, z):
             return torch.sigmoid((x * 2 + y - z).mean(dim=-1))
 
-        logic_loss = compile_logic(expr, {"P": ternary_p, "Q": ternary_q})
+        logic_loss = logic_to_loss(expr, {"P": ternary_p, "Q": ternary_q})
 
         batch_size = 4
         x = torch.randn(batch_size, 4)
@@ -366,7 +366,7 @@ class TestNaryPredicatesWithComplexExpressions:
             feat = torch.cat([x, y, z], dim=-1)
             return torch.sigmoid(feat.mean(dim=-1))
 
-        logic_loss = compile_logic(expr, {
+        logic_loss = logic_to_loss(expr, {
             "P": unary_pred,
             "Q": binary_pred,
             "R": ternary_pred
