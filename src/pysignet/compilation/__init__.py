@@ -6,8 +6,8 @@ from .ltu_compiler import LinearThresholdUnitCompiler
 from .compiled_expression import CompiledExpression
 
 __all__ = [
-    'LogicCompiler',
-    'TNormCompiler',
-    'LinearThresholdUnitCompiler',
-    'CompiledExpression',
+    "LogicCompiler",
+    "TNormCompiler",
+    "LinearThresholdUnitCompiler",
+    "CompiledExpression",
 ]

@@ -374,14 +374,9 @@ class TestCompileLogicErrorHandling:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-        # Test mode error message
-        try:
+        # Test mode error message - should mention invalid mode and expected values
+        with pytest.raises(ValueError, match=r"semantic.*tnorm|tnorm.*semantic"):
             compile_logic(expr, predicates, mode="semantic")
-        except ValueError as e:
-            error_msg = str(e)
-            # Should mention the invalid mode and expected values
-            assert "semantic" in error_msg
-            assert "tnorm" in error_msg
 
 
 class TestCompileLogicWithComplexExpressions:

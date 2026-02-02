@@ -758,12 +758,13 @@ class TestLogicLossInputHandling:
         compiled = compiler.compile(expr, predicates)
         logic_loss = LogicLoss(compiled, post_processing="linear")
 
-        # Dict input with different tensors for P and Q
-        inputs = {"X": torch.randn(10, 5), "Y": torch.randn(10, 3)}
+        # Keyword arguments with different tensors for P and Q
+        x = torch.randn(10, 5)
+        y = torch.randn(10, 3)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(inputs, quantify='none')
+        satisfaction = logic_loss(X=x, Y=y, quantify='none')
         # reduction requires quantify='none'
-        loss = logic_loss.loss(inputs, quantify='none', reduction="mean")
+        loss = logic_loss.loss(X=x, Y=y, quantify='none', reduction="mean")
 
         # Should work without errors
         assert isinstance(satisfaction, torch.Tensor)

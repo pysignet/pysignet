@@ -56,21 +56,13 @@ class TNorm(ABC):
         result: torch.Tensor = 1.0 - a
         return result
 
-    def implication(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def implication(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Relaxed IMPLIES operation: a -> b = NOT(a) OR b."""
         return self.disjunction(torch.stack([self.negation(a), b]))
 
-    def equivalence(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def equivalence(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Relaxed EQUIVALENCE: a <-> b = (a -> b) AND (b -> a)."""
-        return self.conjunction(torch.stack([
-            self.implication(a, b),
-            self.implication(b, a)
-        ]))
+        # pylint: disable=arguments-out-of-order
+        return self.conjunction(
+            torch.stack([self.implication(a, b), self.implication(b, a)])
+        )

@@ -1,4 +1,4 @@
-"""CompiledExpression - represents a compiled logical expression with variable bindings.
+"""Compiled logical expression with variable bindings.
 
 This module provides the CompiledExpression class, which represents a compiled
 logical expression that can be evaluated with variable bindings and supports
@@ -8,6 +8,8 @@ CompiledExpression performs PURE EVALUATION only - it always returns per-batch
 results with shape (batch_size,). Batch reduction (quantification) and loss
 computation are handled by LogicLoss, which uses BatchHandlerMixin.
 """
+
+from __future__ import annotations
 
 from typing import Callable, Dict, Set, List, Optional, TYPE_CHECKING
 
@@ -40,9 +42,9 @@ class CompiledExpression:
     not just a temporary store of bindings. This enables future optimizations
     like constant propagation, dead code elimination, and graph rewriting.
 
-    IMPORTANT: All inputs must be provided as keyword arguments (e.g., X=tensor).
-    Positional arguments are not supported. This ensures clear, unambiguous
-    variable binding.
+    IMPORTANT: All inputs must be provided as keyword arguments
+    (e.g., X=tensor). Positional arguments are not supported. This ensures
+    clear, unambiguous variable binding.
 
     Args:
         compiled_logic: Callable that evaluates the expression given variable
@@ -72,13 +74,11 @@ class CompiledExpression:
 
     def __init__(
         self,
-        compiled_logic: Callable[
-            [Dict[str, torch.Tensor]], torch.Tensor
-        ],
+        compiled_logic: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
         free_variables: Set[str],
         predicates: Dict[str, Predicate],
         partial_bindings: Optional[Dict[str, torch.Tensor]] = None,
-        compiler: Optional['LogicCompiler'] = None
+        compiler: Optional[LogicCompiler] = None,
     ) -> None:
         """Initialize CompiledExpression.
 
@@ -100,7 +100,7 @@ class CompiledExpression:
         self._compiler = compiler
 
     @property
-    def compiler(self) -> Optional['LogicCompiler']:
+    def compiler(self) -> Optional[LogicCompiler]:
         """Return the LogicCompiler that produced this expression.
 
         Returns:
@@ -125,26 +125,20 @@ class CompiledExpression:
 
     def __call__(
         self,
-        inputs: Optional[Dict[str, torch.Tensor]] = None,
-        **variable_bindings: torch.Tensor
+        **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
         """Evaluate compiled expression with variable bindings.
 
         All free variables must be bound (either via partial bindings stored
-        in this expression, or provided here).
+        in this expression, or provided here as keyword arguments).
 
         This method performs PURE EVALUATION - it always returns per-batch
         results with shape (batch_size,). No batch reduction is applied.
         For quantification over batch dimensions, wrap with LogicLoss.
 
-        IMPORTANT: All inputs must be provided as keyword arguments
-        (e.g., compiled(X=tensor)). Positional arguments are not supported.
-
         Args:
-            inputs: Optional dict mapping variable names to tensors.
-                   Prefer using keyword arguments (**variable_bindings)
-                   instead.
-            **variable_bindings: Variable bindings (X=x, Y=y, etc.)
+            **variable_bindings: Variable bindings as keyword arguments
+                (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
             Satisfaction tensor of shape (batch_size,) with values in
@@ -153,10 +147,9 @@ class CompiledExpression:
 
         Raises:
             ValueError: If any free variable is not bound
-            ValueError: If both inputs and variable_bindings provided
 
         Example:
-            >>> # Keyword argument interface (required)
+            >>> # Evaluate with keyword arguments
             >>> result = compiled(X=x, Y=y)  # shape: (batch_size,)
             >>>
             >>> # With partial bindings
@@ -164,27 +157,8 @@ class CompiledExpression:
             >>> result = partial(Y=y)  # shape: (batch_size,)
         """
         # Merge partial bindings with new bindings
-        all_bindings: Dict[str, torch.Tensor] = dict(
-            self._partial_bindings
-        )
-
-        # Add new bindings from kwargs
-        if variable_bindings:
-            if inputs is not None:
-                raise ValueError(
-                    "Cannot provide both 'inputs' dict and keyword "
-                    "arguments. Use one or the other."
-                )
-            all_bindings.update(variable_bindings)
-        elif inputs is not None:
-            if not isinstance(inputs, dict):
-                raise ValueError(
-                    "Inputs must be a dict mapping variable names "
-                    "to tensors. Use keyword arguments like "
-                    "compiled(X=tensor) instead of positional "
-                    "arguments like compiled(tensor)."
-                )
-            all_bindings.update(inputs)
+        all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
+        all_bindings.update(variable_bindings)
 
         # Validate all free variables are bound
         provided = set(all_bindings.keys())
@@ -200,9 +174,7 @@ class CompiledExpression:
         # No batch reduction - LogicLoss handles quantification
         return self._compiled_logic(all_bindings)
 
-    def partial(
-        self, **variable_bindings: torch.Tensor
-    ) -> 'CompiledExpression':
+    def partial(self, **variable_bindings: torch.Tensor) -> CompiledExpression:
         """Create new CompiledExpression with some variables bound.
 
         This creates a NEW computation graph where the bound variables
@@ -238,9 +210,7 @@ class CompiledExpression:
             >>> partial = compiled.partial(X=x, Y=y)
         """
         if not variable_bindings:
-            raise ValueError(
-                "Must provide at least one variable binding"
-            )
+            raise ValueError("Must provide at least one variable binding")
 
         # Check for duplicate bindings
         duplicates = set(variable_bindings.keys()) & set(
@@ -253,9 +223,7 @@ class CompiledExpression:
             )
 
         # Check for non-existent variables
-        unknown = (
-            set(variable_bindings.keys()) - self._free_variables
-        )
+        unknown = set(variable_bindings.keys()) - self._free_variables
         if unknown:
             raise ValueError(
                 f"Variable(s) not in expression: {sorted(unknown)}. "
@@ -272,7 +240,7 @@ class CompiledExpression:
             free_variables=self._free_variables,
             predicates=self._predicates,
             partial_bindings=new_bindings,
-            compiler=self._compiler
+            compiler=self._compiler,
         )
 
     def get_trainable_parameters(self) -> List[nn.Parameter]:
@@ -288,6 +256,6 @@ class CompiledExpression:
         """
         params: List[nn.Parameter] = []
         for pred in self._predicates.values():
-            if pred.is_model and hasattr(pred.func, 'parameters'):
+            if pred.is_model and hasattr(pred.func, "parameters"):
                 params.extend(pred.func.parameters())
         return params

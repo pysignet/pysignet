@@ -11,7 +11,6 @@ from pysignet.compilation.base import LogicCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.predicate import Predicate
 from pysignet.context import EvaluationContext
-from pysignet.multiclass import PredicateApplication
 from pysignet.logic import extract_variables
 
 
@@ -41,9 +40,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     # Configurable limit for multiplier to the sigmoid
     WARN_ALPHA = 10.0
 
-    def __init__(
-        self, mode: str = "soft", alpha: float = 1.0
-    ) -> None:
+    def __init__(self, mode: str = "soft", alpha: float = 1.0) -> None:
         """Initialize LinearThresholdUnitCompiler.
 
         Args:
@@ -58,9 +55,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             ValueError: If mode is not 'soft' or 'hard'
         """
         if mode not in ("soft", "hard"):
-            raise ValueError(
-                f"mode must be 'soft' or 'hard', got '{mode}'"
-            )
+            raise ValueError(f"mode must be 'soft' or 'hard', got '{mode}'")
         if mode == "soft" and alpha > self.WARN_ALPHA:
             warnings.warn(
                 f"Parameter alpha = {alpha} is too large and may "
@@ -73,7 +68,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     @property
     def recommended_postprocessing(self) -> str:
         """LTU recommends linear post-processing."""
-        return 'linear'
+        return "linear"
 
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """LTU conjunction: threshold(sum(values) - (n - 0.5)).
@@ -113,9 +108,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[
-            str, Predicate | Callable[..., torch.Tensor]
-        ]
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a CompiledExpression.
 
@@ -144,9 +137,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
         free_vars = extract_variables(expanded_expr)
 
         # Create a closure that evaluates the expression
-        def compiled_logic(
-            inputs: Dict[str, torch.Tensor]
-        ) -> torch.Tensor:
+        def compiled_logic(inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
             """Evaluate compiled logic expression.
 
             Args:
@@ -165,92 +156,5 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             compiled_logic=compiled_logic,
             free_variables=set(v.name for v in free_vars),
             predicates=wrapped_predicates,
-            compiler=self
-        )
-
-    def _evaluate_expression(
-        self,
-        expr: sp.Basic,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
-        ctx: EvaluationContext
-    ) -> torch.Tensor:
-        """Recursively evaluate SymPy expression using LTU operations.
-
-        Args:
-            expr: SymPy expression to evaluate
-            inputs: Dict mapping variable names to tensors
-            predicates: Dict of predicates
-            ctx: Evaluation context for caching
-
-        Returns:
-            Tensor of shape (batch_size,) with values in [0, 1]
-        """
-        # Base case: PredicateApplication (use base class handler)
-        if isinstance(expr, PredicateApplication):
-            return self._evaluate_predicate_application(
-                expr, inputs, predicates, ctx
-            )
-
-        # Reject bare symbols (nullary predicates not supported)
-        if isinstance(expr, sp.Symbol):
-            raise ValueError(
-                f"Bare symbol '{expr}' is not supported. "
-                f"All predicates must be called with at least one "
-                f"variable argument "
-                f"(e.g., use P(X) instead of P)."
-            )
-
-        # Boolean constants (use base class handler)
-        if expr in (sp.true, sp.false):
-            return self._evaluate_boolean_constant(expr, inputs)
-
-        # Logical operators - use self (LogicCompiler) methods
-        if isinstance(expr, sp.And):
-            args = [
-                self._evaluate_expression(
-                    a, inputs, predicates, ctx
-                )
-                for a in expr.args
-            ]
-            return self.conjunction(torch.stack(args))
-
-        if isinstance(expr, sp.Or):
-            args = [
-                self._evaluate_expression(
-                    a, inputs, predicates, ctx
-                )
-                for a in expr.args
-            ]
-            return self.disjunction(torch.stack(args))
-
-        if isinstance(expr, sp.Not):
-            return self.negation(
-                self._evaluate_expression(
-                    expr.args[0], inputs, predicates, ctx
-                )
-            )
-
-        if isinstance(expr, sp.Implies):
-            return self.implication(
-                self._evaluate_expression(
-                    expr.args[0], inputs, predicates, ctx
-                ),
-                self._evaluate_expression(
-                    expr.args[1], inputs, predicates, ctx
-                )
-            )
-
-        if isinstance(expr, sp.Equivalent):
-            return self.equivalence(
-                self._evaluate_expression(
-                    expr.args[0], inputs, predicates, ctx
-                ),
-                self._evaluate_expression(
-                    expr.args[1], inputs, predicates, ctx
-                )
-            )
-
-        raise ValueError(
-            f"Unsupported expression type: {type(expr)}"
+            compiler=self,
         )

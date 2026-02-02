@@ -21,7 +21,7 @@ class SProductTNorm(TNorm):
     @property
     def recommended_postprocessing(self) -> str:
         """S-Product recommends logarithmic post-processing."""
-        return 'log'
+        return "log"
 
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Product conjunction: prod(values) along dim=0."""
@@ -52,13 +52,9 @@ class RProductTNorm(SProductTNorm):
     @property
     def recommended_postprocessing(self) -> str:
         """R-Product recommends logarithmic post-processing."""
-        return 'log'
+        return "log"
 
-    def implication(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def implication(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Relaxed IMPLIES using R-Product residuum.
 
         R-Product implication: 1 if a <= b else b/a
@@ -76,8 +72,6 @@ class RProductTNorm(SProductTNorm):
         # Use torch.where for differentiable conditional
         # Add small epsilon to avoid division by zero
         result: torch.Tensor = torch.where(
-            a <= b,
-            torch.ones_like(a),
-            b / torch.clamp(a, min=1e-10)
+            a <= b, torch.ones_like(a), b / torch.clamp(a, min=1e-10)
         )
         return result

@@ -10,7 +10,6 @@ from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.predicate import Predicate
 from pysignet.tnorms import TNorm, RProductTNorm
 from pysignet.context import EvaluationContext
-from pysignet.multiclass import PredicateApplication
 from pysignet.logic import extract_variables
 
 
@@ -59,26 +58,18 @@ class TNormCompiler(LogicCompiler):
         """Delegate to t-norm negation."""
         return self._tnorm.negation(a)
 
-    def implication(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def implication(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Delegate to t-norm implication."""
         return self._tnorm.implication(a, b)
 
-    def equivalence(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def equivalence(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Delegate to t-norm equivalence."""
         return self._tnorm.equivalence(a, b)
 
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]]
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
@@ -98,7 +89,9 @@ class TNormCompiler(LogicCompiler):
         """
         # Use base class method for validation and wrapping
         # This also expands quantifiers internally
-        wrapped_predicates = self._wrap_and_validate_predicates(expr, predicates)
+        wrapped_predicates = self._wrap_and_validate_predicates(
+            expr, predicates
+        )
 
         # Re-expand quantifiers to get expanded expression
         # (base class expands internally but doesn't return it)
@@ -108,9 +101,7 @@ class TNormCompiler(LogicCompiler):
         free_vars = extract_variables(expanded_expr)
 
         # Create a closure that evaluates the expression
-        def compiled_logic(
-            inputs: Dict[str, torch.Tensor]
-        ) -> torch.Tensor:
+        def compiled_logic(inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
             """Evaluate compiled logic expression.
 
             Args:
@@ -133,86 +124,5 @@ class TNormCompiler(LogicCompiler):
             compiled_logic=compiled_logic,
             free_variables=set(v.name for v in free_vars),
             predicates=wrapped_predicates,
-            compiler=self
+            compiler=self,
         )
-
-    def _evaluate_expression(
-        self,
-        expr: sp.Basic,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
-        ctx: EvaluationContext
-    ) -> torch.Tensor:
-        """Recursively evaluate SymPy expression using t-norms.
-
-        Args:
-            expr: SymPy expression to evaluate
-            inputs: Dict mapping variable names to tensors
-            predicates: Dict of predicates
-            ctx: Evaluation context for caching
-
-        Returns:
-            Tensor of shape (batch_size,) with values in [0, 1]
-        """
-        # Base case: PredicateApplication (use base class handler)
-        if isinstance(expr, PredicateApplication):
-            return self._evaluate_predicate_application(
-                expr, inputs, predicates, ctx
-            )
-
-        # Reject bare symbols (nullary predicates not supported)
-        if isinstance(expr, sp.Symbol):
-            raise ValueError(
-                f"Bare symbol '{expr}' is not supported. "
-                f"All predicates must be called with at least one "
-                f"variable argument "
-                f"(e.g., use P(X) instead of P)."
-            )
-
-        # Boolean constants (use base class handler)
-        if expr in (sp.true, sp.false):
-            return self._evaluate_boolean_constant(expr, inputs)
-
-        # Logical operators - use self (LogicCompiler) methods
-        if isinstance(expr, sp.And):
-            args = [
-                self._evaluate_expression(a, inputs, predicates, ctx)
-                for a in expr.args
-            ]
-            return self.conjunction(torch.stack(args))
-
-        if isinstance(expr, sp.Or):
-            args = [
-                self._evaluate_expression(a, inputs, predicates, ctx)
-                for a in expr.args
-            ]
-            return self.disjunction(torch.stack(args))
-
-        if isinstance(expr, sp.Not):
-            return self.negation(
-                self._evaluate_expression(
-                    expr.args[0], inputs, predicates, ctx
-                )
-            )
-
-        if isinstance(expr, sp.Implies):
-            return self.implication(
-                self._evaluate_expression(
-                    expr.args[0], inputs, predicates, ctx
-                ),
-                self._evaluate_expression(
-                    expr.args[1], inputs, predicates, ctx
-                )
-            )
-
-        if isinstance(expr, sp.Equivalent):
-            return self.equivalence(
-                self._evaluate_expression(
-                    expr.args[0], inputs, predicates, ctx
-                ),
-                self._evaluate_expression(
-                    expr.args[1], inputs, predicates, ctx
-                )
-            )
-
-        raise ValueError(f"Unsupported expression type: {type(expr)}")

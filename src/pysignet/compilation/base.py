@@ -15,10 +15,7 @@ from pysignet.logic.quantifier import Quantifier
 from pysignet.logic.expansion import expand_quantifier
 from pysignet.logic.variable import VariableSymbol
 from pysignet.compilation.arity import validate_predicate_arity
-from pysignet.compilation.module_utils import (
-    infer_module_arity,
-    wrap_module_as_predicate
-)
+from pysignet.compilation.module_utils import infer_module_arity
 from pysignet.compilation.compiled_expression import CompiledExpression
 
 
@@ -44,7 +41,7 @@ class LogicCompiler(ABC):
     per-batch tensors) and batch reduction (reducing a 1D tensor to scalar).
 
     Class Attributes:
-        MAX_DOMAIN_SIZE: Maximum allowed domain size for quantifiers (default: 1000)
+        MAX_DOMAIN_SIZE: Maximum domain size for quantifiers (default: 1000)
         WARN_DOMAIN_SIZE: Domain size threshold for warnings (default: 100)
     """
 
@@ -95,11 +92,7 @@ class LogicCompiler(ABC):
         result: torch.Tensor = 1.0 - a
         return result
 
-    def implication(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def implication(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Relaxed IMPLIES: a -> b = NOT(a) OR b.
 
         Subclasses may override for custom implication semantics
@@ -114,11 +107,7 @@ class LogicCompiler(ABC):
         """
         return self.disjunction(torch.stack([self.negation(a), b]))
 
-    def equivalence(
-        self,
-        a: torch.Tensor,
-        b: torch.Tensor
-    ) -> torch.Tensor:
+    def equivalence(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         """Relaxed EQUIVALENCE: a <-> b = (a -> b) AND (b -> a).
 
         Args:
@@ -128,16 +117,16 @@ class LogicCompiler(ABC):
         Returns:
             Equivalence result tensor.
         """
-        return self.conjunction(torch.stack([
-            self.implication(a, b),
-            self.implication(b, a)
-        ]))
+        # pylint: disable=arguments-out-of-order
+        return self.conjunction(
+            torch.stack([self.implication(a, b), self.implication(b, a)])
+        )
 
     @abstractmethod
     def compile(
-            self,
-            expr: sp.Basic,
-            predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+        self,
+        expr: sp.Basic,
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
@@ -155,21 +144,95 @@ class LogicCompiler(ABC):
         """
         pass
 
+    def _validate_module_arity(
+        self,
+        key: str,
+        module: nn.Module,
+        expected_arity: int,
+    ) -> None:
+        """Validate nn.Module arity matches expected usage.
+
+        Args:
+            key: Predicate name
+            module: nn.Module to validate
+            expected_arity: Expected arity from expression usage
+
+        Raises:
+            ValueError: If module arity doesn't match expected usage
+        """
+        module_arity = infer_module_arity(module)
+
+        # Skip validation if arity cannot be inferred
+        if module_arity is None:
+            return
+
+        # Check compatibility
+        is_valid = False
+        if module_arity == 1:
+            # Unary module: must have exactly 1 argument
+            is_valid = expected_arity == 1
+        elif module_arity == 2:
+            # Binary/multi-output: 2+ args for channel select
+            is_valid = expected_arity >= 2
+
+        if not is_valid:
+            arity_names = {1: "unary", 2: "binary"}
+            module_name = arity_names.get(module_arity, f"arity-{module_arity}")
+            raise ValueError(
+                f"Predicate '{key}' arity mismatch: "
+                f"module has {module_name} arity "
+                f"(output dim = {module_arity}) but used with "
+                f"{expected_arity} argument(s). "
+                f"Unary needs 1 arg, binary needs 2+."
+            )
+
+    def _extract_module_to_check(
+        self, value: Predicate | Callable[..., torch.Tensor]
+    ) -> nn.Module | None:
+        """Extract nn.Module from a predicate value if present.
+
+        Args:
+            value: Predicate or callable to check
+
+        Returns:
+            nn.Module if found, None otherwise
+        """
+        if isinstance(value, nn.Module):
+            return value
+        if isinstance(value, Predicate) and isinstance(value.func, nn.Module):
+            return value.func
+        return None
+
+    def _wrap_predicate_value(
+        self, key: str, value: Predicate | Callable[..., torch.Tensor]
+    ) -> Predicate:
+        """Wrap a predicate value in a Predicate object if needed.
+
+        Args:
+            key: Predicate name
+            value: Value to wrap
+
+        Returns:
+            Predicate object
+
+        Raises:
+            TypeError: If value is not callable
+        """
+        if isinstance(value, Predicate):
+            return value
+        if callable(value):
+            return Predicate(value)
+        raise TypeError(
+            f"Predicate '{key}' must be callable or Predicate, "
+            f"got {type(value).__name__}"
+        )
+
     def _wrap_and_validate_predicates(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]]
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> Dict[str, Predicate]:
         """Wrap, validate, and prepare predicates for compilation.
-
-        This method:
-        1. Expands quantifiers
-        2. Extracts predicate usages and arities from expression
-        3. Wraps nn.Modules with smart detection (sigmoid/softmax)
-        4. Auto-wraps raw callables in Predicate objects
-        5. Assigns names and validates no reuse
-        6. Validates predicate usage consistency
-        7. Validates predicate arity
 
         Args:
             expr: SymPy expression to compile
@@ -191,54 +254,13 @@ class LogicCompiler(ABC):
         # Wrap predicates and validate nn.Module arity
         wrapped_predicates: Dict[str, Predicate] = {}
         for key, value in predicates.items():
-            # Extract module if wrapped in Predicate
-            module_to_check: nn.Module | None = None
-            if isinstance(value, nn.Module):
-                module_to_check = value
-            elif isinstance(value, Predicate) and isinstance(value.func, nn.Module):
-                module_to_check = value.func
+            # Validate module arity if applicable
+            module = self._extract_module_to_check(value)
+            if module is not None and key in predicate_arities:
+                self._validate_module_arity(key, module, predicate_arities[key])
 
-            if module_to_check is not None and key in predicate_arities:
-                # Try to validate nn.Module arity matches usage
-                # For unary modules (output dim=1): expect exactly 1 argument
-                # For binary modules (output dim>1): expect 2+ arguments (variable + constant(s))
-                # For custom modules: skip validation (arity inferred from usage)
-                expected_arity = predicate_arities[key]
-                module_arity = infer_module_arity(module_to_check)
-
-                # Only validate if arity can be inferred
-                if module_arity is not None:
-                    # Check compatibility
-                    is_valid = False
-                    if module_arity == 1:
-                        # Unary module: must have exactly 1 argument
-                        is_valid = (expected_arity == 1)
-                    elif module_arity == 2:
-                        # Binary/multi-output module: must have 2+ arguments
-                        # Allows P(X, 0), P(X, 0, 1), etc. for channel selection
-                        is_valid = (expected_arity >= 2)
-
-                    if not is_valid:
-                        arity_names = {1: "unary", 2: "binary"}
-                        module_name = arity_names.get(module_arity, f"arity-{module_arity}")
-                        raise ValueError(
-                            f"Predicate '{key}' arity mismatch: module has {module_name} arity "
-                            f"(output dim = {module_arity}) but used with "
-                            f"{expected_arity} argument(s). "
-                            f"Unary modules need exactly 1 argument, binary modules need 2+ arguments."
-                        )
-
-            # Auto-wrap raw callables in Predicate objects
-            # Note: nn.Modules are NOT wrapped - they're handled specially in evaluation
-            if isinstance(value, Predicate):
-                wrapped_predicates[key] = value
-            elif callable(value):
-                wrapped_predicates[key] = Predicate(value)
-            else:
-                raise TypeError(
-                    f"Predicate '{key}' must be callable (function, lambda, "
-                    f"nn.Module) or a Predicate instance, got {type(value).__name__}"
-                )
+            # Wrap the predicate value
+            wrapped_predicates[key] = self._wrap_predicate_value(key, value)
 
         # Assign names and validate no reuse
         for key, pred in wrapped_predicates.items():
@@ -281,6 +303,7 @@ class LogicCompiler(ABC):
         Raises:
             ValueError: If domain size exceeds MAX_DOMAIN_SIZE
         """
+
         def _expand_recursive(node: sp.Basic) -> sp.Basic:
             """Recursively expand quantifiers in the expression tree."""
             if isinstance(node, Quantifier):
@@ -292,17 +315,16 @@ class LogicCompiler(ABC):
                     raise ValueError(
                         f"Domain too large ({domain_size} elements) in "
                         f"{node.__class__.__name__}. Domain quantification is "
-                        f"intended for small symbolic sets (class labels, "
-                        f"discrete choices). Maximum allowed: {self.MAX_DOMAIN_SIZE}. "
-                        f"Consider restructuring your constraint or sampling "
-                        f"from the domain."
+                        f"for small symbolic sets (class labels, discrete "
+                        f"choices). Max: {self.MAX_DOMAIN_SIZE}. "
+                        f"Consider restructuring or sampling from domain."
                     )
                 elif domain_size > self.WARN_DOMAIN_SIZE:
                     warnings.warn(
                         f"Large domain ({domain_size} elements) in "
                         f"{node.__class__.__name__} may impact performance. "
                         f"Consider using smaller domains or restructuring.",
-                        UserWarning
+                        UserWarning,
                     )
 
                 # Expand this quantifier
@@ -311,8 +333,10 @@ class LogicCompiler(ABC):
                 return _expand_recursive(expanded)
 
             # Recursive case: traverse children
-            if hasattr(node, 'args') and node.args:
-                expanded_children = [_expand_recursive(child) for child in node.args]
+            if hasattr(node, "args") and node.args:
+                expanded_children = [
+                    _expand_recursive(child) for child in node.args
+                ]
                 return node.func(*expanded_children)
 
             # Leaf node
@@ -357,7 +381,7 @@ class LogicCompiler(ABC):
                     arities[pred_name] = arity
 
             # Recurse into subexpressions
-            for arg in getattr(e, 'args', []):
+            for arg in getattr(e, "args", []):
                 extract(arg)
 
         extract(expr)
@@ -408,8 +432,8 @@ class LogicCompiler(ABC):
                         if predicate_arities[name] != 0:
                             raise ValueError(
                                 f"Predicate '{name}' used inconsistently: "
-                                f"found both arity 0 (nullary: {name}) and arity "
-                                f"{predicate_arities[name]} (n-ary: {name}(...)) "
+                                f"found both arity 0 (nullary) and arity "
+                                f"{predicate_arities[name]} (n-ary) "
                                 f"in the same expression."
                             )
                     else:
@@ -431,14 +455,13 @@ class LogicCompiler(ABC):
                     predicate_arities[name] = arity
 
             # Recurse into subexpressions
-            for arg in getattr(e, 'args', []):
+            for arg in getattr(e, "args", []):
                 collect_usage(arg)
 
         collect_usage(expr)
 
     def _parse_predicate_application(
-        self,
-        app: PredicateApplication
+        self, app: PredicateApplication
     ) -> tuple[list[VariableSymbol], list[Any]]:
         """Parse PredicateApplication into free variables and constants.
 
@@ -450,7 +473,7 @@ class LogicCompiler(ABC):
 
         Returns:
             Tuple of (free_vars, constants) where:
-            - free_vars: List of unique VariableSymbol in order of first appearance
+            - free_vars: Unique VariableSymbols in order of first appearance
             - constants: List of constant values (integers)
 
         Example:
@@ -479,7 +502,7 @@ class LogicCompiler(ABC):
         app: PredicateApplication,
         inputs: Dict[str, torch.Tensor],
         predicates: Dict[str, Predicate],
-        ctx: EvaluationContext
+        ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate PredicateApplication with variable and constant arguments.
 
@@ -540,7 +563,7 @@ class LogicCompiler(ABC):
         app: PredicateApplication,
         inputs: Dict[str, torch.Tensor],
         predicate: Predicate,
-        ctx: EvaluationContext
+        ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate a regular callable predicate.
 
@@ -579,9 +602,10 @@ class LogicCompiler(ABC):
                 return id(a)
             elif isinstance(a, dict):
                 # For dicts, use the id to avoid unhashable type error
-                return ('dict', id(a))
+                return ("dict", id(a))
             else:
                 return a
+
         cache_key = (id(func), tuple(_make_hashable(a) for a in call_args))
 
         # Call with all arguments
@@ -590,12 +614,12 @@ class LogicCompiler(ABC):
 
     def _evaluate_module_predicate(
         self,
-        app: PredicateApplication,
+        unused_app: PredicateApplication,
         inputs: Dict[str, torch.Tensor],
         predicate: Predicate,
         free_vars: List[VariableSymbol],
         constants: List[Any],
-        ctx: EvaluationContext
+        ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate an nn.Module predicate.
 
@@ -603,7 +627,7 @@ class LogicCompiler(ABC):
         indices to select specific channels.
 
         Args:
-            app: PredicateApplication
+            unused_app: PredicateApplication (unused, for API consistency)
             inputs: Dict of variable bindings
             predicate: Predicate wrapping nn.Module
             free_vars: List of free variables in the application
@@ -631,8 +655,7 @@ class LogicCompiler(ABC):
 
         # Call module with variable inputs
         full_output = ctx.get_or_compute(
-            cache_key,
-            lambda: predicate(*var_inputs)
+            cache_key, lambda: predicate(*var_inputs)
         )
         full_output = cast(torch.Tensor, full_output)
 
@@ -657,15 +680,13 @@ class LogicCompiler(ABC):
             return full_output
 
     def _evaluate_boolean_constant(
-        self,
-        const: sp.Basic,
-        inputs: Dict[str, torch.Tensor]
+        self, const: sp.Basic, inputs: Dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Evaluate boolean constant (sp.true or sp.false).
 
         Args:
             const: sp.true or sp.false
-            inputs: Dict mapping variable names to tensors (to determine batch size)
+            inputs: Dict mapping variable names to tensors (for batch size)
 
         Returns:
             Tensor of ones (true) or zeros (false) with shape (batch_size,)
@@ -692,3 +713,131 @@ class LogicCompiler(ABC):
             return torch.zeros(batch_size, device=sample_input.device)
         else:
             raise ValueError(f"Expected sp.true or sp.false, got {const}")
+
+    def _evaluate_expression(
+        self,
+        expr: sp.Basic,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Recursively evaluate SymPy expression using logical operations.
+
+        This is the core evaluation method shared by all compilers. Each
+        compiler provides its own implementations of conjunction, disjunction,
+        negation, implication, and equivalence.
+
+        Args:
+            expr: SymPy expression to evaluate
+            inputs: Dict mapping variable names to tensors
+            predicates: Dict of predicates
+            ctx: Evaluation context for caching
+
+        Returns:
+            Tensor of shape (batch_size,) with values in [0, 1]
+
+        Raises:
+            ValueError: For unsupported expression types or bare symbols
+        """
+        # Base case: PredicateApplication
+        if isinstance(expr, PredicateApplication):
+            return self._evaluate_predicate_application(
+                expr, inputs, predicates, ctx
+            )
+
+        # Reject bare symbols (nullary predicates not supported)
+        if isinstance(expr, sp.Symbol):
+            raise ValueError(
+                f"Bare symbol '{expr}' is not supported. "
+                f"All predicates must be called with at least one "
+                f"variable argument "
+                f"(e.g., use P(X) instead of P)."
+            )
+
+        # Boolean constants
+        if expr in (sp.true, sp.false):
+            return self._evaluate_boolean_constant(expr, inputs)
+
+        # Logical operators - delegate to operator methods
+        if isinstance(expr, sp.And):
+            return self._evaluate_and(expr, inputs, predicates, ctx)
+
+        if isinstance(expr, sp.Or):
+            return self._evaluate_or(expr, inputs, predicates, ctx)
+
+        if isinstance(expr, sp.Not):
+            return self._evaluate_not(expr, inputs, predicates, ctx)
+
+        if isinstance(expr, sp.Implies):
+            return self._evaluate_implies(expr, inputs, predicates, ctx)
+
+        if isinstance(expr, sp.Equivalent):
+            return self._evaluate_equivalent(expr, inputs, predicates, ctx)
+
+        raise ValueError(f"Unsupported expression type: {type(expr)}")
+
+    def _evaluate_and(
+        self,
+        expr: sp.And,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Evaluate And expression."""
+        args = [
+            self._evaluate_expression(a, inputs, predicates, ctx)
+            for a in expr.args
+        ]
+        return self.conjunction(torch.stack(args))
+
+    def _evaluate_or(
+        self,
+        expr: sp.Or,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Evaluate Or expression."""
+        args = [
+            self._evaluate_expression(a, inputs, predicates, ctx)
+            for a in expr.args
+        ]
+        return self.disjunction(torch.stack(args))
+
+    def _evaluate_not(
+        self,
+        expr: sp.Not,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Evaluate Not expression."""
+        return self.negation(
+            self._evaluate_expression(expr.args[0], inputs, predicates, ctx)
+        )
+
+    def _evaluate_implies(
+        self,
+        expr: sp.Implies,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Evaluate Implies expression."""
+        return self.implication(
+            self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
+            self._evaluate_expression(expr.args[1], inputs, predicates, ctx),
+        )
+
+    def _evaluate_equivalent(
+        self,
+        expr: sp.Equivalent,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Evaluate Equivalent expression."""
+        return self.equivalence(
+            self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
+            self._evaluate_expression(expr.args[1], inputs, predicates, ctx),
+        )

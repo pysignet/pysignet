@@ -62,9 +62,7 @@ def compile_logic(
             ... )
     """
     # Auto-wrap raw callables in Predicate objects
-    wrapped_predicates: Dict[
-        str, Predicate | Callable[..., torch.Tensor]
-    ] = {}
+    wrapped_predicates: Dict[str, Predicate | Callable[..., torch.Tensor]] = {}
     for key, value in predicates.items():
         if isinstance(value, Predicate):
             # Already a Predicate, use as-is
@@ -100,9 +98,7 @@ def logic_to_loss(
     predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     mode: str = "tnorm",
     tnorm: Optional[TNorm] = None,
-    post_processing: (
-        str | Callable[[torch.Tensor], torch.Tensor] | None
-    ) = None,
+    post_processing: str | Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> LogicLoss:
     """Compile logic expression and wrap in LogicLoss.
 
@@ -131,7 +127,5 @@ def logic_to_loss(
         >>> logic_loss = logic_to_loss(expr, {"P": model_p, "Q": model_q})
         >>> loss = logic_loss.loss(X=x)
     """
-    compiled = compile_logic(
-        expr, predicates, mode=mode, tnorm=tnorm
-    )
+    compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm)
     return LogicLoss(compiled, post_processing=post_processing)

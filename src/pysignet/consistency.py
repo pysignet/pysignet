@@ -62,7 +62,7 @@ class ConsistencyChecker:
     def __init__(
         self,
         expression: sp.Basic,
-        predicates: Dict[str, Callable[[Any], torch.Tensor]]
+        predicates: Dict[str, Callable[[Any], torch.Tensor]],
     ) -> None:
         self.expression = expression
         self.predicates = predicates
@@ -71,9 +71,7 @@ class ConsistencyChecker:
         symbols = self._extract_predicate_symbols(expression)
         missing = symbols - set(predicates.keys())
         if missing:
-            raise ValueError(
-                f"Missing predicates for symbols: {missing}"
-            )
+            raise ValueError(f"Missing predicates for symbols: {missing}")
 
     def _extract_predicate_symbols(self, expr: sp.Basic) -> Set[str]:
         """Extract all predicate symbols from a SymPy expression.
@@ -95,7 +93,9 @@ class ConsistencyChecker:
             symbols.update(self._extract_predicate_symbols(arg))
         return symbols
 
-    def _extract_predicate_applications(self, expr: sp.Basic) -> Set[PredicateApplication]:
+    def _extract_predicate_applications(
+        self, expr: sp.Basic
+    ) -> Set[PredicateApplication]:
         """Extract all unique PredicateApplications from expression.
 
         Args:
@@ -121,10 +121,9 @@ class ConsistencyChecker:
         return applications
 
     def _evaluate_predicates(
-        self,
-        inputs: torch.Tensor | Dict[str, torch.Tensor]
+        self, inputs: torch.Tensor | Dict[str, torch.Tensor]
     ) -> Dict[Any, torch.Tensor]:
-        """Evaluate all predicate applications on inputs to get boolean decisions.
+        """Evaluate all predicate applications to get boolean decisions.
 
         Args:
             inputs: Single tensor or dict of tensors for predicates
@@ -132,6 +131,7 @@ class ConsistencyChecker:
         Returns:
             Dict mapping PredicateApplication instances to boolean tensors
         """
+        # pylint: disable=import-outside-toplevel
         from pysignet.logic import is_constant
 
         decisions = {}
@@ -144,11 +144,13 @@ class ConsistencyChecker:
             predicate = self.predicates[pred_name]
 
             # Extract constants from this application (preserving order)
-            constants = [arg for arg in app.application_args if is_constant(arg)]
+            constants = [
+                arg for arg in app.application_args if is_constant(arg)
+            ]
 
             # Get input for this predicate
             if isinstance(inputs, dict):
-                pred_input = inputs.get(pred_name, inputs.get('default'))
+                pred_input = inputs.get(pred_name, inputs.get("default"))
             else:
                 pred_input = inputs
 
@@ -170,74 +172,96 @@ class ConsistencyChecker:
         return decisions
 
     def _evaluate_boolean(
-        self,
-        expr: sp.Basic,
-        decisions: Dict[Any, torch.Tensor]
+        self, expr: sp.Basic, decisions: Dict[Any, torch.Tensor]
     ) -> torch.Tensor:
         """Recursively evaluate SymPy expression with boolean logic.
 
         Args:
             expr: SymPy expression to evaluate
-            decisions: Dict mapping PredicateApplication instances to boolean tensors
+            decisions: Dict mapping PredicateApplication instances to
+                boolean tensors
 
         Returns:
             Boolean tensor indicating satisfaction
         """
         # Base case: FOL predicate application P(X), Digit(X, 0), E("P", "H")
         if isinstance(expr, PredicateApplication):
-            # Look up by the PredicateApplication instance itself
             return decisions[expr]
 
         # Boolean constants
         if expr == sp.true:
-            sample = next(iter(decisions.values()))
-            return torch.ones(
-                sample.shape[0],
-                dtype=torch.bool,
-                device=sample.device
-            )
+            return self._make_bool_constant(decisions, True)
 
         if expr == sp.false:
-            sample = next(iter(decisions.values()))
-            return torch.zeros(
-                sample.shape[0],
-                dtype=torch.bool,
-                device=sample.device
-            )
+            return self._make_bool_constant(decisions, False)
 
-        # Logical operators
+        # Logical operators - delegate to helper methods
         if isinstance(expr, sp.And):
-            result = self._evaluate_boolean(expr.args[0], decisions)
-            for arg in expr.args[1:]:
-                result = result & self._evaluate_boolean(arg, decisions)
-            return result
+            return self._evaluate_and(expr, decisions)
 
         if isinstance(expr, sp.Or):
-            result = self._evaluate_boolean(expr.args[0], decisions)
-            for arg in expr.args[1:]:
-                result = result | self._evaluate_boolean(arg, decisions)
-            return result
+            return self._evaluate_or(expr, decisions)
 
         if isinstance(expr, sp.Not):
             return ~self._evaluate_boolean(expr.args[0], decisions)
 
         if isinstance(expr, sp.Implies):
-            antecedent = self._evaluate_boolean(expr.args[0], decisions)
-            consequent = self._evaluate_boolean(expr.args[1], decisions)
-            # A → B ≡ ¬A ∨ B
-            return (~antecedent) | consequent
+            return self._evaluate_implies(expr, decisions)
 
         if isinstance(expr, sp.Equivalent):
-            left = self._evaluate_boolean(expr.args[0], decisions)
-            right = self._evaluate_boolean(expr.args[1], decisions)
-            # A ↔ B ≡ (A ↔ B)
-            return left == right
+            return self._evaluate_equivalent(expr, decisions)
 
         raise ValueError(f"Unsupported expression type: {type(expr)}")
 
+    def _make_bool_constant(
+        self, decisions: Dict[Any, torch.Tensor], value: bool
+    ) -> torch.Tensor:
+        """Create a boolean constant tensor with the same shape as decisions."""
+        sample = next(iter(decisions.values()))
+        if value:
+            return torch.ones(
+                sample.shape[0], dtype=torch.bool, device=sample.device
+            )
+        return torch.zeros(
+            sample.shape[0], dtype=torch.bool, device=sample.device
+        )
+
+    def _evaluate_and(
+        self, expr: sp.And, decisions: Dict[Any, torch.Tensor]
+    ) -> torch.Tensor:
+        """Evaluate And expression with boolean logic."""
+        result = self._evaluate_boolean(expr.args[0], decisions)
+        for arg in expr.args[1:]:
+            result = result & self._evaluate_boolean(arg, decisions)
+        return result
+
+    def _evaluate_or(
+        self, expr: sp.Or, decisions: Dict[Any, torch.Tensor]
+    ) -> torch.Tensor:
+        """Evaluate Or expression with boolean logic."""
+        result = self._evaluate_boolean(expr.args[0], decisions)
+        for arg in expr.args[1:]:
+            result = result | self._evaluate_boolean(arg, decisions)
+        return result
+
+    def _evaluate_implies(
+        self, expr: sp.Implies, decisions: Dict[Any, torch.Tensor]
+    ) -> torch.Tensor:
+        """Evaluate Implies expression: A -> B = NOT(A) OR B."""
+        antecedent = self._evaluate_boolean(expr.args[0], decisions)
+        consequent = self._evaluate_boolean(expr.args[1], decisions)
+        return (~antecedent) | consequent
+
+    def _evaluate_equivalent(
+        self, expr: sp.Equivalent, decisions: Dict[Any, torch.Tensor]
+    ) -> torch.Tensor:
+        """Evaluate Equivalent expression: A <-> B = (A == B)."""
+        left = self._evaluate_boolean(expr.args[0], decisions)
+        right = self._evaluate_boolean(expr.args[1], decisions)
+        return left == right
+
     def __call__(
-        self,
-        inputs: torch.Tensor | Dict[str, torch.Tensor]
+        self, inputs: torch.Tensor | Dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Check if formula is satisfied on inputs.
 

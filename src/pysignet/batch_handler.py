@@ -35,12 +35,12 @@ class BatchHandlerMixin:
         >>> result = handler._reduce_batch(tensor, quantifier='forall')
     """
 
-    _compiler: 'LogicCompiler'
+    _compiler: "LogicCompiler"
 
     def _reduce_batch(
         self,
         tensor: torch.Tensor,
-        quantifier: Literal['forall', 'exists', 'none'] = 'forall',
+        quantifier: Literal["forall", "exists", "none"] = "forall",
     ) -> torch.Tensor:
         """Reduce batch using the specified quantifier.
 
@@ -61,18 +61,18 @@ class BatchHandlerMixin:
         Raises:
             ValueError: If quantifier is invalid.
         """
-        valid_quantifiers = ('forall', 'exists', 'none')
+        valid_quantifiers = ("forall", "exists", "none")
         if quantifier not in valid_quantifiers:
             raise ValueError(
                 f"Invalid quantifier '{quantifier}'. "
                 f"Must be one of {valid_quantifiers}."
             )
 
-        if quantifier == 'none':
+        if quantifier == "none":
             return tensor
 
         if tensor.numel() == 0:
-            if quantifier == 'forall':
+            if quantifier == "forall":
                 return torch.tensor(
                     1.0, dtype=tensor.dtype, device=tensor.device
                 )
@@ -81,7 +81,7 @@ class BatchHandlerMixin:
                     0.0, dtype=tensor.dtype, device=tensor.device
                 )
 
-        if quantifier == 'forall':
+        if quantifier == "forall":
             return self._compiler.conjunction(tensor)
         else:  # exists
             return self._compiler.disjunction(tensor)
@@ -89,7 +89,7 @@ class BatchHandlerMixin:
     def _apply_reduction(
         self,
         tensor: torch.Tensor,
-        reduction: Literal['mean', 'sum', 'none'] = 'mean'
+        reduction: Literal["mean", "sum", "none"] = "mean",
     ) -> torch.Tensor:
         """Apply final reduction (mean/sum/none) to tensor.
 
@@ -109,16 +109,16 @@ class BatchHandlerMixin:
         Raises:
             ValueError: If reduction is invalid.
         """
-        valid_reductions = ('mean', 'sum', 'none')
+        valid_reductions = ("mean", "sum", "none")
         if reduction not in valid_reductions:
             raise ValueError(
                 f"Invalid reduction '{reduction}'. "
                 f"Must be one of {valid_reductions}."
             )
 
-        if reduction == 'mean':
+        if reduction == "mean":
             return tensor.mean() if tensor.numel() > 0 else tensor
-        elif reduction == 'sum':
+        elif reduction == "sum":
             return tensor.sum() if tensor.numel() > 0 else tensor
         else:  # none
             return tensor

@@ -119,7 +119,7 @@ class TestFOLBatchQuantification:
 
         x = torch.randn(3, 5)
         y = torch.randn(3, 4)
-        result = logic_loss({"X": x, "Y": y})
+        result = logic_loss(X=x, Y=y)
 
         assert result.shape == (3,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -313,8 +313,8 @@ class TestFOLEdgeCases:
 class TestFOLWithDictInputs:
     """Test FOL compilation with dictionary inputs."""
 
-    def test_variable_with_dict_input(self):
-        """Test FOL expression with dictionary inputs."""
+    def test_variable_with_keyword_args(self):
+        """Test FOL expression with keyword arguments."""
         P = Symbol("P")
         X = Variable("X")
 
@@ -324,9 +324,9 @@ class TestFOLWithDictInputs:
 
         logic_loss = compile_logic(expr, {"P": p_model})
 
-        # Dict input with variable name as key
-        inputs = {"X": torch.randn(5, 10)}
-        result = logic_loss(inputs)
+        # Keyword argument with variable name
+        x = torch.randn(5, 10)
+        result = logic_loss(X=x)
 
         assert result.shape == (5,)
         assert torch.all((result >= 0) & (result <= 1))

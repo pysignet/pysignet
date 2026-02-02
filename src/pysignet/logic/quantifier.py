@@ -26,10 +26,7 @@ class Quantifier(sp.Basic):  # type: ignore[misc]
     """
 
     def __init__(
-        self,
-        variable: VariableSymbol,
-        domain: Iterable[Any],
-        body: sp.Basic
+        self, variable: VariableSymbol, domain: Iterable[Any], body: sp.Basic
     ) -> None:
         """Initialize a new quantifier instance.
 
@@ -138,7 +135,7 @@ class ForAll(Quantifier):
     def __str__(self) -> str:
         """String representation of ForAll."""
         domain_str = str(list(self.domain)[:5])  # Show first 5 elements
-        if hasattr(self.domain, '__len__') and len(list(self.domain)) > 5:
+        if hasattr(self.domain, "__len__") and len(list(self.domain)) > 5:
             domain_str = domain_str[:-1] + ", ...]"
         return f"ForAll({self.variable}, {domain_str}, {self.body})"
 
@@ -168,7 +165,7 @@ class Exists(Quantifier):
     def __str__(self) -> str:
         """String representation of Exists."""
         domain_str = str(list(self.domain)[:5])  # Show first 5 elements
-        if hasattr(self.domain, '__len__') and len(list(self.domain)) > 5:
+        if hasattr(self.domain, "__len__") and len(list(self.domain)) > 5:
             domain_str = domain_str[:-1] + ", ...]"
         return f"Exists({self.variable}, {domain_str}, {self.body})"
 

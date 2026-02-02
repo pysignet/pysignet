@@ -674,25 +674,24 @@ class TestTNormCompilerBooleanConstants:
             assert result.shape == (batch_size,)
             assert torch.allclose(result, torch.zeros(batch_size), atol=1e-5)
 
-    def test_constants_with_dict_input(self) -> None:
-        """Test constants work correctly with dict inputs."""
-        # Test true constant with dict input
+    def test_constants_with_kwarg_input(self) -> None:
+        """Test constants work correctly with keyword argument inputs."""
+        # Test true constant with keyword inputs
         expr_true = sp.true
         compiler = TNormCompiler()
         compiled_true = compiler.compile(expr_true, {})
 
-        inputs = {"input1": torch.randn(1, 5), "input2": torch.randn(1, 3)}
-        result = compiled_true(inputs)
+        result = compiled_true(input1=torch.randn(1, 5), input2=torch.randn(1, 3))
         assert result.shape == (1,)
         assert torch.allclose(result, torch.ones(1), atol=1e-5)
 
-        # Test false constant with dict input
+        # Test false constant with keyword inputs
         expr_false = sp.false
         compiled_false = compiler.compile(expr_false, {})
 
-        result = compiled_false(inputs)
+        result = compiled_false(input1=torch.randn(1, 5), input2=torch.randn(1, 3))
         assert result.shape == (1,)
-        assert torch.allclose(result, torch.zeros(10), atol=1e-5)
+        assert torch.allclose(result, torch.zeros(1), atol=1e-5)
 
 
 class TestTNormCompilerErrorHandling:
@@ -725,22 +724,15 @@ class TestTNormCompilerErrorHandling:
 
         compiler = TNormCompiler()
 
-        try:
+        # Missing symbol Q should be mentioned in error
+        with pytest.raises(ValueError, match=r"[Mm]issing.*Q|Q.*[Mm]issing"):
             compiler.compile(expr, predicates)
-        except ValueError as e:
-            error_msg = str(e)
-            assert "Q" in error_msg  # Missing symbol should be mentioned
-            assert "Missing" in error_msg or "missing" in error_msg
 
         # Test 2: Predicate name mismatch error
         predicates_mismatch = {
             "WrongName": Predicate(lambda x: torch.ones(x.shape[0]) * 0.8)
         }
 
-        try:
+        # Missing predicate P should be mentioned in error
+        with pytest.raises(ValueError, match=r"[Mm]issing.*P|P.*[Mm]issing"):
             compiler.compile(P(X), predicates_mismatch)
-        except ValueError as e:
-            error_msg = str(e)
-            # Should mention the missing predicate name 'P'
-            assert "P" in error_msg
-            assert "Missing" in error_msg or "missing" in error_msg

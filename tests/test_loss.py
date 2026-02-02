@@ -4,6 +4,7 @@ This module tests the loss() method and its different reduction modes
 (mean, sum, none).
 """
 
+import pytest
 import sympy as sp
 import torch
 
@@ -116,12 +117,9 @@ def test_invalid_reduction_mode() -> None:
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
 
-    try:
-        # Using quantify='none' since reduction only works with quantify='none'
+    # Using quantify='none' since reduction only works with quantify='none'
+    with pytest.raises(ValueError, match="Invalid reduction"):
         logic_loss.loss(X=x, quantify='none', reduction="invalid")
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Invalid reduction" in str(e)
 
 
 def test_loss_is_one_minus_satisfaction() -> None:
@@ -276,8 +274,8 @@ def test_loss_with_varying_batch_sizes() -> None:
         assert torch.allclose(loss_sum, torch.tensor(0.2 * batch_size))
 
 
-def test_loss_with_dict_input() -> None:
-    """Test loss computation with dict input."""
+def test_loss_with_kwarg_input() -> None:
+    """Test loss computation with keyword argument input."""
     X, Y = Variable("X Y")
     # pylint: disable=invalid-name
     P, Q = Symbol("P Q")
@@ -291,13 +289,11 @@ def test_loss_with_dict_input() -> None:
     logic_loss = logic_to_loss(expr, predicates)
 
     batch_size = 10
-    inputs = {
-        "X": torch.randn(batch_size, 5),
-        "Y": torch.randn(batch_size, 10),
-    }
+    x = torch.randn(batch_size, 5)
+    y = torch.randn(batch_size, 10)
 
     # Default quantify='forall' produces scalar loss
-    loss = logic_loss.loss(inputs, post_processing="linear")
+    loss = logic_loss.loss(X=x, Y=y, post_processing="linear")
 
     assert loss.shape == ()  # Scalar from forall quantification
     assert loss >= 0.0

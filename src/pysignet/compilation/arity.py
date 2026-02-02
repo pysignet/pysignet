@@ -21,8 +21,7 @@ from pysignet.multiclass import PredicateApplication
 
 
 def validate_predicate_arity(
-    expr: sp.Basic,
-    predicates: Dict[str, Predicate]
+    expr: sp.Basic, predicates: Dict[str, Predicate]
 ) -> None:
     """Validate that callable signatures match predicate usage.
 
@@ -45,8 +44,7 @@ def validate_predicate_arity(
 
 
 def _validate_arity_recursive(
-    node: sp.Basic,
-    predicates: Dict[str, Predicate]
+    node: sp.Basic, predicates: Dict[str, Predicate]
 ) -> None:
     """Recursively validate arity for all predicates in expression tree.
 
@@ -57,6 +55,7 @@ def _validate_arity_recursive(
     Raises:
         ValueError: If arity mismatch found
     """
+    # pylint: disable=import-outside-toplevel
     from pysignet.logic.variable import VariableSymbol
 
     if isinstance(node, PredicateApplication):
@@ -65,9 +64,11 @@ def _validate_arity_recursive(
 
     elif isinstance(node, sp.Symbol):
         # Check for disallowed nullary usage (bare symbol)
-        if (not isinstance(node, VariableSymbol) and
-            node not in (sp.true, sp.false) and
-            str(node) in predicates):
+        if (
+            not isinstance(node, VariableSymbol)
+            and node not in (sp.true, sp.false)
+            and str(node) in predicates
+        ):
             # This is a predicate used without arguments - disallowed
             pred_name = str(node)
             raise ValueError(
@@ -77,13 +78,12 @@ def _validate_arity_recursive(
             )
 
     # Recurse into subexpressions
-    for arg in getattr(node, 'args', []):
+    for arg in getattr(node, "args", []):
         _validate_arity_recursive(arg, predicates)
 
 
 def _validate_application_arity(
-    app: PredicateApplication,
-    predicates: Dict[str, Predicate]
+    app: PredicateApplication, predicates: Dict[str, Predicate]
 ) -> None:
     """Validate arity for a single PredicateApplication.
 
@@ -151,10 +151,12 @@ def _get_callable_arity(func: Callable[..., Any]) -> int:
         # Count positional parameters
         # Note: bound methods automatically have 'self' excluded
         params = [
-            p for p in sig.parameters.values()
-            if p.kind in (
+            p
+            for p in sig.parameters.values()
+            if p.kind
+            in (
                 inspect.Parameter.POSITIONAL_ONLY,
-                inspect.Parameter.POSITIONAL_OR_KEYWORD
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
             )
         ]
 

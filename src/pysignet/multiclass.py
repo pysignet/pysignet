@@ -1,19 +1,22 @@
-"""Symbol API for predicates.
+"""Symbol API for predicates in first-order logic expressions.
 
-This module provides the Symbol() function which creates predicates that
-can be used as nullary (binary predicates) or unary/n-ary (multi-class
-predicates) based on usage.
+This module provides the Symbol() function which creates predicate symbols
+for use with Variables in FOL expressions. All predicates must be called
+with at least one Variable argument.
 
 Usage:
-    >>> P, Q, Digit = Symbol("P Q Digit")
-    >>> expr = sp.And(P, Digit(0))  # P is nullary, Digit is unary
-
-    >>> # With logic variables
-    >>> from pysignet.logic import Variable
+    >>> from pysignet import Symbol, Variable
+    >>> import sympy as sp
+    >>>
+    >>> # Create variables and predicates
     >>> X = Variable("X")
-    >>> expr = Digit(X)  # Predicate application with variable
-
-This is the foundation for full first-order logic support.
+    >>> P, Q, Digit = Symbol("P Q Digit")
+    >>>
+    >>> # Basic predicates with variable
+    >>> expr = sp.And(P(X), Q(X))
+    >>>
+    >>> # Multi-class predicates with variable and constant
+    >>> expr = sp.Or(Digit(X, 0), Digit(X, 1))
 """
 
 from __future__ import annotations
@@ -28,9 +31,9 @@ if TYPE_CHECKING:
 
 
 def Symbol(names: str) -> "PredicateSymbol" | Tuple["PredicateSymbol", ...]:
-    """Create predicate symbols that work as nullary or n-ary based on usage.
+    """Create predicate symbols for use in FOL expressions.
 
-    Predicates of any arity are declared using SymPy-style syntax.
+    All predicates must be called with at least one Variable argument.
 
     Args:
         names: Space-separated predicate names (e.g., "P Q Digit")
@@ -40,25 +43,24 @@ def Symbol(names: str) -> "PredicateSymbol" | Tuple["PredicateSymbol", ...]:
         if multiple names.
 
     Example:
-        Binary predicates (nullary - arity 0):
+        Basic predicates (with variable):
+            >>> X = Variable("X")
             >>> P, Q = Symbol("P Q")
-            >>> expr = sp.And(P, Q)  # Used without arguments
+            >>> expr = sp.And(P(X), Q(X))  # Applied to variable X
 
-        Multi-class predicates (unary - arity 1):
+        Multi-class predicates (with variable and constant):
+            >>> X = Variable("X")
             >>> Digit = Symbol("Digit")
-            >>> expr = sp.Or(Digit(0), Digit(1), Digit(2))  # Used with index
+            >>> expr = sp.Or(Digit(X, 0), Digit(X, 1))  # X is input, 0/1 are class indices
 
-        Mixed usage:
-            >>> P, Q, Digit = Symbol("P Q Digit")
-            >>> expr = sp.And(P, Digit(0))  # P has arity 0, Digit has arity 1
-
-        Invalid (enforced at compile time):
-            >>> P, Q, Digit = Symbol("P Q Digit")
-            >>> expr = sp.And(P, Digit(0), P(1))  # ERROR: P used with different arities!
+        Multi-variable predicates:
+            >>> X, Y = Variable("X Y")
+            >>> Similar = Symbol("Similar")
+            >>> expr = Similar(X, Y)  # Applied to two variables
 
     Note:
-        The compiler validates that each predicate is used with consistent
-        arity throughout the expression.
+        The compiler validates that each predicate has at least one Variable
+        and is used with consistent arity throughout the expression.
     """
     name_list = names.split()
     predicates = [PredicateSymbol(name) for name in name_list]
@@ -66,34 +68,40 @@ def Symbol(names: str) -> "PredicateSymbol" | Tuple["PredicateSymbol", ...]:
 
 
 class PredicateSymbol(sp.Symbol):  # type: ignore[misc]
-    """Symbol that can be used as nullary or called with arguments for n-ary.
+    """Symbol that represents a predicate in FOL expressions.
 
     PredicateSymbol inherits from sp.Symbol, so it works seamlessly with
-    SymPy's logical operators (And, Or, Not, etc.). It can be used in
-    multiple ways depending on arity:
+    SymPy's logical operators (And, Or, Not, etc.). All predicates MUST
+    be called with at least one Variable argument:
 
-    1. **Nullary (arity 0)**: Used directly as a symbol
+    1. **Unary predicate**: One variable argument
+       >>> X = Variable("X")
        >>> P = Symbol("P")
-       >>> expr = sp.And(P, Q)  # P is nullary (arity 0)
+       >>> expr = P(X)  # P applied to variable X
 
-    2. **Unary (arity 1)**: Called with one argument
+    2. **With constants**: Variable plus constant arguments
+       >>> X = Variable("X")
        >>> Digit = Symbol("Digit")
-       >>> expr = sp.Or(Digit(0), Digit(1))  # Digit is unary (arity 1)
+       >>> expr = Digit(X, 0)  # Digit applied to X, selecting class 0
 
-    3. **N-ary (arity n)**: Called with n arguments (future support)
-       >>> Rel = Symbol("Rel")
-       >>> expr = Rel(0, 1)  # Rel is binary (arity 2)
+    3. **Multi-variable**: Multiple variable arguments
+       >>> X, Y = Variable("X Y")
+       >>> Similar = Symbol("Similar")
+       >>> expr = Similar(X, Y)  # Similar applied to X and Y
 
-    The compiler validates that each predicate is used with consistent arity
-    throughout an expression.
+    The compiler validates that each predicate has at least one variable
+    and is used with consistent arity throughout an expression.
 
     Example:
-        >>> # Create predicates
+        >>> from pysignet import Symbol, Variable, logic_to_loss
+        >>> import sympy as sp
+        >>>
+        >>> # Create variables and predicates
+        >>> X = Variable("X")
         >>> P, Q, Digit = Symbol("P Q Digit")
         >>>
-        >>> # P and Q used as nullary (arity 0)
-        >>> # Digit used as unary (arity 1)
-        >>> expr = sp.And(P, sp.Or(Q, Digit(0)))
+        >>> # Build FOL expression
+        >>> expr = sp.And(P(X), sp.Or(Q(X), Digit(X, 0)))
         >>>
         >>> # Map to networks
         >>> predicates = {
@@ -102,8 +110,8 @@ class PredicateSymbol(sp.Symbol):  # type: ignore[misc]
         ...     "Digit": digit_classifier  # Multi-output network
         ... }
         >>>
-        >>> compiled = compile_logic(expr, predicates)
-        >>> loss = compiled.loss(x)  # Only ONE forward pass for Digit!
+        >>> logic_loss = logic_to_loss(expr, predicates)
+        >>> loss = logic_loss.loss(X=x_tensor)  # Keyword arg for variable
 
     Note:
         This is SymPy's Symbol with added __call__ support. We don't override
@@ -112,13 +120,11 @@ class PredicateSymbol(sp.Symbol):  # type: ignore[misc]
         PredicateApplication instances.
     """
 
-    def __call__(
-        self, *args: int | "VariableSymbol"
-    ) -> "PredicateApplication":
+    def __call__(self, *args: int | "VariableSymbol") -> "PredicateApplication":
         """Call with arguments to create a predicate application (n-ary).
 
-        This creates a PredicateApplication AST node representing the
-        application of this predicate to arguments (concrete values or variables).
+        Create a PredicateApplication AST node representing this predicate
+        applied to arguments (concrete values or variables).
 
         Args:
             *args: Arguments can be:
@@ -234,8 +240,10 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
         """
         if not isinstance(other, PredicateApplication):
             return False
-        return (self.predicate_name == other.predicate_name and
-                self.application_args == other.application_args)
+        return (
+            self.predicate_name == other.predicate_name
+            and self.application_args == other.application_args
+        )
 
     def __hash__(self) -> int:
         """Make PredicateApplication hashable for use in sets/dicts."""

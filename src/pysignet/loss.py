@@ -9,13 +9,12 @@ explicit quantification control:
 The `reduction` parameter is only valid with `quantify='none'`.
 """
 
-from typing import Callable, Dict, List, Literal, Optional
+from typing import Callable, List, Literal
 
 import torch
 
 from pysignet.batch_handler import BatchHandlerMixin
 from pysignet.compilation.compiled_expression import CompiledExpression
-from pysignet.compilation.base import LogicCompiler
 from pysignet.tnorms import RProductTNorm
 from pysignet.compilation import TNormCompiler
 
@@ -32,7 +31,7 @@ class LogicLoss(BatchHandlerMixin):
     - LogicLoss: Batch quantification, loss computation
 
     Args:
-        compiled_expr: CompiledExpression from LogicCompiler.compile()
+        compiled_expr: CompiledExpression from compiler.compile()
         post_processing: Default post-processing mode - 'log', 'linear',
             or callable. If None, uses the compiler's recommendation.
 
@@ -86,24 +85,18 @@ class LogicLoss(BatchHandlerMixin):
 
     def __call__(
         self,
-        inputs: Optional[Dict[str, torch.Tensor]] = None,
-        quantify: Literal['forall', 'exists', 'none'] = 'forall',
-        **variable_bindings: torch.Tensor
+        quantify: Literal["forall", "exists", "none"] = "forall",
+        **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
         """Evaluate compiled expression and return satisfaction.
 
-        IMPORTANT: All inputs must be provided as keyword arguments
-        (e.g., logic_loss(X=tensor)). Positional arguments are not
-        supported.
-
         Args:
-            inputs: Optional dict mapping variable names to tensors.
-                Prefer using keyword arguments instead.
             quantify: Batch quantification mode:
                 - 'forall': Universal quantification -> scalar
                 - 'exists': Existential quantification -> scalar
                 - 'none': No quantification -> (batch_size,)
-            **variable_bindings: Variable bindings (e.g., X=x, Y=y)
+            **variable_bindings: Variable bindings as keyword arguments
+                (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
             Satisfaction tensor in [0, 1]:
@@ -119,7 +112,7 @@ class LogicLoss(BatchHandlerMixin):
             >>> result = logic_loss(X=x, quantify='none')
         """
         # Validate quantify parameter
-        valid_quantifiers = ('forall', 'exists', 'none')
+        valid_quantifiers = ("forall", "exists", "none")
         if quantify not in valid_quantifiers:
             raise ValueError(
                 f"Invalid quantify value '{quantify}'. "
@@ -127,18 +120,15 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get per-batch satisfaction from compiled expression
-        per_batch = self._compiled_expr(
-            inputs=inputs, **variable_bindings
-        )
+        per_batch = self._compiled_expr(**variable_bindings)
 
         # Apply batch quantification using BatchHandlerMixin
         return self._reduce_batch(per_batch, quantifier=quantify)
 
     def log_satisfaction(
         self,
-        inputs: Optional[Dict[str, torch.Tensor]] = None,
-        quantify: Literal['forall', 'exists', 'none'] = 'forall',
-        **variable_bindings: torch.Tensor
+        quantify: Literal["forall", "exists", "none"] = "forall",
+        **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
         """Compute log-satisfaction for numerical stability.
 
@@ -147,10 +137,9 @@ class LogicLoss(BatchHandlerMixin):
         method computes log(satisfaction) for stability.
 
         Args:
-            inputs: Optional dict mapping variable names to tensors.
-                Prefer using keyword arguments instead.
             quantify: Batch quantification mode (same as __call__)
-            **variable_bindings: Variable bindings (e.g., X=x, Y=y)
+            **variable_bindings: Variable bindings as keyword arguments
+                (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
             Log-satisfaction tensor in (-inf, 0]:
@@ -160,7 +149,7 @@ class LogicLoss(BatchHandlerMixin):
         Examples:
             >>> log_sat = logic_loss.log_satisfaction(X=x)
         """
-        valid_quantifiers = ('forall', 'exists', 'none')
+        valid_quantifiers = ("forall", "exists", "none")
         if quantify not in valid_quantifiers:
             raise ValueError(
                 f"Invalid quantify value '{quantify}'. "
@@ -168,32 +157,21 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get satisfaction, then take log
-        satisfaction = self(
-            inputs=inputs, quantify=quantify,
-            **variable_bindings
-        )
+        satisfaction = self(quantify=quantify, **variable_bindings)
         return torch.log(satisfaction + 1e-10)
 
     def loss(
         self,
-        inputs: Optional[Dict[str, torch.Tensor]] = None,
-        quantify: Literal['forall', 'exists', 'none'] = 'forall',
-        reduction: Literal['mean', 'sum', 'none'] = 'none',
+        quantify: Literal["forall", "exists", "none"] = "forall",
+        reduction: Literal["mean", "sum", "none"] = "none",
         post_processing: (
-            str
-            | Callable[[torch.Tensor], torch.Tensor]
-            | None
+            str | Callable[[torch.Tensor], torch.Tensor] | None
         ) = None,
-        **variable_bindings: torch.Tensor
+        **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
         """Compute loss based on logical constraint violation.
 
-        IMPORTANT: All inputs must be provided as keyword arguments
-        (e.g., logic_loss.loss(X=tensor)).
-
         Args:
-            inputs: Optional dict mapping variable names to tensors.
-                Prefer using keyword arguments instead.
             quantify: Batch quantification mode:
                 - 'forall': Universal quantification -> scalar loss
                 - 'exists': Existential quantification -> scalar loss
@@ -204,7 +182,8 @@ class LogicLoss(BatchHandlerMixin):
                 - 'none': Return per-batch losses
             post_processing: Post-processing mode - 'log', 'linear',
                 callable, or None (uses default from __init__)
-            **variable_bindings: Variable bindings (e.g., X=x, Y=y)
+            **variable_bindings: Variable bindings as keyword arguments
+                (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
             Loss value (lower = better satisfaction):
@@ -225,7 +204,7 @@ class LogicLoss(BatchHandlerMixin):
             ... )
         """
         # Validate quantify
-        valid_quantifiers = ('forall', 'exists', 'none')
+        valid_quantifiers = ("forall", "exists", "none")
         if quantify not in valid_quantifiers:
             raise ValueError(
                 f"Invalid quantify value '{quantify}'. "
@@ -233,7 +212,7 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Validate reduction is only used with quantify='none'
-        if quantify != 'none' and reduction != 'none':
+        if quantify != "none" and reduction != "none":
             raise ValueError(
                 f"reduction='{reduction}' is invalid with "
                 f"quantify='{quantify}'. When using "
@@ -243,17 +222,13 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get per-batch satisfaction from compiled expression
-        per_batch = self._compiled_expr(
-            inputs=inputs, **variable_bindings
-        )
+        per_batch = self._compiled_expr(**variable_bindings)
 
         # Apply batch quantification
-        if quantify == 'none':
+        if quantify == "none":
             satisfaction = per_batch
         else:
-            satisfaction = self._reduce_batch(
-                per_batch, quantifier=quantify
-            )
+            satisfaction = self._reduce_batch(per_batch, quantifier=quantify)
 
         # Determine post-processing mode
         postprocessing_type = (
@@ -263,10 +238,10 @@ class LogicLoss(BatchHandlerMixin):
         )
 
         # Apply post-processing to convert satisfaction to loss
-        if postprocessing_type == 'log':
+        if postprocessing_type == "log":
             # Negative log with numerical stability
             loss_values = -torch.log(satisfaction + 1e-10)
-        elif postprocessing_type == 'linear':
+        elif postprocessing_type == "linear":
             # Linear: 1 - satisfaction
             loss_values = 1.0 - satisfaction
         elif callable(postprocessing_type):
@@ -279,13 +254,9 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Apply reduction (only meaningful for quantify='none')
-        return self._apply_reduction(
-            loss_values, reduction=reduction
-        )
+        return self._apply_reduction(loss_values, reduction=reduction)
 
-    def partial(
-        self, **variable_bindings: torch.Tensor
-    ) -> 'LogicLoss':
+    def partial(self, **variable_bindings: torch.Tensor) -> "LogicLoss":
         """Create partially-bound LogicLoss with some variables fixed.
 
         Delegates to the underlying CompiledExpression and wraps the
@@ -307,9 +278,7 @@ class LogicLoss(BatchHandlerMixin):
             >>> result = partial(Y=y)
         """
         # Delegate to CompiledExpression
-        partial_expr = self._compiled_expr.partial(
-            **variable_bindings
-        )
+        partial_expr = self._compiled_expr.partial(**variable_bindings)
 
         # Wrap in new LogicLoss with same settings
         return LogicLoss(

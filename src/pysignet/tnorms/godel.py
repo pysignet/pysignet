@@ -17,7 +17,7 @@ class GodelTNorm(TNorm):
     @property
     def recommended_postprocessing(self) -> str:
         """Godel recommends linear post-processing."""
-        return 'linear'
+        return "linear"
 
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Godel conjunction: min along dim=0."""

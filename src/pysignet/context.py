@@ -5,7 +5,8 @@ network outputs during a single expression evaluation to avoid redundant
 forward passes.
 """
 
-from typing import Any, Callable, Dict, Hashable
+from collections.abc import Hashable
+from typing import Any, Callable, Dict
 
 
 class EvaluationContext:
@@ -41,9 +42,7 @@ class EvaluationContext:
         self.cache: Dict[Hashable, Any] = {}
 
     def get_or_compute(
-        self,
-        cache_key: Hashable,
-        compute_fn: Callable[[], Any]
+        self, cache_key: Hashable, compute_fn: Callable[[], Any]
     ) -> Any:
         """Get cached value or compute and cache it.
 

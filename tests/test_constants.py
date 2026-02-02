@@ -202,8 +202,8 @@ def test_implies_with_false_consequent() -> None:
     assert torch.allclose(satisfaction, torch.tensor(0.4), atol=1e-5)
 
 
-def test_constants_with_dict_input() -> None:
-    """Test boolean constants with dict input."""
+def test_constants_with_kwarg_input() -> None:
+    """Test boolean constants with keyword argument input."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
@@ -213,8 +213,8 @@ def test_constants_with_dict_input() -> None:
     # Test with true constant
     expr_true = sp.Or(P(X), sp.true)
     logic_loss_true = logic_to_loss(expr_true, predicates)
-    inputs = {"X": torch.randn(1, 3)}
-    satisfaction_true = logic_loss_true(inputs)
+    x = torch.randn(1, 3)
+    satisfaction_true = logic_loss_true(X=x)
 
     # P OR true = true = 1
     assert torch.allclose(satisfaction_true, torch.tensor(1.0), atol=1e-5)
@@ -222,7 +222,7 @@ def test_constants_with_dict_input() -> None:
     # Test with false constant
     expr_false = sp.Or(P(X), sp.false)
     logic_loss_false = logic_to_loss(expr_false, predicates)
-    satisfaction_false = logic_loss_false(inputs)
+    satisfaction_false = logic_loss_false(X=x)
 
     # P OR false = P = 0.6
     assert torch.allclose(satisfaction_false, torch.tensor(0.6), atol=1e-5)
@@ -263,7 +263,7 @@ def test_constants_preserve_batch_size() -> None:
     # Test with different batch sizes using quantify='none' to get per-batch results
     for batch_size in [1, 5, 10]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss({"X": x}, quantify='none')
+        satisfaction = logic_loss(X=x, quantify='none')
         assert satisfaction.shape == (batch_size,)
         assert torch.allclose(satisfaction, torch.ones(batch_size) * 0.6)
 

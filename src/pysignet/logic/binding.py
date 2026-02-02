@@ -42,15 +42,16 @@ class Binding:
     """
 
     def __init__(
-        self,
-        bindings: Dict[VariableSymbol, int] | None = None
+        self, bindings: Dict[VariableSymbol, int] | None = None
     ) -> None:
         """Initialize a binding.
 
         Args:
             bindings: Optional dictionary mapping variables to indices.
         """
-        self._bindings: Dict[VariableSymbol, int] = bindings if bindings is not None else {}
+        self._bindings: Dict[VariableSymbol, int] = (
+            bindings if bindings is not None else {}
+        )
 
     def __getitem__(self, variable: VariableSymbol) -> int:
         """Get the index bound to a variable.
@@ -101,7 +102,8 @@ class Binding:
             String showing variable-to-index mappings.
         """
         items = [f"{var}: {idx}" for var, idx in self._bindings.items()]
-        return f"Binding({{{', '.join(items)}}})"
+        joined = ", ".join(items)
+        return f"Binding({{{joined}}})"
 
     def __str__(self) -> str:
         """Return string representation of binding.
@@ -112,10 +114,7 @@ class Binding:
         return self.__repr__()
 
 
-def ground(
-    expr: sp.Basic,
-    binding: Binding
-) -> sp.Basic:
+def ground(expr: sp.Basic, binding: Binding) -> sp.Basic:
     """Ground an expression by substituting variables with concrete indices.
 
     Recursively traverses the expression tree and replaces all variables in
@@ -160,14 +159,18 @@ def ground(
         >>> grounded = ground(expr, binding_partial)
         >>> # grounded is And(P(0), Q(Y)) - Y remains unbound
     """
+
     def _ground_node(node: sp.Basic) -> sp.Basic:
         """Recursively ground a node in the expression tree."""
         # Base case: PredicateApplication
         if isinstance(node, PredicateApplication):
             # Ground each argument
             grounded_args = tuple(
-                binding[arg] if isinstance(arg, VariableSymbol) and arg in binding
-                else arg
+                (
+                    binding[arg]
+                    if isinstance(arg, VariableSymbol) and arg in binding
+                    else arg
+                )
                 for arg in node.application_args
             )
 
@@ -175,7 +178,7 @@ def ground(
             return PredicateApplication(node.predicate_name, grounded_args)
 
         # Base case: leaf nodes (symbols, constants, etc.)
-        if not hasattr(node, 'args') or len(node.args) == 0:
+        if not hasattr(node, "args") or len(node.args) == 0:
             return node
 
         # Recursive case: logical operators (And, Or, Not, Implies, etc.)

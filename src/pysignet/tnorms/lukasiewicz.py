@@ -17,14 +17,12 @@ class LukasiewiczTNorm(TNorm):
     @property
     def recommended_postprocessing(self) -> str:
         """Lukasiewicz recommends linear post-processing."""
-        return 'linear'
+        return "linear"
 
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Lukasiewicz conjunction: max(0, sum - (n-1))."""
         n = values.shape[0]
-        return torch.clamp(
-            values.sum(dim=0) - (n - 1), min=0.0
-        )
+        return torch.clamp(values.sum(dim=0) - (n - 1), min=0.0)
 
     def disjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Lukasiewicz disjunction: min(1, sum)."""

@@ -87,8 +87,37 @@ def expand_quantifier(quantifier: Quantifier) -> sp.Basic:
         return sp.Or(*expanded_bodies)
 
 
-def _substitute_variable(expr: sp.Basic, variable: VariableSymbol,
-                        value: Any) -> sp.Basic:
+def _substitute_in_predicate_application(
+    expr: PredicateApplication, variable: VariableSymbol, value: Any
+) -> PredicateApplication:
+    """Substitute variable in a PredicateApplication."""
+    new_args = tuple(
+        value if arg == variable else arg for arg in expr.application_args
+    )
+    return PredicateApplication(expr.predicate_name, new_args)
+
+
+def _substitute_in_quantifier(
+    expr: Quantifier, variable: VariableSymbol, value: Any
+) -> Quantifier:
+    """Substitute variable in a Quantifier expression.
+
+    Does not substitute if the quantifier binds the same variable.
+    """
+    # If this quantifier binds the variable, don't substitute inside
+    if expr.variable == variable:
+        return expr
+
+    # Substitute in the body
+    new_body = _substitute_variable(expr.body, variable, value)
+    if isinstance(expr, ForAll):
+        return ForAll(expr.variable, expr.domain, new_body)
+    return Exists(expr.variable, expr.domain, new_body)
+
+
+def _substitute_variable(
+    expr: sp.Basic, variable: VariableSymbol, value: Any
+) -> sp.Basic:
     """Substitute a variable with a value in an expression.
 
     Handles both standard SymPy expressions and PredicateApplications.
@@ -103,31 +132,16 @@ def _substitute_variable(expr: sp.Basic, variable: VariableSymbol,
     """
     # Handle PredicateApplication specially
     if isinstance(expr, PredicateApplication):
-        # Substitute in each argument
-        new_args = tuple(
-            value if arg == variable else arg
-            for arg in expr.application_args
-        )
-        return PredicateApplication(expr.predicate_name, new_args)
+        return _substitute_in_predicate_application(expr, variable, value)
 
     # Handle quantifiers (don't substitute the bound variable)
     if isinstance(expr, Quantifier):
-        # If this quantifier binds the variable we're substituting,
-        # don't substitute inside its body
-        if expr.variable == variable:
-            return expr
-        # Otherwise, substitute in the body
-        new_body = _substitute_variable(expr.body, variable, value)
-        if isinstance(expr, ForAll):
-            return ForAll(expr.variable, expr.domain, new_body)
-        else:  # Exists
-            return Exists(expr.variable, expr.domain, new_body)
+        return _substitute_in_quantifier(expr, variable, value)
 
     # For other SymPy expressions, recursively substitute in args
-    if hasattr(expr, 'args') and expr.args:
+    if hasattr(expr, "args") and expr.args:
         substituted_args: List[sp.Basic] = [
-            _substitute_variable(arg, variable, value)
-            for arg in expr.args
+            _substitute_variable(arg, variable, value) for arg in expr.args
         ]
         return expr.func(*substituted_args)
 
@@ -155,7 +169,7 @@ def _expand_nested_quantifiers(expr: sp.Basic) -> sp.Basic:
         return expr
 
     # Recursive case: if expr has args, recursively expand them
-    if hasattr(expr, 'args') and expr.args:
+    if hasattr(expr, "args") and expr.args:
         expanded_args = [_expand_nested_quantifiers(arg) for arg in expr.args]
         # Reconstruct the expression with expanded arguments
         return expr.func(*expanded_args)

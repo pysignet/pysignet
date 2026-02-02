@@ -399,7 +399,7 @@ def test_s_product_cross_entropy_equivalence() -> None:
 
         logic_loss = logic_to_loss(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(1, 5)
-        satisfaction = logic_loss({"X": x, "Y": label})
+        satisfaction = logic_loss(X=x, Y=label)
 
         # Satisfaction should match the label
         assert torch.allclose(satisfaction, torch.tensor(label))

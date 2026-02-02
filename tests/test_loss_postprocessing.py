@@ -200,8 +200,7 @@ class TestGodelPostProcessing:
         satisfaction = compiler(X=x)
         loss = compiler.loss(X=x, reduction="none")
 
-        # Current behavior: 1 - satisfaction
-        # TODO: Determine if Gödel should use different post-processing
+        # Gödel uses linear post-processing: loss = 1 - satisfaction
         expected_loss = 1.0 - satisfaction
         assert torch.allclose(loss, expected_loss, atol=1e-5)
 

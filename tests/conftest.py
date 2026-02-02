@@ -63,27 +63,6 @@ def dynamic_predicates() -> Dict[str, Predicate]:
 
 
 @pytest.fixture
-def sample_expressions() -> Dict[str, sp.Basic]:
-    """Common logical expressions for testing.
-
-    Returns:
-        Dictionary mapping expression names to SymPy logic expressions.
-    """
-    # pylint: disable=invalid-name
-    P, Q, R = sp.symbols("P Q R")
-
-    return {
-        "simple_and": sp.And(P, Q),
-        "simple_or": sp.Or(P, Q),
-        "negation": sp.Not(P),
-        "implication": sp.Implies(P, Q),
-        "equivalence": sp.Equivalent(P, Q),
-        "complex": sp.And(sp.Or(P, Q), sp.Not(R)),
-        "nested": sp.Implies(sp.And(P, Q), sp.Or(Q, R)),
-    }
-
-
-@pytest.fixture
 def batch_inputs() -> Dict[str, torch.Tensor]:
     """Various batch sizes for testing.
 

@@ -69,7 +69,7 @@ def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
             return
 
         # Base case: leaf nodes (PredicateSymbol, constants, etc.)
-        if not hasattr(node, 'args') or len(node.args) == 0:
+        if not hasattr(node, "args") or len(node.args) == 0:
             return
 
         # Recursive case: traverse all children
@@ -81,7 +81,7 @@ def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
 
 
 def extract_variables_from_application(
-    app: PredicateApplication
+    app: PredicateApplication,
 ) -> Set[VariableSymbol]:
     """Extract free variables from a single PredicateApplication.
 
@@ -228,7 +228,7 @@ def extract_constants(expr: sp.Basic) -> Set[Any]:
             return
 
         # Base case: leaf nodes (PredicateSymbol, constants, etc.)
-        if not hasattr(node, 'args') or len(node.args) == 0:
+        if not hasattr(node, "args") or len(node.args) == 0:
             return
 
         # Recursive case: traverse all children
@@ -239,9 +239,7 @@ def extract_constants(expr: sp.Basic) -> Set[Any]:
     return constants
 
 
-def extract_constants_from_application(
-    app: PredicateApplication
-) -> Set[Any]:
+def extract_constants_from_application(app: PredicateApplication) -> Set[Any]:
     """Extract constants from a single PredicateApplication.
 
     Args:

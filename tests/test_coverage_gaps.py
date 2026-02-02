@@ -656,8 +656,8 @@ class TestTNormOperators:
 class TestBaseCompilerEdgeCases:
     """Tests targeting uncovered lines in compilation/base.py."""
 
-    def test_multiple_vars_non_dict_input_error(self):
-        """Test error when multiple vars receive non-dict input (line 522-523)."""
+    def test_multiple_vars_require_keyword_args(self):
+        """Test that multiple vars require keyword arguments."""
         from pysignet.compilation import TNormCompiler
 
         P = Symbol("P")
@@ -671,11 +671,15 @@ class TestBaseCompilerEdgeCases:
         compiled_expr = compiler.compile(expr, {"P": p_func})
 
         x = torch.randn(4, 10)
+        y = torch.randn(4, 10)
 
-        # Non-dict input when multiple vars - should error
-        # Note: CompiledExpression.__call__ handles this
-        with pytest.raises(ValueError, match="Inputs must be a dict"):
+        # Positional args should raise TypeError
+        with pytest.raises(TypeError):
             compiled_expr(x)
+
+        # Keyword args should work
+        result = compiled_expr(X=x, Y=y)
+        assert result.shape == (4,)
 
     def test_missing_var_in_dict_input_multivar(self):
         """Test error for missing variable in dict (lines 534)."""
@@ -1091,21 +1095,64 @@ class TestCompiledExpressionErrors:
         with pytest.raises(ValueError, match="Must provide at least one"):
             compiled.partial()
 
-    def test_both_inputs_and_kwargs_error(self):
-        """Test error when both inputs and kwargs provided (line 144)."""
-        from pysignet.compilation import TNormCompiler
+    def test_positional_tensor_rejected_single_var(self):
+        """Test that positional tensor argument is rejected for single var.
 
+        Users must use keyword arguments like compiled(X=tensor) instead
+        of positional arguments like compiled(tensor).
+        """
         P = Symbol("P")
         X = Variable("X")
         expr = P(X)
 
-        compiler = TNormCompiler()
-        compiled_expr = compiler.compile(expr, {
-            "P": Predicate(lambda x: torch.ones(x.shape[0]))
+        compiled = compile_logic(expr, {
+            "P": lambda x: torch.sigmoid(x.sum(dim=-1))
         })
 
         x = torch.randn(4, 10)
 
-        # Provide both positional inputs and kwargs
-        with pytest.raises(ValueError, match="Cannot provide both"):
-            compiled_expr(inputs=x, X=x)
+        # Positional tensor should be rejected with TypeError
+        with pytest.raises(TypeError):
+            compiled(x)
+
+    def test_positional_tensor_rejected_logic_loss(self):
+        """Test that LogicLoss rejects positional tensor arguments.
+
+        Users must use keyword arguments like logic_loss(X=tensor).
+        When a tensor is passed positionally, it goes to the `quantify`
+        parameter and causes a ValueError.
+        """
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        logic_loss = logic_to_loss(expr, {
+            "P": lambda x: torch.sigmoid(x.sum(dim=-1))
+        })
+
+        x = torch.randn(4, 10)
+
+        # Positional tensor goes to `quantify` param, causing ValueError
+        with pytest.raises(ValueError, match="Invalid quantify"):
+            logic_loss(x)
+
+    def test_positional_tensor_rejected_logic_loss_method(self):
+        """Test that LogicLoss.loss() rejects positional tensor arguments.
+
+        Users must use keyword arguments like logic_loss.loss(X=tensor).
+        When a tensor is passed positionally, it goes to the `quantify`
+        parameter and causes a ValueError.
+        """
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        logic_loss = logic_to_loss(expr, {
+            "P": lambda x: torch.sigmoid(x.sum(dim=-1))
+        })
+
+        x = torch.randn(4, 10)
+
+        # Positional tensor goes to `quantify` param, causing ValueError
+        with pytest.raises(ValueError, match="Invalid quantify"):
+            logic_loss.loss(x)

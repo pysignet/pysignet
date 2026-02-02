@@ -205,14 +205,13 @@ class TestPredicateNameAssignment:
         assert pred_p.name == "P"
         assert pred_q.name == "Q"
 
-        # Test dict inputs
+        # Test keyword arguments
         batch_size = 4
-        x1 = torch.randn(batch_size, 10)
-        x2 = torch.randn(batch_size, 5)
-        inputs = {"x1": x1, "x2": x2}
+        x1_tensor = torch.randn(batch_size, 10)
+        x2_tensor = torch.randn(batch_size, 5)
 
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(inputs, quantify='none')
+        satisfaction = logic_loss(x1=x1_tensor, x2=x2_tensor, quantify='none')
         assert satisfaction.shape == (batch_size,)
 
     def test_is_model_detection_still_works(self) -> None:

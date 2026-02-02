@@ -4,28 +4,32 @@ Converts SymPy logic expressions to differentiable loss functions using t-norms,
 enabling training of neural networks with logical constraints.
 
 Quick Start:
-    from pysignet import Symbol, compile_logic
+    import sympy as sp
+    from pysignet import Symbol, Variable, logic_to_loss
 
-    # Create predicates - same syntax for all types
-    P, Q, Digit = Symbol("P Q Digit")
+    # Create variables and predicate symbols
+    X = Variable("X")
+    P, Q = Symbol("P Q")
 
-    # P, Q are nullary, Digit is unary
-    expr = sp.And(P, sp.Or(Q, Digit(0)))
+    # Build logic expression with FOL syntax
+    expr = sp.Implies(P(X), Q(X))  # If P(X) then Q(X)
 
     predicates = {
-        "P": binary_model,
-        "Q": another_model,
-        "Digit": multiclass_classifier
+        "P": model_p,  # Any callable or nn.Module
+        "Q": model_q,
     }
 
-    logic_loss = compile_logic(expr, predicates)
-    loss = logic_loss.loss(x)
+    # Create differentiable logic loss
+    logic_loss = logic_to_loss(expr, predicates)
+    loss = logic_loss.loss(X=x_tensor)  # Keyword args for variables
 
 Advanced Usage:
     from pysignet import TNormCompiler, LogicLoss
+
     compiler = TNormCompiler(tnorm='rproduct')
     compiled = compiler.compile(expr, predicates)
-    logic_loss = LogicLoss(compiled, predicates)
+    logic_loss = LogicLoss(compiled)
+    loss = logic_loss.loss(X=x_tensor)
 """
 
 # Core API
@@ -44,7 +48,13 @@ from .logic import Variable, extract_variables, Binding, ground
 
 # Other exports
 from .consistency import ConsistencyChecker
-from .tnorms import TNorm, RProductTNorm, SProductTNorm, LukasiewiczTNorm, GodelTNorm
+from .tnorms import (
+    TNorm,
+    RProductTNorm,
+    SProductTNorm,
+    LukasiewiczTNorm,
+    GodelTNorm,
+)
 
 __version__ = "0.2.0"
 __all__ = [

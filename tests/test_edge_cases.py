@@ -4,6 +4,7 @@ This module tests edge cases like empty batches, special values (NaN, Inf),
 error conditions, and boundary scenarios.
 """
 
+import pytest
 import sympy as sp
 import torch
 
@@ -128,26 +129,19 @@ def test_missing_predicate_raises_error() -> None:
     # Only provide predicate for P, not Q
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-    try:
+    with pytest.raises(ValueError, match=r"Missing predicates.*Q"):
         logic_to_loss(expr, predicates)
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Missing predicates" in str(e)
-        assert "Q" in str(e)
 
 
 def test_unsupported_expression_raises_error() -> None:
-    """Test that unsupported SymPy expressions raise ValueError."""
+    """Test that unsupported SymPy expressions raise TypeError."""
     X = Variable("X")
     # pylint: disable=invalid-name
     P = Symbol("P")
 
-    # Use an unsupported operation
-    try:
-        expr = P(X) + P(X)  # Arithmetic, not logic
-        assert False, "Should have raised TypeError"
-    except TypeError as e:
-        assert "unsupported operand type" in str(e)
+    # Arithmetic operations on predicate applications raise TypeError
+    with pytest.raises(TypeError, match="unsupported operand type"):
+        _ = P(X) + P(X)  # Arithmetic, not logic
 
 
 def test_zero_dimension_input() -> None:

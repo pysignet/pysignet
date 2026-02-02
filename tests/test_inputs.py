@@ -233,13 +233,11 @@ def test_dict_input_subset_of_predicates() -> None:
 
     # Provide specific data for P and shared data for Q and R
     batch_size = 5
-    inputs = {
-        "X": torch.randn(batch_size, 5),
-        "Y": torch.randn(batch_size, 3),
-    }
+    x = torch.randn(batch_size, 5)
+    y = torch.randn(batch_size, 3)
 
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(inputs, quantify='none')
+    satisfaction = logic_loss(X=x, Y=y, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -259,11 +257,9 @@ def test_consistent_batch_size_required() -> None:
     logic_loss = logic_to_loss(expr, predicates)
 
     batch_size = 10
-    inputs = {
-        "X": torch.randn(batch_size, 5),
-        "Y": torch.randn(batch_size, 3),  # Same batch size
-    }
+    x = torch.randn(batch_size, 5)
+    y = torch.randn(batch_size, 3)  # Same batch size
 
     # Should work fine - use quantify='none' to get per-batch results
-    satisfaction = logic_loss(inputs, quantify='none')
+    satisfaction = logic_loss(X=x, Y=y, quantify='none')
     assert satisfaction.shape == (batch_size,)

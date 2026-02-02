@@ -43,7 +43,7 @@ class TestMixedArgumentArityValidation:
         x2 = torch.randn(batch_size, 4)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X1": x1, "X2": x2})
+        result = compiled(X1=x1, X2=x2)
 
         # Should return satisfaction for batch
         assert result.shape == (batch_size,)
@@ -85,7 +85,7 @@ class TestMixedArgumentArityValidation:
         x = torch.randn(batch_size, 5)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X": x})
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
 
@@ -112,7 +112,7 @@ class TestMixedArgumentArityValidation:
         x3 = torch.randn(batch_size, 2)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X1": x1, "X2": x2, "X3": x3})
+        result = compiled(X1=x1, X2=x2, X3=x3)
 
         assert result.shape == (batch_size,)
 
@@ -136,7 +136,7 @@ class TestMixedArgumentArityValidation:
         x2 = torch.randn(batch_size, 4)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X1": x1, "X2": x2})
+        result = compiled(X1=x1, X2=x2)
 
         assert result.shape == (batch_size,)
 
@@ -162,7 +162,7 @@ class TestMixedArgumentEvaluation:
         x = torch.randn(batch_size, 5)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X": x})
+        result = compiled(X=x)
 
         # Should return satisfaction for batch
         # Value should be in [0, 1] (probabilities for class 0)
@@ -187,7 +187,7 @@ class TestMixedArgumentEvaluation:
         x = torch.randn(batch_size, 5)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X": x})
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
 
@@ -223,7 +223,7 @@ class TestMixedArgumentEvaluation:
         x2 = torch.randn(batch_size, 4)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X1": x1, "X2": x2})
+        result = compiled(X1=x1, X2=x2)
 
         assert result.shape == (batch_size,)
 
@@ -246,7 +246,7 @@ class TestEdgeCases:
         compiled = compile_logic(expr, predicates)
 
         # Evaluate without free variable inputs
-        result = compiled({})
+        result = compiled()
 
         # No free variables -> scalar output
         assert result.shape == ()
@@ -273,7 +273,7 @@ class TestEdgeCases:
         x = torch.randn(batch_size, 5)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X": x})
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
 
@@ -295,7 +295,7 @@ class TestEdgeCases:
         x = torch.randn(batch_size, 5)
 
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X": x})
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
 
@@ -335,7 +335,7 @@ class TestGradientFlow:
         x2 = torch.randn(batch_size, 4)
 
         # Compute loss
-        loss = logic_loss.loss({"X1": x1, "X2": x2})
+        loss = logic_loss.loss(X1=x1, X2=x2)
 
         # Backward
         loss.backward()
@@ -393,9 +393,6 @@ class TestArityValidationErrors:
         batch_size = 3
         x = torch.randn(batch_size, 5)
         # CompiledExpression returns per-batch results by default
-        result = compiled({"X": x})
+        result = compiled(X=x)
 
         assert result.shape == (batch_size,)
-
-    # TODO: Bound method arity validation needs work - inspect.ismethod
-    # detection is unreliable. Defer until arity validation refactoring.

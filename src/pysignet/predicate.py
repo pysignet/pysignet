@@ -25,9 +25,9 @@ When a neural network P predicts label y for input x, this corresponds to the
 predicate P(x, y) being true. For multi-input networks with inputs x1, x2
 predicting y, we have P(x1, x2, y).
 
-The input structure is flexible:
-- Single tensor: `x_tensor` (shared across all predicates)
-- Dict of tensors: `{"x1": x1_tensor, "x2": x2_tensor}` (per-predicate inputs)
+Inputs are bound using keyword arguments matching variable names:
+- `compiled(X=x_tensor)` for single variable
+- `compiled(X=x1_tensor, Y=x2_tensor)` for multiple variables
 
 Since both inputs and outputs can be named neurons, input-output constraints
 (relating input features to output predictions) are naturally supported.
@@ -78,7 +78,7 @@ class Predicate:
     def __init__(
         self,
         func: torch.nn.Module | Callable[..., Any],
-        is_model: Optional[bool] = None
+        is_model: Optional[bool] = None,
     ) -> None:
         """Initialize a predicate wrapping a named neuron.
 
