@@ -8,6 +8,7 @@ neural network training.
 from .base import TNorm
 from .godel import GodelTNorm
 from .lukasiewicz import LukasiewiczTNorm
+from .mixed import MixedTNorm
 from .product import RProductTNorm, SProductTNorm
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "SProductTNorm",
     "LukasiewiczTNorm",
     "GodelTNorm",
+    "MixedTNorm",
 ]
