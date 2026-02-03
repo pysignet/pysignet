@@ -1,7 +1,7 @@
-"""Tests for predicate application support.
+"""Tests for Symbol and PredicateApplication.
 
-Tests demonstrate predicate application with concrete arguments,
-enabling efficient multi-class classification.
+Tests demonstrate the Symbol() API for creating predicate symbols
+and PredicateApplication for predicate application with arguments.
 """
 
 import pytest
@@ -10,7 +10,7 @@ import torch.nn as nn
 import sympy as sp
 
 from pysignet import compile_logic, logic_to_loss, Symbol, Variable
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm
 
 
@@ -260,7 +260,7 @@ class TestEvaluation:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled.satisfaction(X=x, quantify='none')
 
         assert isinstance(result, torch.Tensor)
         assert result.shape == (batch_size,)
@@ -403,7 +403,7 @@ class TestBatchSizes:
 
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled.satisfaction(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -491,7 +491,7 @@ class TestMixedPredicates:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled.satisfaction(X=x, quantify='none')
 
         assert isinstance(result, torch.Tensor)
         assert result.shape == (batch_size,)
@@ -553,7 +553,7 @@ class TestTNormCompatibility:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled.satisfaction(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -574,7 +574,7 @@ class TestTNormCompatibility:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = compiled(X=x, quantify='none')
+        result = compiled.satisfaction(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 

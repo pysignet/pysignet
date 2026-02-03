@@ -1,12 +1,15 @@
 """LogicLoss - wraps compiled expressions with loss computation.
 
-LogicLoss uses BatchHandlerMixin for compiler-aware batch reduction with
-explicit quantification control:
+LogicLoss provides explicit methods for computing loss and satisfaction:
+- satisfaction(): Get soft satisfaction values
+- loss(): Get loss values (for training)
+- log_satisfaction(): Get log-space satisfaction (numerical stability)
+- partial(): Create partially-bound expression
+
+Batch quantification control:
 - quantify='forall': Universal quantification (conjunction) over batch
 - quantify='exists': Existential quantification (disjunction) over batch
 - quantify='none': No quantification (return per-batch results)
-
-The `reduction` parameter is only valid with `quantify='none'`.
 """
 
 from typing import Callable, List, Literal
@@ -26,9 +29,15 @@ class LogicLoss(BatchHandlerMixin):
     then applies compiler-aware batch reduction via BatchHandlerMixin,
     and adds loss-specific functionality (post-processing, reduction).
 
-    This creates a clean separation of concerns:
-    - CompiledExpression: Pure evaluation, returns (batch_size,)
-    - LogicLoss: Batch quantification, loss computation
+    Methods:
+        satisfaction(): Get soft satisfaction values in [0, 1]
+        loss(): Get loss values for training (lower = better)
+        log_satisfaction(): Get log-space satisfaction for stability
+        partial(): Create partially-bound expression
+
+    Properties:
+        free_variables: Set of unbound variable names
+        trainable_parameters: List of trainable nn.Parameters
 
     Args:
         compiled_expr: CompiledExpression from compiler.compile()
@@ -36,18 +45,12 @@ class LogicLoss(BatchHandlerMixin):
             or callable. If None, uses the compiler's recommendation.
 
     Example:
-        >>> # Get CompiledExpression from compiler
-        >>> compiler = TNormCompiler()
-        >>> compiled = compiler.compile(expr, predicates)
-        >>>
-        >>> # Wrap in LogicLoss for training
-        >>> logic_loss = LogicLoss(compiled)
-        >>> satisfaction = logic_loss(X=x)  # Returns scalar (forall)
-        >>> loss = logic_loss.loss(X=x)     # Returns loss value
-        >>>
-        >>> # Or use api.logic_to_loss() which wraps automatically
         >>> from pysignet import logic_to_loss
         >>> logic_loss = logic_to_loss(expr, predicates)
+        >>>
+        >>> sat = logic_loss.satisfaction(X=x)  # Soft truth values
+        >>> loss = logic_loss.loss(X=x)         # For training
+        >>> params = logic_loss.trainable_parameters
     """
 
     def __init__(
@@ -83,12 +86,12 @@ class LogicLoss(BatchHandlerMixin):
             else self._compiler.recommended_postprocessing
         )
 
-    def __call__(
+    def satisfaction(
         self,
         quantify: Literal["forall", "exists", "none"] = "forall",
         **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
-        """Evaluate compiled expression and return satisfaction.
+        """Compute soft satisfaction of the logical expression.
 
         Args:
             quantify: Batch quantification mode:
@@ -107,9 +110,9 @@ class LogicLoss(BatchHandlerMixin):
             ValueError: If quantify is invalid
 
         Examples:
-            >>> result = logic_loss(X=x)  # scalar (forall default)
-            >>> result = logic_loss(X=x, quantify='exists')
-            >>> result = logic_loss(X=x, quantify='none')
+            >>> sat = logic_loss.satisfaction(X=x)  # scalar (forall)
+            >>> sat = logic_loss.satisfaction(X=x, quantify='exists')
+            >>> sat = logic_loss.satisfaction(X=x, quantify='none')
         """
         # Validate quantify parameter
         valid_quantifiers = ("forall", "exists", "none")
@@ -120,7 +123,7 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get per-batch satisfaction from compiled expression
-        per_batch = self._compiled_expr(**variable_bindings)
+        per_batch = self._compiled_expr(return_boolean=False, **variable_bindings)
 
         # Apply batch quantification using BatchHandlerMixin
         return self._reduce_batch(per_batch, quantifier=quantify)
@@ -137,7 +140,7 @@ class LogicLoss(BatchHandlerMixin):
         method computes log(satisfaction) for stability.
 
         Args:
-            quantify: Batch quantification mode (same as __call__)
+            quantify: Batch quantification mode (same as satisfaction())
             **variable_bindings: Variable bindings as keyword arguments
                 (e.g., X=x_tensor, Y=y_tensor)
 
@@ -157,8 +160,8 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get satisfaction, then take log
-        satisfaction = self(quantify=quantify, **variable_bindings)
-        return torch.log(satisfaction + 1e-10)
+        sat = self.satisfaction(quantify=quantify, **variable_bindings)
+        return torch.log(sat + 1e-10)
 
     def loss(
         self,
@@ -222,7 +225,7 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get per-batch satisfaction from compiled expression
-        per_batch = self._compiled_expr(**variable_bindings)
+        per_batch = self._compiled_expr(return_boolean=False, **variable_bindings)
 
         # Apply batch quantification
         if quantify == "none":
@@ -297,15 +300,18 @@ class LogicLoss(BatchHandlerMixin):
         """
         return self._compiled_expr.free_variables
 
-    def get_trainable_parameters(
-        self,
-    ) -> List[torch.nn.Parameter]:
-        """Get all trainable parameters from model-based predicates.
+    @property
+    def trainable_parameters(self) -> List[torch.nn.Parameter]:
+        """All trainable parameters from model-based predicates.
 
         Delegates to the underlying CompiledExpression.
 
         Returns:
             List of torch.nn.Parameter objects from all model-based
             predicates
+
+        Example:
+            >>> params = logic_loss.trainable_parameters
+            >>> optimizer = torch.optim.Adam(params, lr=0.001)
         """
         return self._compiled_expr.get_trainable_parameters()

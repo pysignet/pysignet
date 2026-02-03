@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Set
 import sympy as sp
 import torch
 
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 from pysignet.logic.variable import VariableSymbol
 
 

@@ -159,7 +159,7 @@ def test_r_product_self_consistency() -> None:
 
         logic_loss = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = logic_loss.satisfaction(X=x)
 
         # P <-> P should always be 1 (perfect satisfaction)
         assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
@@ -180,7 +180,7 @@ def test_r_product_implication_tautology() -> None:
 
         logic_loss = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = logic_loss.satisfaction(X=x)
 
         # P -> P should always be 1
         assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
@@ -201,7 +201,7 @@ def test_r_product_modus_ponens() -> None:
 
     logic_loss = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Modus ponens should be satisfied
     assert (satisfaction >= 0.9).all()  # Very high satisfaction expected
@@ -293,7 +293,7 @@ def test_r_product_with_batch_dimensions() -> None:
     # Test with different batch sizes using quantify='none' for per-batch results
     for batch_size in [1, 5, 10]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert satisfaction.min() >= 0.0
@@ -315,26 +315,26 @@ def test_r_product_implication_with_constants() -> None:
     # implication(1, 0.7): 1 <= 0.7? No, so return 0.7/1 = 0.7
     expr_true_p = sp.Implies(sp.true, P(X))
     logic_loss_true_p = logic_to_loss(expr_true_p, predicates, tnorm=RProductTNorm())
-    satisfaction_true_p = logic_loss_true_p(X=x)
+    satisfaction_true_p = logic_loss_true_p.satisfaction(X=x)
     assert torch.allclose(satisfaction_true_p, torch.tensor(0.7), atol=1e-5)
 
     # false -> P: should be 1 (since false=0, 0 <= P is true)
     expr_false_p = sp.Implies(sp.false, P(X))
     logic_loss_false_p = logic_to_loss(expr_false_p, predicates, tnorm=RProductTNorm())
-    satisfaction_false_p = logic_loss_false_p(X=x)
+    satisfaction_false_p = logic_loss_false_p.satisfaction(X=x)
     assert torch.allclose(satisfaction_false_p, torch.tensor(1.0), atol=1e-5)
 
     # P -> true: should be 1 (since 0.7 <= 1 is true)
     expr_p_true = sp.Implies(P(X), sp.true)
     logic_loss_p_true = logic_to_loss(expr_p_true, predicates, tnorm=RProductTNorm())
-    satisfaction_p_true = logic_loss_p_true(X=x)
+    satisfaction_p_true = logic_loss_p_true.satisfaction(X=x)
     assert torch.allclose(satisfaction_p_true, torch.tensor(1.0), atol=1e-5)
 
     # P -> false: R-Product gives 0/0.7 = 0 when evaluated directly
     # But with SymPy constant evaluation, this becomes NOT(P) = 0.3
     expr_p_false = sp.Implies(P(X), sp.false)
     logic_loss_p_false = logic_to_loss(expr_p_false, predicates, tnorm=RProductTNorm())
-    satisfaction_p_false = logic_loss_p_false(X=x)
+    satisfaction_p_false = logic_loss_p_false.satisfaction(X=x)
     # SymPy simplifies P -> false to NOT(P), so expect 1 - 0.7 = 0.3
     assert torch.allclose(satisfaction_p_false, torch.tensor(0.3), atol=1e-5)
 
@@ -361,7 +361,7 @@ def test_r_product_transitive_implication() -> None:
 
     logic_loss = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Transitivity should have high satisfaction
     assert (satisfaction >= 0.8).all()
@@ -382,7 +382,7 @@ def test_r_product_contrapositive() -> None:
 
     logic_loss = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Contrapositive should have reasonably high satisfaction
     assert (satisfaction >= 0.7).all()
@@ -407,14 +407,14 @@ def test_r_product_equivalent_decomposition() -> None:
     # Test P <-> Q
     expr_equiv = sp.Equivalent(P(X), Q(X))
     logic_loss_equiv = logic_to_loss(expr_equiv, predicates, tnorm=RProductTNorm())
-    satisfaction_equiv = logic_loss_equiv(X=x)
+    satisfaction_equiv = logic_loss_equiv.satisfaction(X=x)
 
     # Test (P->Q) AND (Q->P)
     expr_decomposed = sp.And(sp.Implies(P(X), Q(X)), sp.Implies(Q(X), P(X)))
     logic_loss_decomposed = logic_to_loss(
         expr_decomposed, predicates, tnorm=RProductTNorm()
     )
-    satisfaction_decomposed = logic_loss_decomposed(X=x)
+    satisfaction_decomposed = logic_loss_decomposed.satisfaction(X=x)
 
     # Should be equal
     assert torch.allclose(satisfaction_equiv, satisfaction_decomposed, atol=1e-5)

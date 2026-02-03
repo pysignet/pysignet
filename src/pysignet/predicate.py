@@ -120,7 +120,8 @@ class Predicate:
 
         Returns:
             Tensor of satisfaction degrees in [0, 1]. Shape is typically
-            (batch_size,) but can vary based on the named neuron's output.
+            (batch_size,) for unary predicates, or (batch_size, num_classes)
+            for multi-class predicates where the compiler handles indexing.
         """
         # Evaluate the named neuron
         result = self.func(*args, **kwargs)
@@ -128,6 +129,13 @@ class Predicate:
         # Ensure result is a tensor
         if not isinstance(result, torch.Tensor):
             result = torch.tensor(result, dtype=torch.float32)
+
+        # Auto-squeeze (batch, 1) to (batch,) for convenience
+        # This handles the common case of nn.Linear(..., 1) outputs
+        # Multi-class predicates returning (batch, n) where n > 1 are left
+        # as-is since the compiler will index into them
+        if result.dim() >= 2 and result.shape[-1] == 1:
+            result = result.squeeze(-1)
 
         # Clamp to [0, 1] to ensure valid satisfaction degrees
         return torch.clamp(result, 0.0, 1.0)

@@ -8,7 +8,7 @@ from typing import Dict
 import sympy as sp
 
 from pysignet.logic.variable import VariableSymbol
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 
 
 class Binding:

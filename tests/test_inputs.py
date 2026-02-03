@@ -28,7 +28,7 @@ def test_single_tensor_input() -> None:
     batch_size = 10
     x = torch.randn(batch_size, 5)
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(X=x, quantify='none')
+    satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
     assert satisfaction.shape == (batch_size,)
     assert satisfaction.min() >= 0.0
@@ -56,7 +56,7 @@ def test_dict_input_per_predicate() -> None:
     }
 
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(**inputs, quantify='none')
+    satisfaction = logic_loss.satisfaction(**inputs, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -75,7 +75,7 @@ def test_batching_various_sizes() -> None:
     # Different batch sizes with quantify='none' to get per-batch results
     for batch_size in [1, 5, 10, 32]:
         x = torch.randn(batch_size, 5)
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
         assert satisfaction.shape == (batch_size,)
         assert satisfaction.min() >= 0.0
         assert satisfaction.max() <= 1.0
@@ -104,7 +104,7 @@ def test_different_feature_dimensions() -> None:
     }
 
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(**inputs, quantify='none')
+    satisfaction = logic_loss.satisfaction(**inputs, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -121,7 +121,7 @@ def test_input_preserves_device() -> None:
 
     # CPU tensor
     x_cpu = torch.randn(1, 3)
-    satisfaction_cpu = logic_loss(X=x_cpu)
+    satisfaction_cpu = logic_loss.satisfaction(X=x_cpu)
     assert satisfaction_cpu.device == x_cpu.device
 
 
@@ -138,12 +138,12 @@ def test_input_preserves_dtype() -> None:
 
     # float32 (default)
     x_float32 = torch.randn(1, 3, dtype=torch.float32)
-    satisfaction_float32 = logic_loss(X=x_float32)
+    satisfaction_float32 = logic_loss.satisfaction(X=x_float32)
     assert satisfaction_float32.dtype == torch.float32
 
     # float64
     x_float64 = torch.randn(1, 3, dtype=torch.float64)
-    unused_satisfaction_float64 = logic_loss(X=x_float64)
+    unused_satisfaction_float64 = logic_loss.satisfaction(X=x_float64)
     # Note: dtype might be converted due to operations
     # Intentionally unused, just testing execution
     del unused_satisfaction_float64
@@ -165,7 +165,7 @@ def test_multidimensional_features() -> None:
     batch_size = 5
     x = torch.randn(batch_size, 4, 4)
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(X=x, quantify='none')
+    satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
     assert satisfaction.shape == (batch_size,)
     assert satisfaction.min() >= 0.0
@@ -185,8 +185,8 @@ def test_sequential_calls_same_input() -> None:
     x = torch.randn(1, 3)
 
     # Multiple calls should give same result
-    result1 = logic_loss(X=x)
-    result2 = logic_loss(X=x)
+    result1 = logic_loss.satisfaction(X=x)
+    result2 = logic_loss.satisfaction(X=x)
 
     assert torch.allclose(result1, result2)
 
@@ -206,8 +206,8 @@ def test_sequential_calls_different_inputs() -> None:
     x1 = torch.ones(1, 3)  # Positive
     x2 = -torch.ones(1, 3)  # Negative
 
-    result1 = logic_loss(X=x1)
-    result2 = logic_loss(X=x2)
+    result1 = logic_loss.satisfaction(X=x1)
+    result2 = logic_loss.satisfaction(X=x2)
 
     # Results should be different
     assert not torch.allclose(result1, result2)
@@ -237,7 +237,7 @@ def test_dict_input_subset_of_predicates() -> None:
     y = torch.randn(batch_size, 3)
 
     # Use quantify='none' to get per-batch results
-    satisfaction = logic_loss(X=x, Y=y, quantify='none')
+    satisfaction = logic_loss.satisfaction(X=x, Y=y, quantify='none')
     assert satisfaction.shape == (batch_size,)
 
 
@@ -261,5 +261,5 @@ def test_consistent_batch_size_required() -> None:
     y = torch.randn(batch_size, 3)  # Same batch size
 
     # Should work fine - use quantify='none' to get per-batch results
-    satisfaction = logic_loss(X=x, Y=y, quantify='none')
+    satisfaction = logic_loss.satisfaction(X=x, Y=y, quantify='none')
     assert satisfaction.shape == (batch_size,)

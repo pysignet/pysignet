@@ -37,7 +37,7 @@ class TestCustomUnaryModules:
         batch_size = 5
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -89,7 +89,7 @@ class TestCustomUnaryModules:
         batch_size = 3
         x = torch.randn(batch_size, 8)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -155,7 +155,7 @@ class TestCustomBinaryModules:
         batch_size = 3
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -169,9 +169,7 @@ class TestCustomBinaryModules:
             def __init__(self):
                 super().__init__()
                 self.layers = nn.Sequential(
-                    nn.Linear(8, 16),
-                    nn.ReLU(),
-                    nn.Linear(16, 4)
+                    nn.Linear(8, 16), nn.ReLU(), nn.Linear(16, 4)
                 )
 
             def forward(self, x):
@@ -183,7 +181,7 @@ class TestCustomBinaryModules:
         batch_size = 5
         x = torch.randn(batch_size, 8)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -194,6 +192,7 @@ class TestCustomBinaryModules:
 
         # ForAll(Y, [0,1,2], Digit(X, Y))
         from pysignet.logic.quantifier import ForAll
+
         Y = Variable("Y")
         expr = ForAll(Y, [0, 1, 2], Digit(X, Y))
 
@@ -244,14 +243,12 @@ class TestCustomModulesWithPredicate:
         model = CustomModel()
         predicates = {"P": Predicate(model)}
 
-        compiler = TNormCompiler()
-        compiled = compiler.compile(expr, predicates)
-        logic_loss = LogicLoss(compiled, predicates)
+        logic_loss = logic_to_loss(expr, predicates)
 
         batch_size = 5
         x = torch.randn(batch_size, 3)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss.loss(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -277,7 +274,7 @@ class TestCustomModulesWithPredicate:
         compiled = compiler.compile(expr, predicates)
         logic_loss = LogicLoss(compiled, predicates)
 
-        params = logic_loss.get_trainable_parameters()
+        params = logic_loss.trainable_parameters
         params_list = list(params)
 
         # Should have weight and bias
@@ -310,14 +307,11 @@ class TestMixedCustomAndSequential:
         # Sequential module
         seq_model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
-        logic_loss = compile_logic(expr, {
-            "P": CustomModel(),
-            "Q": seq_model
-        })
+        logic_loss = compile_logic(expr, {"P": CustomModel(), "Q": seq_model})
 
         batch_size = 5
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss(X=x, quantify="none")
 
         assert result.shape == (batch_size,)

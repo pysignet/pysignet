@@ -37,7 +37,7 @@ class TestTernaryPredicates:
         z = torch.randn(batch_size, 6)
 
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, Y=y, Z=z, quantify='none')
+        result = logic_loss.satisfaction(X=x, Y=y, Z=z, quantify='none')
 
         assert result.shape == (batch_size,)
         assert torch.allclose(result, torch.ones(batch_size) * 0.8)
@@ -76,7 +76,7 @@ class TestTernaryPredicates:
         y = torch.randn(batch_size, 8)
 
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, Y=y, quantify='none')
+        result = logic_loss.satisfaction(X=x, Y=y, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -147,7 +147,7 @@ class TestTernaryPredicates:
         batch_size = 4
         x = torch.randn(batch_size, 5)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss.satisfaction(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -177,7 +177,7 @@ class TestQuaternaryPredicates:
         z = torch.randn(batch_size, 5)
 
         # Use quantify='none' to get per-batch results
-        result = logic_loss(W=w, X=x, Y=y, Z=z, quantify='none')
+        result = logic_loss.satisfaction(W=w, X=x, Y=y, Z=z, quantify='none')
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -275,7 +275,7 @@ class TestHighArityPredicates:
         batch_size = 4
         inputs = {f"V{i}": torch.randn(batch_size, 2) for i in range(1, 6)}
         # Use quantify='none' to get per-batch results
-        result = logic_loss(**inputs, quantify='none')
+        result = logic_loss.satisfaction(**inputs, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -307,7 +307,7 @@ class TestHighArityPredicates:
         y = torch.randn(batch_size, 3)
 
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, Y=y, quantify='none')
+        result = logic_loss.satisfaction(X=x, Y=y, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -336,7 +336,7 @@ class TestNaryPredicatesWithComplexExpressions:
         z = torch.randn(batch_size, 4)
 
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, Y=y, Z=z, quantify='none')
+        result = logic_loss.satisfaction(X=x, Y=y, Z=z, quantify='none')
 
         assert result.shape == (batch_size,)
 
@@ -378,6 +378,6 @@ class TestNaryPredicatesWithComplexExpressions:
         z = torch.randn(batch_size, 2)
 
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, Y=y, Z=z, quantify='none')
+        result = logic_loss.satisfaction(X=x, Y=y, Z=z, quantify='none')
 
         assert result.shape == (batch_size,)

@@ -41,7 +41,7 @@ class TestBasicAutoBatching:
         x = torch.randn(batch_size, 10)
 
         # Should work - X is auto-batched, forall quantification gives scalar
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Result should be a scalar (batch reduction via AND)
         assert result.shape == ()
@@ -66,7 +66,7 @@ class TestBasicAutoBatching:
         # Evaluate
         batch_size = 8
         x = torch.randn(batch_size, 5)
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Scalar result (batch reduction)
         assert result.shape == ()
@@ -92,7 +92,7 @@ class TestBasicAutoBatching:
         x = torch.randn(batch_size, 3)
         y = torch.randint(0, 10, (batch_size,))
 
-        result = logic_loss(X=x, Y=y)
+        result = logic_loss.satisfaction(X=x, Y=y)
 
         # Scalar result
         assert result.shape == ()
@@ -125,7 +125,7 @@ class TestMixedQuantification:
         batch_size = 3
         x = torch.randn(batch_size, 5)
 
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Should be scalar
         assert result.shape == ()
@@ -155,7 +155,7 @@ class TestMixedQuantification:
         batch_size = 4
         x = torch.randn(batch_size, 5)
 
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Scalar result
         assert result.shape == ()
@@ -187,7 +187,7 @@ class TestMixedQuantification:
         batch_size = 2
         x = torch.randn(batch_size, 4)
 
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Scalar
         assert result.shape == ()
@@ -220,7 +220,7 @@ class TestBatchReduction:
         batch_size = 3
         x = torch.tensor([[0.9], [0.8], [0.7]])
 
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Result should be minimum (AND semantics with R-Product)
         # With R-Product: AND = product
@@ -243,7 +243,7 @@ class TestBatchReduction:
         # Empty batch
         x = torch.randn(0, 5)
 
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Should return 1.0 (vacuously true)
         assert result.item() == 1.0
@@ -354,7 +354,7 @@ class TestRealWorldPatterns:
         x = torch.randn(batch_size, 784)
 
         # Evaluate
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         # Should be scalar in [0, 1]
         assert result.shape == ()
@@ -393,7 +393,7 @@ class TestRealWorldPatterns:
         x = torch.randn(batch_size, 10)
 
         # Evaluate
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         assert result.shape == ()
         assert 0 <= result.item() <= 1

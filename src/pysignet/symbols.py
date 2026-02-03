@@ -267,3 +267,30 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
     def __str__(self) -> str:
         """Return string representation."""
         return self.__repr__()
+
+    def _sympystr(self, printer: Any) -> str:
+        """Return SymPy string representation for printing.
+
+        This method is called by SymPy's printing system when converting
+        expressions to strings.
+
+        Args:
+            printer: SymPy printer instance (unused).
+
+        Returns:
+            String in format "PredicateName(args)".
+        """
+        del printer  # unused
+        args_str = ", ".join(str(arg) for arg in self.application_args)
+        return f"{self.predicate_name}({args_str})"
+
+    def _sympyrepr(self, printer: Any) -> str:
+        """Return SymPy repr representation.
+
+        Args:
+            printer: SymPy printer instance (unused).
+
+        Returns:
+            String representation for SymPy repr printing.
+        """
+        return self._sympystr(printer)

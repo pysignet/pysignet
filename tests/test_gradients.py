@@ -450,7 +450,7 @@ def test_get_trainable_parameters_for_optimization() -> None:
     }
 
     logic_loss = logic_to_loss(expr, predicates)
-    params = logic_loss.get_trainable_parameters()
+    params = logic_loss.trainable_parameters
 
     # Create optimizer with trainable parameters
     optimizer = torch.optim.SGD(params, lr=0.01)

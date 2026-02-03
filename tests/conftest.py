@@ -1,6 +1,6 @@
-"""Shared pytest fixtures for logic_as_loss tests.
+"""Shared pytest fixtures for pysignet tests.
 
-This module provides reusable fixtures for testing the logic_as_loss library.
+This module provides reusable fixtures for testing the pysignet library.
 Fixtures include common predicates, sample expressions, and test inputs.
 """
 

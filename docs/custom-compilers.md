@@ -62,7 +62,7 @@ import torch
 from pysignet.compilation import LogicCompiler
 from pysignet.predicate import Predicate
 from pysignet.context import EvaluationContext
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 
 
 class LinearThresholdUnitCompiler(LogicCompiler):

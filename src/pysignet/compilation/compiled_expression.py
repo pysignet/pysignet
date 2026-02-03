@@ -11,8 +11,9 @@ computation are handled by LogicLoss, which uses BatchHandlerMixin.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Set, List, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, Set, List, Optional, TYPE_CHECKING
 
+import sympy as sp
 import torch
 import torch.nn as nn
 
@@ -54,6 +55,7 @@ class CompiledExpression:
         partial_bindings: Dict of variables already bound in this expression
                          (used internally for partial binding)
         compiler: Optional LogicCompiler that produced this expression
+        expr: Optional original SymPy expression (for repr/debugging)
 
     Example:
         >>> # Create compiled expression
@@ -79,6 +81,7 @@ class CompiledExpression:
         predicates: Dict[str, Predicate],
         partial_bindings: Optional[Dict[str, torch.Tensor]] = None,
         compiler: Optional[LogicCompiler] = None,
+        expr: Optional[sp.Basic] = None,
     ) -> None:
         """Initialize CompiledExpression.
 
@@ -92,12 +95,14 @@ class CompiledExpression:
                 (default: empty)
             compiler: Optional LogicCompiler that produced this
                 expression
+            expr: Optional original SymPy expression (for repr/debugging)
         """
         self._compiled_logic = compiled_logic
         self._free_variables = free_variables
         self._predicates = predicates
         self._partial_bindings = partial_bindings or {}
         self._compiler = compiler
+        self._expr = expr
 
     @property
     def compiler(self) -> Optional[LogicCompiler]:
@@ -107,6 +112,62 @@ class CompiledExpression:
             LogicCompiler instance or None
         """
         return self._compiler
+
+    @property
+    def expr(self) -> Optional[sp.Basic]:
+        """Return the original SymPy expression.
+
+        Returns:
+            SymPy expression or None
+        """
+        return self._expr
+
+    def __repr__(self) -> str:
+        """Return string representation of compiled expression.
+
+        Returns:
+            String showing expression, free variables, and predicates.
+        """
+        parts = ["CompiledExpression("]
+
+        # Show expression if available
+        if self._expr is not None:
+            parts.append(f"  expr={self._expr},")
+        else:
+            parts.append("  expr=<compiled>,")
+
+        # Show free variables (remaining unbound)
+        free = self.free_variables
+        parts.append(f"  free_variables={{{', '.join(sorted(free))}}},")
+
+        # Show predicates
+        pred_names = sorted(self._predicates.keys())
+        parts.append(f"  predicates={{{', '.join(pred_names)}}},")
+
+        # Show partial bindings if any
+        if self._partial_bindings:
+            bound = sorted(self._partial_bindings.keys())
+            parts.append(f"  bound={{{', '.join(bound)}}},")
+
+        # Show compiler type if available
+        if self._compiler is not None:
+            compiler_name = type(self._compiler).__name__
+            parts.append(f"  compiler={compiler_name}")
+        else:
+            parts.append("  compiler=None")
+
+        parts.append(")")
+        return "\n".join(parts)
+
+    def _repr_pretty_(self, p: Any, cycle: bool) -> None:
+        """Pretty print for IPython/Jupyter.
+
+        Args:
+            p: IPython pretty printer
+            cycle: Whether we're in a cycle (unused)
+        """
+        del cycle  # unused
+        p.text(repr(self))
 
     @property
     def free_variables(self) -> Set[str]:
@@ -125,6 +186,8 @@ class CompiledExpression:
 
     def __call__(
         self,
+        *,  # Force keyword-only arguments
+        return_boolean: bool = False,
         **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
         """Evaluate compiled expression with variable bindings.
@@ -137,24 +200,28 @@ class CompiledExpression:
         For quantification over batch dimensions, wrap with LogicLoss.
 
         Args:
+            return_boolean: If True, return boolean satisfaction using hard
+                decisions (threshold at 0.5 for binary, argmax for multiclass).
+                Default is False (soft satisfaction).
             **variable_bindings: Variable bindings as keyword arguments
                 (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
-            Satisfaction tensor of shape (batch_size,) with values in
-            [0, 1]. Always returns per-batch results, never reduced
-            to scalar.
+            If return_boolean is False: Satisfaction tensor of shape
+                (batch_size,) with values in [0, 1].
+            If return_boolean is True: Boolean tensor of shape (batch_size,)
+                indicating whether the formula is satisfied.
 
         Raises:
             ValueError: If any free variable is not bound
+            ValueError: If return_boolean=True but expression is not available
 
         Example:
-            >>> # Evaluate with keyword arguments
+            >>> # Soft satisfaction (default)
             >>> result = compiled(X=x, Y=y)  # shape: (batch_size,)
             >>>
-            >>> # With partial bindings
-            >>> partial = compiled.partial(X=x)
-            >>> result = partial(Y=y)  # shape: (batch_size,)
+            >>> # Boolean satisfaction
+            >>> result = compiled(X=x, Y=y, return_boolean=True)  # bool tensor
         """
         # Merge partial bindings with new bindings
         all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
@@ -170,9 +237,116 @@ class CompiledExpression:
                 f"{sorted(self._free_variables)}"
             )
 
+        if return_boolean:
+            return self._evaluate_boolean_satisfaction(all_bindings)
+
         # Evaluate the expression and return per-batch results
         # No batch reduction - LogicLoss handles quantification
         return self._compiled_logic(all_bindings)
+
+    def _evaluate_boolean_satisfaction(
+        self, bindings: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """Evaluate expression with boolean (hard) decisions.
+
+        Uses ConsistencyChecker with boolean-converted predicates.
+
+        Args:
+            bindings: Dict mapping variable names to tensors
+
+        Returns:
+            Boolean tensor of shape (batch_size,)
+        """
+        # pylint: disable=import-outside-toplevel
+        from pysignet.consistency import ConsistencyChecker
+
+        if self._expr is None:
+            raise ValueError(
+                "Boolean evaluation requires the original expression. "
+                "This CompiledExpression was created without storing the "
+                "expression."
+            )
+
+        # Create boolean predicates that threshold soft outputs
+        # Pass bindings so predicates can look up variable inputs
+        boolean_predicates = self._create_boolean_predicates(bindings)
+
+        # Use ConsistencyChecker for boolean evaluation
+        # Pass bindings keyed by variable names
+        checker = ConsistencyChecker(self._expr, boolean_predicates)
+        return checker(bindings)
+
+    def _create_boolean_predicates(
+        self, bindings: Dict[str, torch.Tensor]
+    ) -> Dict[str, Callable[[Any], torch.Tensor]]:
+        """Create boolean predicate functions from soft predicates.
+
+        Converts soft predicates to boolean by:
+        - Binary (shape (batch,)): threshold at 0.5
+        - Multiclass (shape (batch, n)): argmax == class_index
+
+        Args:
+            bindings: Variable bindings (used to get input tensors)
+
+        Returns:
+            Dict mapping predicate names to boolean predicate functions
+        """
+        boolean_predicates: Dict[str, Callable[[Any], torch.Tensor]] = {}
+
+        for name, predicate in self._predicates.items():
+            boolean_predicates[name] = self._make_boolean_predicate(
+                predicate, bindings
+            )
+
+        return boolean_predicates
+
+    def _make_boolean_predicate(
+        self, predicate: Predicate, bindings: Dict[str, torch.Tensor]
+    ) -> Callable[[Any], torch.Tensor]:
+        """Create a boolean predicate function from a soft predicate.
+
+        Args:
+            predicate: The soft predicate to convert
+            bindings: Variable bindings
+
+        Returns:
+            Callable that returns boolean tensor
+        """
+        def boolean_pred(*args: Any) -> torch.Tensor:
+            # Extract class index if present (for multiclass predicates)
+            class_idx: Optional[int] = None
+            input_tensor: Optional[torch.Tensor] = None
+
+            for arg in args:
+                if isinstance(arg, int):
+                    class_idx = arg
+                elif isinstance(arg, torch.Tensor):
+                    input_tensor = arg
+
+            # If no tensor arg provided by ConsistencyChecker, use bindings
+            if input_tensor is None:
+                # Use first binding as input (common case: single variable)
+                input_tensor = next(iter(bindings.values()))
+
+            # Call predicate to get soft output
+            soft_output = predicate(input_tensor)
+
+            # Convert to boolean based on output shape
+            if soft_output.dim() >= 2 and soft_output.shape[-1] > 1:
+                # Multiclass output (batch, num_classes)
+                if class_idx is not None:
+                    # Return True if argmax == class_idx
+                    return soft_output.argmax(dim=-1) == class_idx
+                else:
+                    # No class specified - threshold max confidence
+                    return soft_output.max(dim=-1).values > 0.5
+            else:
+                # Binary output - threshold at 0.5
+                if soft_output.dim() >= 2:
+                    soft_output = soft_output.squeeze(-1)
+                return soft_output > 0.5
+
+        return boolean_pred
 
     def partial(self, **variable_bindings: torch.Tensor) -> CompiledExpression:
         """Create new CompiledExpression with some variables bound.
@@ -241,6 +415,7 @@ class CompiledExpression:
             predicates=self._predicates,
             partial_bindings=new_bindings,
             compiler=self._compiler,
+            expr=self._expr,
         )
 
     def get_trainable_parameters(self) -> List[nn.Parameter]:

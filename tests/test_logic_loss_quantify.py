@@ -43,7 +43,7 @@ class TestQuantifyForall:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 5)
-        result = logic_loss(X=x, quantify='forall')
+        result = logic_loss.satisfaction(X=x, quantify='forall')
 
         assert result.shape == ()  # Scalar
 
@@ -58,7 +58,7 @@ class TestQuantifyForall:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(3, 5)
-        result = logic_loss(X=x, quantify='forall')
+        result = logic_loss.satisfaction(X=x, quantify='forall')
 
         # Product t-norm forall in log space: exp(sum(log(values)))
         # For RProduct: 0.9 * 0.8 * 0.7 = 0.504
@@ -75,7 +75,7 @@ class TestQuantifyForall:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 5)
-        result = logic_loss(X=x, quantify='forall')
+        result = logic_loss.satisfaction(X=x, quantify='forall')
 
         assert torch.isclose(result, torch.tensor(1.0), atol=1e-6)
 
@@ -89,7 +89,7 @@ class TestQuantifyForall:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(3, 5)
-        result = logic_loss(X=x, quantify='forall')
+        result = logic_loss.satisfaction(X=x, quantify='forall')
 
         assert torch.isclose(result, torch.tensor(0.0), atol=1e-6)
 
@@ -103,7 +103,7 @@ class TestQuantifyForall:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(0, 5)
-        result = logic_loss(X=x, quantify='forall')
+        result = logic_loss.satisfaction(X=x, quantify='forall')
 
         assert torch.isclose(result, torch.tensor(1.0), atol=1e-6)
 
@@ -121,7 +121,7 @@ class TestQuantifyExists:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 5)
-        result = logic_loss(X=x, quantify='exists')
+        result = logic_loss.satisfaction(X=x, quantify='exists')
 
         assert result.shape == ()  # Scalar
 
@@ -135,7 +135,7 @@ class TestQuantifyExists:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(2, 5)
-        result = logic_loss(X=x, quantify='exists')
+        result = logic_loss.satisfaction(X=x, quantify='exists')
 
         # Probabilistic OR: P(A or B) = P(A) + P(B) - P(A)*P(B)
         expected = 0.3 + 0.4 - 0.3 * 0.4  # = 0.58
@@ -151,7 +151,7 @@ class TestQuantifyExists:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(3, 5)
-        result = logic_loss(X=x, quantify='exists')
+        result = logic_loss.satisfaction(X=x, quantify='exists')
 
         assert torch.isclose(result, torch.tensor(1.0), atol=1e-6)
 
@@ -165,7 +165,7 @@ class TestQuantifyExists:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 5)
-        result = logic_loss(X=x, quantify='exists')
+        result = logic_loss.satisfaction(X=x, quantify='exists')
 
         assert torch.isclose(result, torch.tensor(0.0), atol=1e-6)
 
@@ -179,7 +179,7 @@ class TestQuantifyExists:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(0, 5)
-        result = logic_loss(X=x, quantify='exists')
+        result = logic_loss.satisfaction(X=x, quantify='exists')
 
         assert torch.isclose(result, torch.tensor(0.0), atol=1e-6)
 
@@ -197,7 +197,7 @@ class TestQuantifyNone:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 5)
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss.satisfaction(X=x, quantify='none')
 
         assert result.shape == (10,)
 
@@ -212,7 +212,7 @@ class TestQuantifyNone:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(4, 5)
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss.satisfaction(X=x, quantify='none')
 
         assert torch.allclose(result, expected_values, atol=1e-6)
 
@@ -313,8 +313,8 @@ class TestDefaultQuantify:
         x = torch.randn(3, 5)
 
         # Default call should be same as explicit forall
-        result_default = logic_loss(X=x)
-        result_forall = logic_loss(X=x, quantify='forall')
+        result_default = logic_loss.satisfaction(X=x)
+        result_forall = logic_loss.satisfaction(X=x, quantify='forall')
 
         assert torch.isclose(result_default, result_forall, atol=1e-6)
         assert result_default.shape == ()
@@ -352,9 +352,9 @@ class TestBatchSizeOne:
 
         x = torch.randn(1, 5)
 
-        result_forall = logic_loss(X=x, quantify='forall')
-        result_exists = logic_loss(X=x, quantify='exists')
-        result_none = logic_loss(X=x, quantify='none')
+        result_forall = logic_loss.satisfaction(X=x, quantify='forall')
+        result_exists = logic_loss.satisfaction(X=x, quantify='exists')
+        result_none = logic_loss.satisfaction(X=x, quantify='none')
 
         # All should be 0.7 (the single sample's satisfaction)
         assert torch.isclose(result_forall, torch.tensor(0.7), atol=1e-6)
@@ -396,8 +396,8 @@ class TestBatchSizeOne:
 
         x = torch.randn(1, 5)
 
-        result_forall = logic_loss(X=x, quantify='forall')
-        result_exists = logic_loss(X=x, quantify='exists')
+        result_forall = logic_loss.satisfaction(X=x, quantify='forall')
+        result_exists = logic_loss.satisfaction(X=x, quantify='exists')
 
         # Both should equal the single sample's satisfaction
         assert torch.isclose(result_forall, torch.tensor(sat_value), atol=1e-6)
@@ -433,7 +433,7 @@ class TestLogSatisfaction:
         logic_loss = logic_to_loss(expr, predicates)
 
         x = torch.randn(5, 5)
-        sat = logic_loss(X=x, quantify='forall')
+        sat = logic_loss.satisfaction(X=x, quantify='forall')
         log_sat = logic_loss.log_satisfaction(X=x, quantify='forall')
 
         # For small batches, should be approximately equal
@@ -575,7 +575,7 @@ class TestInvalidInputs:
         x = torch.randn(10, 5)
 
         with pytest.raises(ValueError, match="quantif"):
-            logic_loss(X=x, quantify='invalid')
+            logic_loss.satisfaction(X=x, quantify='invalid')
 
     def test_invalid_reduction_raises_error(self):
         """Invalid reduction value raises ValueError."""
@@ -609,7 +609,7 @@ class TestAllTNormCombinations:
         logic_loss = logic_to_loss(expr, predicates, tnorm=tnorm_class())
 
         x = torch.randn(10, 5)
-        result = logic_loss(X=x, quantify=quantify)
+        result = logic_loss.satisfaction(X=x, quantify=quantify)
 
         if quantify == 'none':
             assert result.shape == (10,)

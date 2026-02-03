@@ -179,7 +179,7 @@ def test_predicate_with_neural_network() -> None:
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Should return values in [0, 1] due to sigmoid
     assert satisfaction.shape == ()  # Scalar with forall quantification
@@ -209,7 +209,7 @@ def test_predicate_with_multiple_models() -> None:
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Should compute correctly with all models
     assert satisfaction.shape == ()  # Scalar with forall quantification

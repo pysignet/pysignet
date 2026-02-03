@@ -72,7 +72,7 @@ class TestSymbolAPI:
 
         # Should evaluate successfully
         x = torch.randn(3, 10)
-        result = compiled(X=x, quantify="none")
+        result = compiled.satisfaction(X=x, quantify="none")
 
         assert result.shape == (3,)
 
@@ -152,7 +152,7 @@ class TestSymbolAPIUsagePatterns:
 
         # Evaluate
         x = torch.randn(3, 784)
-        result = compiled(X=x, quantify="forall")
+        result = compiled.satisfaction(X=x, quantify="forall")
 
         assert result.shape == ()
 
@@ -177,7 +177,7 @@ class TestSymbolAPIUsagePatterns:
         compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 10)
-        result = compiled(X=x)
+        result = compiled.satisfaction(X=x)
 
         assert result.shape == ()
 
@@ -197,7 +197,7 @@ class TestSymbolAPIUsagePatterns:
         compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 10)
-        result = compiled(X=x)
+        result = compiled.satisfaction(X=x)
 
         assert result.shape == ()
 
@@ -220,6 +220,6 @@ class TestSymbolAPIUsagePatterns:
         compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(10, 10)
-        result = compiled(X=x)
+        result = compiled.satisfaction(X=x)
 
         assert result.shape == ()

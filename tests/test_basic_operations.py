@@ -35,7 +35,7 @@ def test_basic_and() -> None:
     x = torch.randn(1, 5)
 
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Product t-norm: 0.8 * 0.6 = 0.48
     assert satisfaction.shape == ()  # Scalar
@@ -58,7 +58,7 @@ def test_basic_and_per_batch() -> None:
     x = torch.randn(10, 5)
 
     # Use quantify='none' for per-batch results
-    satisfaction = logic_loss(X=x, quantify='none')
+    satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
     # Product t-norm: 0.8 * 0.6 = 0.48 for each sample
     assert satisfaction.shape == (10,)
@@ -79,7 +79,7 @@ def test_basic_or() -> None:
 
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # Product t-conorm: 0.8 + 0.6 - 0.8*0.6 = 0.92
     expected = 0.8 + 0.6 - 0.8 * 0.6
@@ -98,7 +98,7 @@ def test_negation() -> None:
 
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     assert satisfaction.shape == ()  # Scalar
     assert torch.allclose(satisfaction, torch.tensor(0.3), atol=1e-5)
@@ -118,7 +118,7 @@ def test_implication() -> None:
 
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # R-Product: P -> Q = (1 if P <= Q else Q/P)
     # 0.8 > 0.6, so result = 0.6/0.8 = 0.75
@@ -141,7 +141,7 @@ def test_equivalence_operator() -> None:
 
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # P <-> Q = (P -> Q) AND (Q -> P)
     # R-Product:
@@ -171,7 +171,7 @@ def test_complex_expression() -> None:
 
     logic_loss = logic_to_loss(expr, predicates)
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
 
     # (P | Q) & ~R
     # P | Q = 0.5 + 0.5 - 0.25 = 0.75

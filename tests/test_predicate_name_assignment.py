@@ -130,7 +130,7 @@ class TestPredicateNameAssignment:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
@@ -211,7 +211,7 @@ class TestPredicateNameAssignment:
         x2_tensor = torch.randn(batch_size, 5)
 
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(x1=x1_tensor, x2=x2_tensor, quantify='none')
+        satisfaction = logic_loss.satisfaction(x1=x1_tensor, x2=x2_tensor, quantify='none')
         assert satisfaction.shape == (batch_size,)
 
     def test_is_model_detection_still_works(self) -> None:
@@ -429,7 +429,7 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify='none')
+        result = logic_loss.satisfaction(X=x, quantify='none')
 
         assert result.shape == (batch_size,)
         assert (result >= 0).all()
@@ -460,8 +460,8 @@ class TestAutomaticPredicateWrapping:
         # With auto-wrap, this should work correctly
         assert result.shape == (batch_size,)
 
-    def test_explicit_predicate_still_works(self) -> None:
-        """Explicit Predicate objects should still work (backward compat)."""
+    def test_explicit_predicate_works(self) -> None:
+        """Explicit Predicate objects work correctly."""
         X = Variable("X")
 
         P = Symbol("P")
@@ -500,7 +500,7 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
@@ -555,13 +555,13 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         # Model outputs (batch, 1) which should be squeezed correctly
         assert satisfaction.shape == (batch_size,)
 
         # Verify get_trainable_parameters includes model params
-        params = logic_loss.get_trainable_parameters()
+        params = logic_loss.trainable_parameters
         assert len(params) > 0  # Should include model's parameters
 
     def test_non_callable_raises_error(self) -> None:
@@ -627,15 +627,15 @@ class TestAutomaticPredicateWrapping:
         batch_size = 4
         x = torch.randn(batch_size, 5)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
         assert (satisfaction <= 1).all()
 
 
-class TestBackwardCompatibility:
-    """Test that existing patterns still work (during transition)."""
+class TestExpressionPatterns:
+    """Test common expression patterns with the API."""
 
     def test_simple_expression_compiles(self) -> None:
         """Simple expression should compile with new API."""
@@ -674,8 +674,92 @@ class TestBackwardCompatibility:
         batch_size = 4
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         assert satisfaction.shape == (batch_size,)
         assert (satisfaction >= 0).all()
         assert (satisfaction <= 1).all()
+
+
+class TestPredicateAutoSqueeze:
+    """Test automatic squeezing of (batch, 1) outputs to (batch,)."""
+
+    def test_auto_squeeze_batch_1_to_batch(self) -> None:
+        """Predicate should auto-squeeze (batch, 1) to (batch,)."""
+        # Function that returns (batch, 1)
+        pred = Predicate(lambda x: x.sum(dim=-1, keepdim=True))
+
+        x = torch.randn(5, 10)
+        result = pred(x)
+
+        # Should be squeezed to (batch,)
+        assert result.shape == (5,)
+
+    def test_batch_shape_unchanged(self) -> None:
+        """Predicate should leave (batch,) shape unchanged."""
+        # Function that returns (batch,)
+        pred = Predicate(lambda x: x.sum(dim=-1))
+
+        x = torch.randn(5, 10)
+        result = pred(x)
+
+        assert result.shape == (5,)
+
+    def test_nn_linear_output_squeezed(self) -> None:
+        """nn.Linear(..., 1) output should be auto-squeezed."""
+        model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
+        pred = Predicate(model)
+
+        x = torch.randn(5, 10)
+        result = pred(x)
+
+        # Should be squeezed from (5, 1) to (5,)
+        assert result.shape == (5,)
+
+    def test_multiclass_output_not_squeezed(self) -> None:
+        """Multi-class outputs (batch, n) where n > 1 should not be squeezed."""
+        # Simulates a 3-class classifier
+        model = nn.Sequential(nn.Linear(10, 3), nn.Softmax(dim=-1))
+        pred = Predicate(model)
+
+        x = torch.randn(5, 10)
+        result = pred(x)
+
+        # Should remain (5, 3) for multi-class selection by compiler
+        assert result.shape == (5, 3)
+
+    def test_auto_squeeze_in_compiled_expression(self) -> None:
+        """Auto-squeeze should work end-to-end with compile_logic."""
+        X = Variable("X")
+        P = Symbol("P")
+        expr = P(X)
+
+        # Model that outputs (batch, 1) - common pattern
+        model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
+        predicates = {"P": model}
+
+        compiled = compile_logic(expr, predicates)
+
+        x = torch.randn(5, 10)
+        result = compiled(X=x)
+
+        # Should work without manual squeeze
+        assert result.shape == (5,)
+
+    def test_auto_squeeze_with_keepdim_true(self) -> None:
+        """Functions using keepdim=True should be auto-squeezed."""
+        X = Variable("X")
+        P = Symbol("P")
+        expr = P(X)
+
+        # Common pattern: sigmoid of sum with keepdim
+        predicates = {
+            "P": lambda x: torch.sigmoid(x.sum(dim=-1, keepdim=True))
+        }
+
+        compiled = compile_logic(expr, predicates)
+
+        x = torch.randn(5, 10)
+        result = compiled(X=x)
+
+        assert result.shape == (5,)

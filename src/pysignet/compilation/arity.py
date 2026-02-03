@@ -17,7 +17,7 @@ import sympy as sp
 import torch.nn as nn
 
 from pysignet.predicate import Predicate
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 
 
 def validate_predicate_arity(

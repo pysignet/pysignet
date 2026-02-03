@@ -43,7 +43,7 @@ class TestRProductPostProcessing:
         x = torch.randn(1, 5)
 
         # Get satisfaction
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         # Expected: 0.8 * 0.6 = 0.48
 
         # Get loss
@@ -69,7 +69,7 @@ class TestRProductPostProcessing:
 
         # Use quantify='none' to get per-batch losses, then mean reduction
         loss = compiler.loss(X=x, quantify='none', reduction="mean")
-        satisfaction = compiler(X=x, quantify='none')
+        satisfaction = compiler.satisfaction(X=x, quantify='none')
 
         expected_loss = -torch.log(satisfaction + 1e-10).mean()
         assert torch.allclose(loss, expected_loss, atol=1e-5)
@@ -116,7 +116,7 @@ class TestSProductPostProcessing:
         compiler = logic_to_loss(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(1, 5)
 
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         loss = compiler.loss(X=x, reduction="none")
 
         # Should be -log(satisfaction)
@@ -144,7 +144,7 @@ class TestLukasiewiczPostProcessing:
         )
         x = torch.randn(1, 5)
 
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         loss = compiler.loss(X=x, reduction="none")
 
         # Should be 1 - satisfaction
@@ -169,7 +169,7 @@ class TestLukasiewiczPostProcessing:
 
         # Use quantify='none' to get per-batch losses, then sum reduction
         loss = compiler.loss(X=x, quantify='none', reduction="sum")
-        satisfaction = compiler(X=x, quantify='none')
+        satisfaction = compiler.satisfaction(X=x, quantify='none')
 
         expected_loss = (1.0 - satisfaction).sum()
         assert torch.allclose(loss, expected_loss, atol=1e-5)
@@ -197,7 +197,7 @@ class TestGodelPostProcessing:
         compiler = logic_to_loss(expr, predicates, tnorm=GodelTNorm())
         x = torch.randn(1, 5)
 
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         loss = compiler.loss(X=x, reduction="none")
 
         # Gödel uses linear post-processing: loss = 1 - satisfaction
@@ -567,7 +567,7 @@ class TestPostProcessingParameterOverride:
 
         # Default should be log
         loss_default = compiler.loss(X=x, reduction="none")
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         expected_log = -torch.log(satisfaction)
         assert torch.allclose(loss_default, expected_log, atol=1e-5)
 
@@ -596,7 +596,7 @@ class TestPostProcessingParameterOverride:
 
         # Default should be linear
         loss_default = compiler.loss(X=x, reduction="none")
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         expected_linear = 1.0 - satisfaction
         assert torch.allclose(loss_default, expected_linear, atol=1e-5)
 
@@ -664,7 +664,7 @@ class TestComplexExpressions:
         compiler = logic_to_loss(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 3)
 
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         loss = compiler.loss(X=x, reduction="none")
 
         # Should be -log(satisfaction)
@@ -689,7 +689,7 @@ class TestComplexExpressions:
         )
         x = torch.randn(1, 3)
 
-        satisfaction = compiler(X=x)
+        satisfaction = compiler.satisfaction(X=x)
         loss = compiler.loss(X=x, reduction="none")
 
         # Should be 1 - satisfaction

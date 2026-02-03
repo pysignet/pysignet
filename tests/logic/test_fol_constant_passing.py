@@ -32,7 +32,7 @@ class TestConstantOnlyPredicates:
         logic_loss = logic_to_loss(expr, predicates)
 
         # Should evaluate without any variable bindings
-        result = logic_loss()
+        result = logic_loss.satisfaction()
         # Shape is whatever the predicate returns (no batch dimension)
         assert result.shape == ()
         assert result.item() == pytest.approx(0.8)
@@ -55,7 +55,7 @@ class TestConstantOnlyPredicates:
         logic_loss = logic_to_loss(expr, predicates)
 
         # Should evaluate without variable bindings
-        result = logic_loss()
+        result = logic_loss.satisfaction()
         assert result.shape == ()
         assert result.item() == pytest.approx(0.9)
 
@@ -101,7 +101,7 @@ class TestMixedVariableAndConstant:
         # Only bind X, not the constant 5
         x = torch.randn(1, 10)
         # Default quantify='forall' with batch_size=1 returns scalar
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         assert result.shape == ()
         assert torch.all((result >= 0) & (result <= 1))
@@ -124,7 +124,7 @@ class TestMixedVariableAndConstant:
 
         # Only bind X
         x = torch.randn(10, 10)
-        result = logic_loss(X=x)
+        result = logic_loss.satisfaction(X=x)
 
         assert result.shape == ()
 

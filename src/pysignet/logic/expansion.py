@@ -10,7 +10,7 @@ import sympy as sp
 
 from pysignet.logic.quantifier import ForAll, Exists, Quantifier
 from pysignet.logic.variable import VariableSymbol
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 
 
 def expand_quantifier(quantifier: Quantifier) -> sp.Basic:

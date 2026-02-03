@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import pytest
 
-# Import from current location (will be moved to neural_logic later)
+# Import from pysignet package
 from pysignet import LogicLoss, Predicate, Symbol, TNormCompiler, Variable
 
 
@@ -48,7 +48,7 @@ class TestLogicLossBasics:
 
         x = torch.randn(10, 5)
         # Use quantify='none' to get per-batch satisfaction values
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
 
         # Should return satisfaction values in [0, 1]
         assert isinstance(satisfaction, torch.Tensor)
@@ -368,7 +368,7 @@ class TestLogicLossGradientFlow:
         logic_loss = LogicLoss(compiled)
 
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = logic_loss.satisfaction(X=x)
 
         # Compute some scalar from satisfaction and backprop
         scalar_output = satisfaction.mean()
@@ -503,7 +503,7 @@ class TestLogicLossTrainableParameters:
         logic_loss = LogicLoss(compiled)
 
         # Get trainable parameters
-        params = logic_loss.get_trainable_parameters()
+        params = logic_loss.trainable_parameters
 
         # Should have 4 parameters (weight and bias from each Linear layer)
         params_list = list(params)
@@ -524,7 +524,7 @@ class TestLogicLossTrainableParameters:
         logic_loss = LogicLoss(compiled)
 
         # Get trainable parameters
-        params = logic_loss.get_trainable_parameters()
+        params = logic_loss.trainable_parameters
 
         # Should be empty
         params_list = list(params)
@@ -548,7 +548,7 @@ class TestLogicLossTrainableParameters:
         logic_loss = LogicLoss(compiled, post_processing="linear")
 
         # Create optimizer with extracted parameters
-        params = logic_loss.get_trainable_parameters()
+        params = logic_loss.trainable_parameters
         optimizer = torch.optim.SGD(params, lr=0.01)
 
         # Run one optimization step
@@ -731,7 +731,7 @@ class TestLogicLossInputHandling:
         # Single tensor input
         x = torch.randn(10, 5)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, quantify='none')
         # reduction requires quantify='none'
         loss = logic_loss.loss(X=x, quantify='none', reduction="mean")
 
@@ -762,7 +762,7 @@ class TestLogicLossInputHandling:
         x = torch.randn(10, 5)
         y = torch.randn(10, 3)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, Y=y, quantify='none')
+        satisfaction = logic_loss.satisfaction(X=x, Y=y, quantify='none')
         # reduction requires quantify='none'
         loss = logic_loss.loss(X=x, Y=y, quantify='none', reduction="mean")
 
@@ -791,7 +791,7 @@ class TestLogicLossInputHandling:
         for batch_size in batch_sizes:
             x = torch.randn(batch_size, 5)
             # Use quantify='none' to get per-batch results
-            satisfaction = logic_loss(X=x, quantify='none')
+            satisfaction = logic_loss.satisfaction(X=x, quantify='none')
             # reduction requires quantify='none'
             loss_none = logic_loss.loss(X=x, quantify='none', reduction="none")
             loss_mean = logic_loss.loss(X=x, quantify='none', reduction="mean")

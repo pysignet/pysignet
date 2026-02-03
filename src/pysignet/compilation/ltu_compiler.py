@@ -157,4 +157,5 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             free_variables=set(v.name for v in free_vars),
             predicates=wrapped_predicates,
             compiler=self,
+            expr=expr,
         )

@@ -10,7 +10,7 @@ import sympy as sp
 
 from pysignet import Symbol
 from pysignet.logic import Variable, Binding, ground
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 
 
 class TestBindingCreation:

@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import pytest
 
-# Import from current location (will be moved to neural_logic later)
+# Import from pysignet package
 from pysignet import (
     LogicLoss,
     Predicate,

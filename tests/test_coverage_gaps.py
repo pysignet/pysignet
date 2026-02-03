@@ -424,7 +424,7 @@ class TestQuantifyModes:
         compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(10, 5)
 
-        result = compiled(X=x, quantify='exists')
+        result = compiled.satisfaction(X=x, quantify='exists')
         assert result.shape == ()
         assert result.item() == 1.0  # At least one satisfied
 
@@ -443,7 +443,7 @@ class TestQuantifyModes:
         compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(10, 5)
 
-        result = compiled(X=x, quantify='forall')
+        result = compiled.satisfaction(X=x, quantify='forall')
         assert result.shape == ()
         assert result.item() == 0.0  # Not all satisfied
 
@@ -593,7 +593,7 @@ class TestArityValidationEdgeCases:
 
         compiled = logic_to_loss(expr, {"P": multi_arg_func})
         x = torch.randn(4, 10)
-        result = compiled(X=x)
+        result = compiled.satisfaction(X=x)
 
         assert result.shape == ()
 
@@ -608,7 +608,7 @@ class TestArityValidationEdgeCases:
         })
 
         x = torch.randn(4, 10)
-        result = compiled(X=x)
+        result = compiled.satisfaction(X=x)
 
         assert result.shape == ()
 
@@ -1118,7 +1118,7 @@ class TestCompiledExpressionErrors:
     def test_positional_tensor_rejected_logic_loss(self):
         """Test that LogicLoss rejects positional tensor arguments.
 
-        Users must use keyword arguments like logic_loss(X=tensor).
+        Users must use keyword arguments like logic_loss.satisfaction(X=tensor).
         When a tensor is passed positionally, it goes to the `quantify`
         parameter and causes a ValueError.
         """
@@ -1134,7 +1134,7 @@ class TestCompiledExpressionErrors:
 
         # Positional tensor goes to `quantify` param, causing ValueError
         with pytest.raises(ValueError, match="Invalid quantify"):
-            logic_loss(x)
+            logic_loss.satisfaction(x)
 
     def test_positional_tensor_rejected_logic_loss_method(self):
         """Test that LogicLoss.loss() rejects positional tensor arguments.
@@ -1156,3 +1156,183 @@ class TestCompiledExpressionErrors:
         # Positional tensor goes to `quantify` param, causing ValueError
         with pytest.raises(ValueError, match="Invalid quantify"):
             logic_loss.loss(x)
+
+
+class TestCompiledExpressionRepr:
+    """Tests for CompiledExpression repr and expr property."""
+
+    def test_compiled_expression_expr_property(self):
+        """Test accessing expr property of CompiledExpression."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        compiled = compile_logic(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+
+        # Access expr property
+        assert compiled.expr is not None
+        assert compiled.expr == expr
+
+    def test_compiled_expression_repr(self):
+        """Test __repr__ of CompiledExpression."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        compiled = compile_logic(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+
+        repr_str = repr(compiled)
+
+        assert "CompiledExpression(" in repr_str
+        assert "P(X)" in repr_str or "expr=" in repr_str
+        assert "free_variables" in repr_str
+        assert "predicates" in repr_str
+
+    def test_compiled_expression_repr_with_partial_binding(self):
+        """Test __repr__ with partial bindings."""
+        P = Symbol("P")
+        X, Y = Variable("X Y")
+        expr = sp.And(P(X), P(Y))
+
+        compiled = compile_logic(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+
+        # Create partial binding
+        x = torch.randn(4, 10)
+        partial = compiled.partial(X=x)
+
+        repr_str = repr(partial)
+
+        assert "bound=" in repr_str
+        assert "X" in repr_str
+
+
+class TestBooleanSatisfaction:
+    """Tests for return_boolean parameter."""
+
+    def test_boolean_satisfaction_binary_predicate(self):
+        """Test boolean satisfaction with binary predicate."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        # Predicate returning high values (> 0.5)
+        compiled = compile_logic(
+            expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.8}
+        )
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.all()  # All should be True (0.8 > 0.5)
+
+    def test_boolean_satisfaction_low_values(self):
+        """Test boolean satisfaction with low values."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        # Predicate returning low values (< 0.5)
+        compiled = compile_logic(
+            expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.3}
+        )
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert not result.any()  # All should be False (0.3 < 0.5)
+
+    def test_boolean_satisfaction_multiclass_predicate(self):
+        """Test boolean satisfaction with multiclass predicate."""
+        Digit = Symbol("Digit")
+        X = Variable("X")
+        expr = Digit(X, 2)  # Class 2
+
+        # Use nn.Module for multiclass - returns (batch, num_classes)
+        model = nn.Sequential(nn.Linear(10, 5), nn.Softmax(dim=-1))
+
+        compiled = compile_logic(expr, {"Digit": model})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        # Result depends on model weights, just check it's boolean
+        assert result.shape == (4,)
+
+
+class TestLogicLossFreeVariables:
+    """Tests for LogicLoss.free_variables property."""
+
+    def test_free_variables_single(self):
+        """Test free_variables with single variable."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        logic_loss = logic_to_loss(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+
+        assert "X" in logic_loss.free_variables
+        assert len(logic_loss.free_variables) == 1
+
+    def test_free_variables_multiple(self):
+        """Test free_variables with multiple variables."""
+        P, Q = Symbol("P Q")
+        X, Y = Variable("X Y")
+        expr = sp.And(P(X), Q(Y))
+
+        logic_loss = logic_to_loss(expr, {
+            "P": lambda x: torch.sigmoid(x.sum(dim=-1)),
+            "Q": lambda y: torch.sigmoid(y.mean(dim=-1)),
+        })
+
+        assert "X" in logic_loss.free_variables
+        assert "Y" in logic_loss.free_variables
+        assert len(logic_loss.free_variables) == 2
+
+
+class TestLogicLossInvalidQuantify:
+    """Tests for LogicLoss with invalid quantify values."""
+
+    def test_log_satisfaction_invalid_quantify(self):
+        """Test log_satisfaction with invalid quantify value."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        logic_loss = logic_to_loss(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+
+        x = torch.randn(4, 10)
+
+        with pytest.raises(ValueError, match="Invalid quantify"):
+            logic_loss.log_satisfaction(X=x, quantify="invalid")
+
+
+class TestPredicateApplicationSymPyPrinting:
+    """Tests for PredicateApplication SymPy printing methods."""
+
+    def test_sympystr(self):
+        """Test _sympystr method."""
+        P = Symbol("P")
+        X = Variable("X")
+        app = P(X, 0)
+
+        # SymPy's str() uses _sympystr
+        str_repr = str(app)
+
+        assert "P" in str_repr
+        assert "X" in str_repr or "0" in str_repr
+
+    def test_sympyrepr(self):
+        """Test _sympyrepr method via srepr."""
+        from sympy import srepr
+
+        P = Symbol("P")
+        X = Variable("X")
+        app = P(X, 1)
+
+        repr_str = srepr(app)
+
+        # Should contain predicate name
+        assert "P" in repr_str

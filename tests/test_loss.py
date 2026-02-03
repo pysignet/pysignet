@@ -135,7 +135,7 @@ def test_loss_is_one_minus_satisfaction() -> None:
     x = torch.randn(1, 5)
 
     # Default quantify='forall' with batch_size=1 returns scalar
-    satisfaction = logic_loss(X=x)
+    satisfaction = logic_loss.satisfaction(X=x)
     # Use default quantify='forall' for loss too (returns scalar loss)
     loss = logic_loss.loss(X=x, post_processing="linear")
 

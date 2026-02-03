@@ -40,7 +40,7 @@ from .api import compile_logic, logic_to_loss
 from .compilation.compiled_expression import CompiledExpression
 
 # Symbol API for predicates
-from .multiclass import Symbol, PredicateSymbol, PredicateApplication
+from .symbols import Symbol, PredicateSymbol, PredicateApplication
 from .context import EvaluationContext
 
 # Logic (First-Order Logic)

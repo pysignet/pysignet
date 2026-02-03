@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from pysignet.context import EvaluationContext
 from pysignet.predicate import Predicate
-from pysignet.multiclass import PredicateApplication
+from pysignet.symbols import PredicateApplication
 from pysignet.logic.quantifier import Quantifier
 from pysignet.logic.expansion import expand_quantifier
 from pysignet.logic.variable import VariableSymbol
