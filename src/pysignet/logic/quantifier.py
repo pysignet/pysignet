@@ -9,11 +9,12 @@ Multiple variables are handled via nesting quantifiers.
 
 from typing import Any, Iterable, Tuple
 import sympy as sp
+from sympy.logic.boolalg import Boolean
 
 from pysignet.logic.variable import VariableSymbol
 
 
-class Quantifier(sp.Basic):  # type: ignore[misc]
+class Quantifier(Boolean):  # type: ignore[misc]
     """Base class for quantifiers.
 
     Quantifiers bind a variable to values from a domain and evaluate
@@ -55,7 +56,7 @@ class Quantifier(sp.Basic):  # type: ignore[misc]
         return self._body
 
     @property
-    def args(self) -> Tuple[VariableSymbol, sp.Basic]:
+    def args(self) -> Tuple[sp.Basic, sp.Basic]:
         """Return args tuple for SymPy compatibility.
 
         Returns:
@@ -63,7 +64,12 @@ class Quantifier(sp.Basic):  # type: ignore[misc]
             Note: domain is not included in args to avoid issues with
             non-hashable iterables.
         """
-        return (self._variable, self._body)
+        # Wrap list of variables in SymPy Tuple for tree traversal
+        if isinstance(self._variable, list):
+            var_arg: sp.Basic = sp.Tuple(*self._variable)
+        else:
+            var_arg = self._variable
+        return (var_arg, self._body)
 
     def __eq__(self, other: object) -> bool:
         """Check equality with another quantifier.
@@ -111,7 +117,12 @@ class Quantifier(sp.Basic):  # type: ignore[misc]
             Hash based on variable and body.
             Note: domain not included due to potential non-hashability.
         """
-        return hash((self.__class__, self.variable, self.body))
+        # Convert list to tuple for hashing
+        if isinstance(self.variable, list):
+            var = tuple(self.variable)
+        else:
+            var = self.variable
+        return hash((self.__class__, var, self.body))
 
 
 class ForAll(Quantifier):
