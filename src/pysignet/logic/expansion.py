@@ -68,8 +68,18 @@ def expand_quantifier(quantifier: Quantifier) -> sp.Basic:
     # Expand body for each domain value
     expanded_bodies = []
     for value in domain_values:
-        # Substitute the variable with the domain value
-        substituted_body = _substitute_variable(body, variable, value)
+        # Substitute the variable(s) with the domain value(s)
+        # Handle multi-variable quantifiers: ForAll([I, J], [(0,1), (0,2)], ...)
+        if isinstance(variable, list):
+            # Multi-variable: value is a tuple matching variable list
+            substituted_body = body
+            for var, val in zip(variable, value):
+                substituted_body = _substitute_variable(
+                    substituted_body, var, val
+                )
+        else:
+            # Single variable
+            substituted_body = _substitute_variable(body, variable, value)
 
         # Recursively expand any nested quantifiers
         substituted_body = _expand_nested_quantifiers(substituted_body)
@@ -105,7 +115,13 @@ def _substitute_in_quantifier(
     Does not substitute if the quantifier binds the same variable.
     """
     # If this quantifier binds the variable, don't substitute inside
-    if expr.variable == variable:
+    # Handle both single variable and list of variables
+    bound_vars: List[VariableSymbol]
+    if isinstance(expr.variable, list):
+        bound_vars = expr.variable
+    else:
+        bound_vars = [expr.variable]
+    if variable in bound_vars:
         return expr
 
     # Substitute in the body
