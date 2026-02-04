@@ -417,6 +417,124 @@ class TestRealWorldPatterns:
         assert expanded == expected
 
 
+class TestMultiVariableExpansion:
+    """Tests for multi-variable quantifier expansion."""
+
+    def test_forall_with_two_variables_expands(self):
+        """ForAll with two variables expands over tuple domain."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (0, 2), (1, 2)]
+        forall = ForAll([I, J], pairs, P(I, J))
+        expanded = expand_quantifier(forall)
+
+        # P(0, 1) AND P(0, 2) AND P(1, 2)
+        expected = sp.And(P(0, 1), P(0, 2), P(1, 2))
+        assert expanded == expected
+
+    def test_exists_with_two_variables_expands(self):
+        """Exists with two variables expands over tuple domain."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (1, 2)]
+        exists = Exists([I, J], pairs, P(I, J))
+        expanded = expand_quantifier(exists)
+
+        # P(0, 1) OR P(1, 2)
+        expected = sp.Or(P(0, 1), P(1, 2))
+        assert expanded == expected
+
+    def test_forall_multi_var_with_complex_body(self):
+        """ForAll with multiple variables and complex body."""
+        I, J, X = Variable("I J X")
+        Digit = Symbol("Digit")
+
+        pairs = [(0, 1), (0, 2)]
+        # Mutual exclusivity: Digit(X, I) -> ~Digit(X, J)
+        body = sp.Implies(Digit(X, I), sp.Not(Digit(X, J)))
+        forall = ForAll([I, J], pairs, body)
+        expanded = expand_quantifier(forall)
+
+        # (Digit(X, 0) -> ~Digit(X, 1)) AND (Digit(X, 0) -> ~Digit(X, 2))
+        expected = sp.And(
+            sp.Implies(Digit(X, 0), sp.Not(Digit(X, 1))),
+            sp.Implies(Digit(X, 0), sp.Not(Digit(X, 2)))
+        )
+        assert expanded == expected
+
+    def test_forall_multi_var_single_element_domain(self):
+        """ForAll with multiple variables and single element domain."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        forall = ForAll([I, J], [(5, 10)], P(I, J))
+        expanded = expand_quantifier(forall)
+
+        # Single element: just P(5, 10)
+        expected = P(5, 10)
+        assert expanded == expected
+
+    def test_forall_multi_var_empty_domain(self):
+        """ForAll with multiple variables and empty domain."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        forall = ForAll([I, J], [], P(I, J))
+        expanded = expand_quantifier(forall)
+
+        # Empty domain: vacuously true
+        assert expanded == sp.true
+
+    def test_exists_multi_var_empty_domain(self):
+        """Exists with multiple variables and empty domain."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        exists = Exists([I, J], [], P(I, J))
+        expanded = expand_quantifier(exists)
+
+        # Empty domain: false
+        assert expanded == sp.false
+
+    def test_at_most_one_constraint_expansion(self):
+        """At-most-one constraint expands to pairwise implications."""
+        X, I, J = Variable("X I J")
+        Digit = Symbol("Digit")
+
+        # All pairs (i, j) where i < j for 3 classes
+        pairs = [(i, j) for i in range(3) for j in range(i + 1, 3)]
+        # pairs = [(0, 1), (0, 2), (1, 2)]
+
+        at_most_one = ForAll(
+            [I, J], pairs, sp.Implies(Digit(X, I), sp.Not(Digit(X, J)))
+        )
+        expanded = expand_quantifier(at_most_one)
+
+        # Should be conjunction of 3 implications
+        expected = sp.And(
+            sp.Implies(Digit(X, 0), sp.Not(Digit(X, 1))),
+            sp.Implies(Digit(X, 0), sp.Not(Digit(X, 2))),
+            sp.Implies(Digit(X, 1), sp.Not(Digit(X, 2)))
+        )
+        assert expanded == expected
+
+    def test_multi_var_preserves_free_variables(self):
+        """Multi-variable expansion preserves free variables."""
+        X, I, J = Variable("X I J")
+        P = Symbol("P")
+
+        # X is free, I and J are bound
+        pairs = [(0, 1), (1, 2)]
+        forall = ForAll([I, J], pairs, P(X, I, J))
+        expanded = expand_quantifier(forall)
+
+        # X should remain, I and J should be substituted
+        expected = sp.And(P(X, 0, 1), P(X, 1, 2))
+        assert expanded == expected
+
+
 class TestInternalHelpers:
     """Tests for internal _substitute_variable helper function."""
 

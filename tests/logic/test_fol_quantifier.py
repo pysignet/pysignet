@@ -471,6 +471,151 @@ class TestEquality:
         assert forall != exists
 
 
+class TestMultiVariableQuantifiers:
+    """Tests for quantifiers with multiple bound variables."""
+
+    def test_forall_with_list_of_variables(self):
+        """ForAll can bind multiple variables with list."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (0, 2), (1, 2)]
+        forall = ForAll([I, J], pairs, P(I, J))
+
+        assert forall.variable == [I, J]
+        assert list(forall.domain) == pairs
+
+    def test_exists_with_list_of_variables(self):
+        """Exists can bind multiple variables with list."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (1, 2)]
+        exists = Exists([I, J], pairs, P(I, J))
+
+        assert exists.variable == [I, J]
+        assert list(exists.domain) == pairs
+
+    def test_multi_variable_forall_hash(self):
+        """Multi-variable ForAll can be hashed."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (0, 2)]
+        forall1 = ForAll([I, J], pairs, P(I, J))
+        forall2 = ForAll([I, J], pairs, P(I, J))
+
+        # Should be hashable and usable in sets
+        quantifier_set = {forall1, forall2}
+        assert len(quantifier_set) >= 1
+
+    def test_multi_variable_forall_equality(self):
+        """Multi-variable ForAll equality works."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (0, 2)]
+        forall1 = ForAll([I, J], pairs, P(I, J))
+        forall2 = ForAll([I, J], pairs, P(I, J))
+
+        assert forall1 == forall2
+
+    def test_multi_variable_args_returns_tuple(self):
+        """Multi-variable quantifier args wraps variables in Tuple."""
+        I, J = Variable("I J")
+        P = Symbol("P")
+
+        pairs = [(0, 1), (0, 2)]
+        forall = ForAll([I, J], pairs, P(I, J))
+
+        # args should be a tuple with (Tuple(I, J), body)
+        assert isinstance(forall.args, tuple)
+        assert isinstance(forall.args[0], sp.Tuple)
+        assert forall.args[1] == P(I, J)
+
+
+class TestSymPyBooleanCompatibility:
+    """Tests for SymPy Boolean compatibility."""
+
+    def test_forall_is_boolean(self):
+        """ForAll inherits from Boolean."""
+        from sympy.logic.boolalg import Boolean
+
+        X = Variable("X")
+        P = Symbol("P")
+        forall = ForAll(X, [0, 1], P(X))
+
+        assert isinstance(forall, Boolean)
+
+    def test_exists_is_boolean(self):
+        """Exists inherits from Boolean."""
+        from sympy.logic.boolalg import Boolean
+
+        X = Variable("X")
+        P = Symbol("P")
+        exists = Exists(X, [0, 1], P(X))
+
+        assert isinstance(exists, Boolean)
+
+    def test_forall_can_be_combined_with_sp_and(self):
+        """ForAll can be combined with sp.And."""
+        X, Y = Variable("X Y")
+        P, Q = Symbol("P Q")
+
+        forall1 = ForAll(X, [0, 1], P(X))
+        forall2 = ForAll(Y, [2, 3], Q(Y))
+
+        # Should not raise
+        combined = sp.And(forall1, forall2)
+        assert isinstance(combined, sp.And)
+
+    def test_exists_can_be_combined_with_sp_or(self):
+        """Exists can be combined with sp.Or."""
+        X, Y = Variable("X Y")
+        P, Q = Symbol("P Q")
+
+        exists1 = Exists(X, [0, 1], P(X))
+        exists2 = Exists(Y, [2, 3], Q(Y))
+
+        # Should not raise
+        combined = sp.Or(exists1, exists2)
+        assert isinstance(combined, sp.Or)
+
+    def test_forall_and_exists_can_be_combined(self):
+        """ForAll and Exists can be combined with sp.And."""
+        X, Y = Variable("X Y")
+        P = Symbol("P")
+
+        forall = ForAll(X, [0, 1], P(X))
+        exists = Exists(Y, range(10), P(Y))
+
+        # Should not raise - this is the exactly-one pattern
+        combined = sp.And(forall, exists)
+        assert isinstance(combined, sp.And)
+
+    def test_exactly_one_constraint_pattern(self):
+        """Exactly-one constraint pattern works with sp.And."""
+        X, Y, I, J = Variable("X Y I J")
+        Digit = Symbol("Digit")
+
+        # At-least-one
+        at_least_one = Exists(Y, range(10), Digit(X, Y))
+
+        # At-most-one (pairwise mutual exclusivity)
+        pairs = [(i, j) for i in range(10) for j in range(i + 1, 10)]
+        at_most_one = ForAll(
+            [I, J], pairs, sp.Implies(Digit(X, I), sp.Not(Digit(X, J)))
+        )
+
+        # Exactly-one: both constraints together
+        exactly_one = sp.And(at_least_one, at_most_one)
+
+        assert isinstance(exactly_one, sp.And)
+        # Verify both quantifiers are in the And
+        assert at_least_one in exactly_one.args
+        assert at_most_one in exactly_one.args
+
+
 class TestRealWorldPatterns:
     """Tests for common real-world usage patterns."""
 
