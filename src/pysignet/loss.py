@@ -123,7 +123,9 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get per-batch satisfaction from compiled expression
-        per_batch = self._compiled_expr(return_boolean=False, **variable_bindings)
+        per_batch = self._compiled_expr(
+            return_boolean=False, **variable_bindings
+        )
 
         # Apply batch quantification using BatchHandlerMixin
         return self._reduce_batch(per_batch, quantifier=quantify)
@@ -225,7 +227,9 @@ class LogicLoss(BatchHandlerMixin):
             )
 
         # Get per-batch satisfaction from compiled expression
-        per_batch = self._compiled_expr(return_boolean=False, **variable_bindings)
+        per_batch = self._compiled_expr(
+            return_boolean=False, **variable_bindings
+        )
 
         # Apply batch quantification
         if quantify == "none":

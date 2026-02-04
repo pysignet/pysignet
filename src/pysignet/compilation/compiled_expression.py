@@ -138,16 +138,16 @@ class CompiledExpression:
 
         # Show free variables (remaining unbound)
         free = self.free_variables
-        parts.append(f"  free_variables={{{', '.join(sorted(free))}}},")
+        parts.append(f"  free_variables={{{", ".join(sorted(free))}}},")
 
         # Show predicates
         pred_names = sorted(self._predicates.keys())
-        parts.append(f"  predicates={{{', '.join(pred_names)}}},")
+        parts.append(f"  predicates={{{", ".join(pred_names)}}},")
 
         # Show partial bindings if any
         if self._partial_bindings:
             bound = sorted(self._partial_bindings.keys())
-            parts.append(f"  bound={{{', '.join(bound)}}},")
+            parts.append(f"  bound={{{", ".join(bound)}}},")
 
         # Show compiler type if available
         if self._compiler is not None:

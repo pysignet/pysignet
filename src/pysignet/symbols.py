@@ -51,7 +51,8 @@ def Symbol(names: str) -> "PredicateSymbol" | Tuple["PredicateSymbol", ...]:
         Multi-class predicates (with variable and constant):
             >>> X = Variable("X")
             >>> Digit = Symbol("Digit")
-            >>> expr = sp.Or(Digit(X, 0), Digit(X, 1))  # X is input, 0/1 are class indices
+            >>> # X is input, 0/1 are class indices
+            >>> expr = sp.Or(Digit(X, 0), Digit(X, 1))
 
         Multi-variable predicates:
             >>> X, Y = Variable("X Y")
