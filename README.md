@@ -1,5 +1,7 @@
 # pysignet: Logic-as-Loss for Neural Networks
 
+[![CI](https://github.com/pysignet/pysignet/actions/workflows/ci.yml/badge.svg)](https://github.com/pysignet/pysignet/actions/workflows/ci.yml)
+
 ![Pysignet logo](assets/pysignet-logo.png)
 
 ## What is this project?
