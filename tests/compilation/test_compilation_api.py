@@ -138,7 +138,7 @@ class TestCompileLogicTNormMode:
         assert torch.allclose(satisfaction, torch.tensor(expected), atol=1e-5)
 
     def test_compile_logic_default_tnorm(self) -> None:
-        """Test default t-norm (should be R-Product)."""
+        """Test default t-norm (MixedTNorm)."""
         X = Variable("X")
         # pylint: disable=invalid-name
         P, Q = Symbol("P Q")
@@ -149,12 +149,13 @@ class TestCompileLogicTNormMode:
             "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        # Don't specify tnorm - should default to R-Product
+        # Don't specify tnorm - defaults to MixedTNorm
+        # MixedTNorm uses RProduct for small arities (<=4): 0.8 * 0.6 = 0.48
         logic_loss = compile_logic(expr, predicates)
         x = torch.randn(1, 5)
         satisfaction = logic_loss(X=x)
 
-        # Default (R-Product) AND: 0.8 * 0.6 = 0.48
+        # MixedTNorm with 2 args uses RProduct AND: 0.8 * 0.6 = 0.48
         assert torch.allclose(satisfaction, torch.tensor(0.48), atol=1e-5)
 
 
@@ -165,7 +166,7 @@ class TestCompileLogicPostProcessing:
         """Test default post-processing uses t-norm's recommendation."""
         X = Variable("X")
         # Default behavior: use t-norm's recommended post-processing
-        # RProductTNorm (default) recommends 'log'
+        # MixedTNorm (default) recommends 'log'
         # pylint: disable=invalid-name
         P = Symbol("P")
         expr = P(X)
@@ -176,7 +177,7 @@ class TestCompileLogicPostProcessing:
         x = torch.randn(1, 5)
         loss = logic_loss.loss(X=x)
 
-        # Default uses RProductTNorm with 'log': -log(satisfaction)
+        # Default uses MixedTNorm with 'log': -log(satisfaction)
         expected_loss = -torch.log(torch.tensor(0.7))
         assert torch.allclose(loss, expected_loss, atol=1e-5)
 
@@ -433,8 +434,9 @@ class TestCompileLogicWithComplexExpressions:
         x = torch.randn(1, 5)
         satisfaction = logic_loss(X=x)
 
-        # Product of all: 0.9 * 0.8 * 0.7 * 0.6 * 0.5
-        expected = 0.9 * 0.8 * 0.7 * 0.6 * 0.5
+        # Default MixedTNorm: 5 args > threshold (4), uses Godel (min)
+        # min(0.9, 0.8, 0.7, 0.6, 0.5) = 0.5
+        expected = 0.5
         assert torch.allclose(satisfaction, torch.tensor(expected), atol=1e-5)
 
     def test_boolean_constants(self) -> None:

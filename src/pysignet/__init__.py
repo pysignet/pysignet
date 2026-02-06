@@ -54,6 +54,7 @@ from .tnorms import (
     SProductTNorm,
     LukasiewiczTNorm,
     GodelTNorm,
+    MixedTNorm,
 )
 
 __version__ = "0.2.0"
@@ -82,4 +83,5 @@ __all__ = [
     "SProductTNorm",
     "LukasiewiczTNorm",
     "GodelTNorm",
+    "MixedTNorm",
 ]

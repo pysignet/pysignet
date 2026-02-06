@@ -258,9 +258,9 @@ def test_many_predicates() -> None:
     # Default quantify='forall' with batch_size=1 returns scalar
     satisfaction = logic_loss.satisfaction(X=x)
 
-    # Product t-norm: 0.9^10 ≈ 0.3487
+    # Default MixedTNorm: 10 args > threshold (4), uses Godel (min) = 0.9
     assert satisfaction.shape == ()  # Scalar with forall
-    expected = 0.9**10
+    expected = 0.9  # min of all 0.9 values
     assert torch.allclose(satisfaction, torch.tensor(expected), atol=1e-4)
 
 

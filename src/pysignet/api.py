@@ -9,7 +9,7 @@ from pysignet.predicate import Predicate
 from pysignet.compilation import TNormCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.loss import LogicLoss
-from pysignet.tnorms import TNorm, RProductTNorm
+from pysignet.tnorms import TNorm, MixedTNorm
 
 
 def compile_logic(
@@ -30,7 +30,7 @@ def compile_logic(
         predicates: Dict mapping predicate names to Predicate objects or
             callables that produce torch Tensors
         mode: Compilation mode - 'tnorm' (default), or 'semantic' (future)
-        tnorm: T-norm for mode='tnorm' (default: RProductTNorm)
+        tnorm: T-norm for mode='tnorm' (default: MixedTNorm)
 
     Returns:
         CompiledExpression instance for evaluating satisfaction degrees
@@ -80,7 +80,7 @@ def compile_logic(
 
     if mode == "tnorm":
         # Create t-norm compiler
-        tnorm_instance = tnorm or RProductTNorm()
+        tnorm_instance = tnorm or MixedTNorm()
         compiler = TNormCompiler(tnorm=tnorm_instance)
     else:
         raise ValueError(
@@ -113,7 +113,7 @@ def logic_to_loss(
         predicates: Dict mapping predicate names to Predicate objects or
             callables that produce torch Tensors
         mode: Compilation mode - 'tnorm' (default)
-        tnorm: T-norm for mode='tnorm' (default: RProductTNorm)
+        tnorm: T-norm for mode='tnorm' (default: MixedTNorm)
         post_processing: Post-processing mode - 'log', 'linear', callable,
             or None to use t-norm's recommendation (default)
 
