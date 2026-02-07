@@ -23,41 +23,6 @@ if TYPE_CHECKING:
     from pysignet.compilation.base import LogicCompiler
 
 
-def _extract_class_indices(
-    expr: sp.Basic,
-) -> Dict[str, List[int]]:
-    """Extract all integer constant args per predicate from expression.
-
-    Walks the expression tree and collects all integer arguments
-    used with each predicate. Used to determine which class indices
-    a function predicate needs to evaluate for argmax conversion.
-
-    Args:
-        expr: SymPy expression (should have quantifiers expanded).
-
-    Returns:
-        Dict mapping predicate names to sorted lists of class indices.
-    """
-    # pylint: disable=import-outside-toplevel
-    from pysignet.symbols import PredicateApplication
-
-    result: Dict[str, Set[int]] = {}
-
-    def _walk(node: sp.Basic) -> None:
-        if isinstance(node, PredicateApplication):
-            name = node.predicate_name
-            for arg in node.application_args:
-                if isinstance(arg, int):
-                    result.setdefault(name, set()).add(arg)
-            return
-        if hasattr(node, "args"):
-            for child in node.args:
-                _walk(child)
-
-    _walk(expr)
-    return {name: sorted(indices) for name, indices in result.items()}
-
-
 class CompiledExpression:
     """Represents a compiled logical expression with variable bindings.
 
@@ -309,16 +274,9 @@ class CompiledExpression:
         # standard logical operators.
         expanded_expr = _expand_nested_quantifiers(self._expr)
 
-        # Extract all class indices per predicate from the expanded
-        # expression. Function predicates need these to build a full
-        # probability vector and use argmax for boolean conversion.
-        pred_classes = _extract_class_indices(expanded_expr)
-
         # Create boolean predicates that threshold soft outputs
         # Pass bindings so predicates can look up variable inputs
-        boolean_predicates = self._create_boolean_predicates(
-            bindings, pred_classes
-        )
+        boolean_predicates = self._create_boolean_predicates(bindings)
 
         # Use ConsistencyChecker for boolean evaluation
         # Pass bindings keyed by variable names
@@ -328,19 +286,15 @@ class CompiledExpression:
     def _create_boolean_predicates(
         self,
         bindings: Dict[str, torch.Tensor],
-        pred_classes: Dict[str, List[int]],
     ) -> Dict[str, Callable[[Any], torch.Tensor]]:
         """Create boolean predicate functions from soft predicates.
 
-        Converts soft predicates to boolean by:
-        - Binary (shape (batch,)): threshold at 0.5
-        - Multiclass model (shape (batch, n)): argmax == class_index
-        - Multiclass function: evaluate all classes, argmax == class_index
+        Converts soft predicates to boolean by thresholding at 0.5.
+        For multiclass predicates, the class probability is extracted
+        first, then thresholded.
 
         Args:
             bindings: Variable bindings (used to get input tensors)
-            pred_classes: Dict mapping predicate names to sorted lists
-                of all class indices that appear in the expression.
 
         Returns:
             Dict mapping predicate names to boolean predicate functions
@@ -348,9 +302,8 @@ class CompiledExpression:
         boolean_predicates: Dict[str, Callable[[Any], torch.Tensor]] = {}
 
         for name, predicate in self._predicates.items():
-            class_indices = pred_classes.get(name, [])
             boolean_predicates[name] = self._make_boolean_predicate(
-                predicate, bindings, class_indices
+                predicate, bindings
             )
 
         return boolean_predicates
@@ -359,17 +312,17 @@ class CompiledExpression:
         self,
         predicate: Predicate,
         bindings: Dict[str, torch.Tensor],
-        class_indices: List[int],
     ) -> Callable[[Any], torch.Tensor]:
         """Create a boolean predicate function from a soft predicate.
 
-        For model predicates (nn.Module), calls the model once to get
-        (batch, n_classes) output and uses argmax for boolean conversion.
+        Converts soft [0,1] outputs to boolean by thresholding at 0.5.
+        A predicate is considered True when its satisfaction degree
+        exceeds 0.5 ("more likely than not").
 
-        For function predicates with class indices, evaluates the
-        function for ALL known classes, stacks into (batch, n_classes),
-        and uses argmax. Results are cached across calls to avoid
-        redundant evaluation.
+        For model predicates (nn.Module) with a class index, the
+        model is called once and the class probability is extracted
+        before thresholding. For function predicates, the class
+        index is passed as an argument.
 
         Args:
             predicate: The soft predicate to convert
@@ -380,10 +333,6 @@ class CompiledExpression:
         Returns:
             Callable that returns boolean tensor
         """
-        # Cache for function predicate: avoids re-evaluating all
-        # classes on every call. Keyed by id(input_tensor).
-        cached_multiclass: Dict[int, torch.Tensor] = {}
-
         def boolean_pred(*args: Any) -> torch.Tensor:
             # Extract class index if present (for multiclass predicates)
             class_idx: Optional[int] = None
@@ -400,29 +349,12 @@ class CompiledExpression:
                 # Use first binding as input (common case: single variable)
                 input_tensor = next(iter(bindings.values()))
 
-            # Function predicates that take class_idx as an argument
-            # need to be evaluated for ALL classes to build a full
-            # probability vector for argmax-based boolean conversion.
+            # Function predicates accept class_idx as an argument
             if class_idx is not None and not predicate.is_model:
-                tensor_id = id(input_tensor)
-                if tensor_id not in cached_multiclass:
-                    outputs = []
-                    for idx in class_indices:
-                        out = predicate(input_tensor, idx)
-                        if out.dim() >= 2:
-                            out = out.squeeze(-1)
-                        outputs.append(out)
-                    # (batch, n_classes)
-                    cached_multiclass[tensor_id] = torch.stack(
-                        outputs, dim=-1
-                    )
-                stacked = cached_multiclass[tensor_id]
-                # Map argmax position back to class index
-                argmax_pos = stacked.argmax(dim=-1)
-                idx_tensor = torch.tensor(
-                    class_indices, device=input_tensor.device
-                )
-                return idx_tensor[argmax_pos] == class_idx
+                soft_output = predicate(input_tensor, class_idx)
+                if soft_output.dim() >= 2:
+                    soft_output = soft_output.squeeze(-1)
+                return soft_output > 0.5
 
             # Model predicate: call once to get soft output
             soft_output = predicate(input_tensor)
@@ -431,8 +363,7 @@ class CompiledExpression:
             if soft_output.dim() >= 2 and soft_output.shape[-1] > 1:
                 # Multiclass output (batch, num_classes)
                 if class_idx is not None:
-                    # Return True if argmax == class_idx
-                    return soft_output.argmax(dim=-1) == class_idx
+                    return soft_output[:, class_idx] > 0.5
                 else:
                     # No class specified - threshold max confidence
                     return soft_output.max(dim=-1).values > 0.5
