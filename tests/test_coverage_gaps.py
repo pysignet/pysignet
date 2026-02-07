@@ -1262,6 +1262,201 @@ class TestBooleanSatisfaction:
         assert result.shape == (4,)
 
 
+class TestBooleanSatisfactionWithQuantifiers:
+    """Tests for return_boolean with ForAll/Exists quantifiers.
+
+    Regression tests for bug where ConsistencyChecker raised
+    ValueError on quantifier expressions because it did not
+    handle ForAll/Exists types.
+
+    Boolean conversion for function predicates with class indices
+    uses argmax: Digit(X, k) is True iff k is the argmax class.
+    This mirrors how model predicates are handled.
+    """
+
+    def test_exists_quantifier_return_boolean(self):
+        """Test return_boolean with Exists quantifier."""
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
+
+        from pysignet.logic.quantifier import Exists
+        expr = Exists(Y, range(3), Digit(X, Y))
+
+        # Predicate: class 1 always has the highest prob
+        def digit_pred(x, class_idx):
+            batch = x.shape[0]
+            if class_idx == 1:
+                return torch.ones(batch) * 0.9
+            return torch.ones(batch) * 0.1
+
+        compiled = compile_logic(expr, {"Digit": digit_pred})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.shape == (4,)
+        # Argmax picks class 1 -> Exists is satisfied
+        assert result.all()
+
+    def test_forall_at_most_one_satisfied(self):
+        """Test at_most_one ForAll constraint with function predicate.
+
+        With argmax boolean conversion, at most one class is True,
+        so the pairwise mutual exclusion constraint is satisfied.
+        """
+        Digit = Symbol("Digit")
+        X, I, J = Variable("X I J")
+
+        from pysignet.logic.quantifier import ForAll
+
+        n_classes = 3
+        all_pairs = [
+            (i, j) for i in range(n_classes)
+            for j in range(i + 1, n_classes)
+        ]
+        at_most_one = ForAll(
+            [I, J], all_pairs,
+            sp.Not(sp.And(Digit(X, I), Digit(X, J)))
+        )
+
+        # Class 2 has highest prob -> argmax picks class 2 only
+        def digit_pred(x, class_idx):
+            batch = x.shape[0]
+            if class_idx == 2:
+                return torch.ones(batch) * 0.7
+            return torch.ones(batch) * 0.15
+
+        compiled = compile_logic(at_most_one, {"Digit": digit_pred})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.shape == (4,)
+        # Argmax selects one class -> no pair is both True
+        assert result.all()
+
+    def test_forall_at_most_one_with_model(self):
+        """Test at_most_one ForAll with nn.Module predicate."""
+        Digit = Symbol("Digit")
+        X, I, J = Variable("X I J")
+
+        from pysignet.logic.quantifier import ForAll
+
+        n_classes = 3
+        all_pairs = [
+            (i, j) for i in range(n_classes)
+            for j in range(i + 1, n_classes)
+        ]
+        at_most_one = ForAll(
+            [I, J], all_pairs,
+            sp.Not(sp.And(Digit(X, I), Digit(X, J)))
+        )
+
+        model = nn.Sequential(
+            nn.Linear(10, n_classes), nn.Softmax(dim=-1)
+        )
+
+        compiled = compile_logic(at_most_one, {"Digit": model})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.shape == (4,)
+        # Model argmax selects one class -> at_most_one satisfied
+        assert result.all()
+
+    def test_nested_quantifiers_exactly_one(self):
+        """Test exactly-one with nested quantifiers.
+
+        Exists(Y, range(N), Digit(X,Y)) AND
+        ForAll([I,J], pairs, NOT(Digit(X,I) AND Digit(X,J)))
+
+        With argmax boolean conversion, exactly one class is selected.
+        Both at_least_one and at_most_one are satisfied.
+        """
+        Digit = Symbol("Digit")
+        X, Y, I, J = Variable("X Y I J")
+
+        from pysignet.logic.quantifier import ForAll, Exists
+
+        n_classes = 3
+        at_least_one = Exists(Y, range(n_classes), Digit(X, Y))
+
+        all_pairs = [
+            (i, j) for i in range(n_classes)
+            for j in range(i + 1, n_classes)
+        ]
+        at_most_one = ForAll(
+            [I, J], all_pairs,
+            sp.Not(sp.And(Digit(X, I), Digit(X, J)))
+        )
+
+        exactly_one = sp.And(at_least_one, at_most_one)
+
+        # Only class 1 is high
+        def digit_pred(x, class_idx):
+            batch = x.shape[0]
+            if class_idx == 1:
+                return torch.ones(batch) * 0.9
+            return torch.ones(batch) * 0.1
+
+        compiled = compile_logic(exactly_one, {"Digit": digit_pred})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.shape == (4,)
+        assert result.all()
+
+    def test_nested_quantifiers_close_probabilities(self):
+        """Test exactly-one when no class exceeds 0.5.
+
+        With argmax, exactly_one is satisfied as long as one class
+        has strictly higher probability, even if all are below 0.5.
+        For example, [0.2, 0.35, 0.45] should still satisfy
+        exactly-one because argmax selects class 2.
+        """
+        Digit = Symbol("Digit")
+        X, Y, I, J = Variable("X Y I J")
+
+        from pysignet.logic.quantifier import ForAll, Exists
+
+        n_classes = 3
+        at_least_one = Exists(Y, range(n_classes), Digit(X, Y))
+
+        all_pairs = [
+            (i, j) for i in range(n_classes)
+            for j in range(i + 1, n_classes)
+        ]
+        at_most_one = ForAll(
+            [I, J], all_pairs,
+            sp.Not(sp.And(Digit(X, I), Digit(X, J)))
+        )
+
+        exactly_one = sp.And(at_least_one, at_most_one)
+
+        # Probabilities [0.2, 0.35, 0.45] -- no class > 0.5
+        # but argmax still picks class 2
+        def digit_pred(x, class_idx):
+            batch = x.shape[0]
+            probs = {0: 0.2, 1: 0.35, 2: 0.45}
+            return torch.ones(batch) * probs[class_idx]
+
+        compiled = compile_logic(exactly_one, {"Digit": digit_pred})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.shape == (4,)
+        # Argmax selects class 2 -> exactly_one satisfied
+        assert result.all()
+
+
 class TestLogicLossFreeVariables:
     """Tests for LogicLoss.free_variables property."""
 

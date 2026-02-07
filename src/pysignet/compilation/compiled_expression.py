@@ -23,6 +23,41 @@ if TYPE_CHECKING:
     from pysignet.compilation.base import LogicCompiler
 
 
+def _extract_class_indices(
+    expr: sp.Basic,
+) -> Dict[str, List[int]]:
+    """Extract all integer constant args per predicate from expression.
+
+    Walks the expression tree and collects all integer arguments
+    used with each predicate. Used to determine which class indices
+    a function predicate needs to evaluate for argmax conversion.
+
+    Args:
+        expr: SymPy expression (should have quantifiers expanded).
+
+    Returns:
+        Dict mapping predicate names to sorted lists of class indices.
+    """
+    # pylint: disable=import-outside-toplevel
+    from pysignet.symbols import PredicateApplication
+
+    result: Dict[str, Set[int]] = {}
+
+    def _walk(node: sp.Basic) -> None:
+        if isinstance(node, PredicateApplication):
+            name = node.predicate_name
+            for arg in node.application_args:
+                if isinstance(arg, int):
+                    result.setdefault(name, set()).add(arg)
+            return
+        if hasattr(node, "args"):
+            for child in node.args:
+                _walk(child)
+
+    _walk(expr)
+    return {name: sorted(indices) for name, indices in result.items()}
+
+
 class CompiledExpression:
     """Represents a compiled logical expression with variable bindings.
 
@@ -259,6 +294,8 @@ class CompiledExpression:
         """
         # pylint: disable=import-outside-toplevel
         from pysignet.consistency import ConsistencyChecker
+        from pysignet.logic.expansion import _expand_nested_quantifiers
+        from pysignet.symbols import PredicateApplication
 
         if self._expr is None:
             raise ValueError(
@@ -267,26 +304,43 @@ class CompiledExpression:
                 "expression."
             )
 
+        # Expand quantifiers (ForAll/Exists) into And/Or before
+        # boolean evaluation, since ConsistencyChecker only handles
+        # standard logical operators.
+        expanded_expr = _expand_nested_quantifiers(self._expr)
+
+        # Extract all class indices per predicate from the expanded
+        # expression. Function predicates need these to build a full
+        # probability vector and use argmax for boolean conversion.
+        pred_classes = _extract_class_indices(expanded_expr)
+
         # Create boolean predicates that threshold soft outputs
         # Pass bindings so predicates can look up variable inputs
-        boolean_predicates = self._create_boolean_predicates(bindings)
+        boolean_predicates = self._create_boolean_predicates(
+            bindings, pred_classes
+        )
 
         # Use ConsistencyChecker for boolean evaluation
         # Pass bindings keyed by variable names
-        checker = ConsistencyChecker(self._expr, boolean_predicates)
+        checker = ConsistencyChecker(expanded_expr, boolean_predicates)
         return checker(bindings)
 
     def _create_boolean_predicates(
-        self, bindings: Dict[str, torch.Tensor]
+        self,
+        bindings: Dict[str, torch.Tensor],
+        pred_classes: Dict[str, List[int]],
     ) -> Dict[str, Callable[[Any], torch.Tensor]]:
         """Create boolean predicate functions from soft predicates.
 
         Converts soft predicates to boolean by:
         - Binary (shape (batch,)): threshold at 0.5
-        - Multiclass (shape (batch, n)): argmax == class_index
+        - Multiclass model (shape (batch, n)): argmax == class_index
+        - Multiclass function: evaluate all classes, argmax == class_index
 
         Args:
             bindings: Variable bindings (used to get input tensors)
+            pred_classes: Dict mapping predicate names to sorted lists
+                of all class indices that appear in the expression.
 
         Returns:
             Dict mapping predicate names to boolean predicate functions
@@ -294,24 +348,42 @@ class CompiledExpression:
         boolean_predicates: Dict[str, Callable[[Any], torch.Tensor]] = {}
 
         for name, predicate in self._predicates.items():
+            class_indices = pred_classes.get(name, [])
             boolean_predicates[name] = self._make_boolean_predicate(
-                predicate, bindings
+                predicate, bindings, class_indices
             )
 
         return boolean_predicates
 
     def _make_boolean_predicate(
-        self, predicate: Predicate, bindings: Dict[str, torch.Tensor]
+        self,
+        predicate: Predicate,
+        bindings: Dict[str, torch.Tensor],
+        class_indices: List[int],
     ) -> Callable[[Any], torch.Tensor]:
         """Create a boolean predicate function from a soft predicate.
+
+        For model predicates (nn.Module), calls the model once to get
+        (batch, n_classes) output and uses argmax for boolean conversion.
+
+        For function predicates with class indices, evaluates the
+        function for ALL known classes, stacks into (batch, n_classes),
+        and uses argmax. Results are cached across calls to avoid
+        redundant evaluation.
 
         Args:
             predicate: The soft predicate to convert
             bindings: Variable bindings
+            class_indices: Sorted list of all class indices for this
+                predicate in the expression (empty for binary predicates)
 
         Returns:
             Callable that returns boolean tensor
         """
+        # Cache for function predicate: avoids re-evaluating all
+        # classes on every call. Keyed by id(input_tensor).
+        cached_multiclass: Dict[int, torch.Tensor] = {}
+
         def boolean_pred(*args: Any) -> torch.Tensor:
             # Extract class index if present (for multiclass predicates)
             class_idx: Optional[int] = None
@@ -328,7 +400,31 @@ class CompiledExpression:
                 # Use first binding as input (common case: single variable)
                 input_tensor = next(iter(bindings.values()))
 
-            # Call predicate to get soft output
+            # Function predicates that take class_idx as an argument
+            # need to be evaluated for ALL classes to build a full
+            # probability vector for argmax-based boolean conversion.
+            if class_idx is not None and not predicate.is_model:
+                tensor_id = id(input_tensor)
+                if tensor_id not in cached_multiclass:
+                    outputs = []
+                    for idx in class_indices:
+                        out = predicate(input_tensor, idx)
+                        if out.dim() >= 2:
+                            out = out.squeeze(-1)
+                        outputs.append(out)
+                    # (batch, n_classes)
+                    cached_multiclass[tensor_id] = torch.stack(
+                        outputs, dim=-1
+                    )
+                stacked = cached_multiclass[tensor_id]
+                # Map argmax position back to class index
+                argmax_pos = stacked.argmax(dim=-1)
+                idx_tensor = torch.tensor(
+                    class_indices, device=input_tensor.device
+                )
+                return idx_tensor[argmax_pos] == class_idx
+
+            # Model predicate: call once to get soft output
             soft_output = predicate(input_tensor)
 
             # Convert to boolean based on output shape
