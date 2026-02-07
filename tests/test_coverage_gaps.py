@@ -1,19 +1,29 @@
 """Tests to increase coverage for edge cases and error conditions.
 
-These tests target specific uncovered lines identified by coverage analysis.
+These tests target specific uncovered lines identified by coverage
+analysis.
 """
+
+# pylint: disable=invalid-name
+
+import warnings
 
 import pytest
 import torch
 import torch.nn as nn
 import sympy as sp
+from sympy import srepr
 
-from pysignet import Symbol, Variable, compile_logic, logic_to_loss, Predicate
-from pysignet.logic.extraction import (
-    extract_variables_from_application,
-    extract_constants_from_application,
-    is_variable,
-    is_constant,
+from pysignet import (
+    Symbol,
+    Variable,
+    compile_logic,
+    logic_to_loss,
+    ConsistencyChecker,
+)
+from pysignet.compilation import (
+    TNormCompiler,
+    LinearThresholdUnitCompiler,
 )
 from pysignet.compilation.module_utils import (
     infer_module_arity,
@@ -22,6 +32,15 @@ from pysignet.compilation.module_utils import (
     _get_output_dim,
     _get_final_layer,
 )
+from pysignet.logic import ForAll, Exists
+from pysignet.logic.expansion import expand_quantifier
+from pysignet.logic.extraction import (
+    extract_variables_from_application,
+    extract_constants_from_application,
+    is_variable,
+    is_constant,
+)
+from pysignet.tnorms import GodelTNorm, LukasiewiczTNorm
 
 
 class TestExtractionFunctions:
@@ -424,7 +443,7 @@ class TestQuantifyModes:
         compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(10, 5)
 
-        result = compiled.satisfaction(X=x, quantify='exists')
+        result = compiled.satisfaction(X=x, quantify="exists")
         assert result.shape == ()
         assert result.item() == 1.0  # At least one satisfied
 
@@ -443,7 +462,7 @@ class TestQuantifyModes:
         compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(10, 5)
 
-        result = compiled.satisfaction(X=x, quantify='forall')
+        result = compiled.satisfaction(X=x, quantify="forall")
         assert result.shape == ()
         assert result.item() == 0.0  # Not all satisfied
 
@@ -461,7 +480,9 @@ class TestLossEdgeCases:
         compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(8, 10)
-        loss = compiled.loss(X=x, quantify='none', reduction='sum')
+        loss = compiled.loss(
+            X=x, quantify="none", reduction="sum"
+        )
 
         assert loss.shape == ()  # Scalar after sum reduction
 
@@ -475,7 +496,9 @@ class TestLossEdgeCases:
         compiled = logic_to_loss(expr, predicates)
 
         x = torch.randn(8, 10)
-        loss = compiled.loss(X=x, quantify='none', reduction='none')
+        loss = compiled.loss(
+            X=x, quantify="none", reduction="none"
+        )
 
         assert loss.shape == (8,)  # Per-element loss
 
@@ -618,7 +641,6 @@ class TestTNormOperators:
 
     def test_godel_tnorm_edge_values(self):
         """Test Godel t-norm with edge values."""
-        from pysignet.tnorms import GodelTNorm
         tnorm = GodelTNorm()
 
         a = torch.tensor([0.0, 0.5, 1.0])
@@ -636,13 +658,12 @@ class TestTNormOperators:
 
     def test_lukasiewicz_tnorm_edge_values(self):
         """Test Lukasiewicz t-norm with edge values."""
-        from pysignet.tnorms import LukasiewiczTNorm
         tnorm = LukasiewiczTNorm()
 
         a = torch.tensor([0.0, 0.5, 1.0])
         b = torch.tensor([1.0, 0.5, 0.0])
 
-        # AND = max(0, sum - (n-1)) (now takes tensor input with dim-0 reduction)
+        # AND = max(0, sum-(n-1)), tensor input with dim-0 reduction
         result_and = tnorm.conjunction(torch.stack([a, b]))
         expected_and = torch.tensor([0.0, 0.0, 0.0])
         assert torch.allclose(result_and, expected_and)
@@ -658,8 +679,6 @@ class TestBaseCompilerEdgeCases:
 
     def test_multiple_vars_require_keyword_args(self):
         """Test that multiple vars require keyword arguments."""
-        from pysignet.compilation import TNormCompiler
-
         P = Symbol("P")
         X, Y = Variable("X Y")
         expr = P(X, Y)
@@ -683,8 +702,6 @@ class TestBaseCompilerEdgeCases:
 
     def test_missing_var_in_dict_input_multivar(self):
         """Test error for missing variable in dict (lines 534)."""
-        from pysignet.compilation import TNormCompiler
-
         P = Symbol("P")
         X, Y = Variable("X Y")
         expr = P(X, Y)
@@ -724,11 +741,6 @@ class TestBaseCompilerEdgeCases:
 
     def test_invalid_boolean_constant_error(self):
         """Test error for invalid boolean constant (line 620)."""
-        from pysignet.compilation.base import LogicCompiler
-        from pysignet.compilation import TNormCompiler
-
-        compiler = TNormCompiler()
-
         # Can't directly test line 620 without subclassing, but we can
         # verify boolean constants work correctly
         P = Symbol("P")
@@ -748,26 +760,21 @@ class TestLTUCompilerEdgeCases:
 
     def test_ltu_large_alpha_warning(self):
         """Test warning for large alpha value (line 60)."""
-        import warnings
-        from pysignet.compilation import LinearThresholdUnitCompiler
-
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            compiler = LinearThresholdUnitCompiler(mode="soft", alpha=15.0)
+            LinearThresholdUnitCompiler(
+                mode="soft", alpha=15.0
+            )
             assert len(w) == 1
             assert "too large" in str(w[0].message)
 
     def test_ltu_invalid_mode_error(self):
         """Test error for invalid mode."""
-        from pysignet.compilation import LinearThresholdUnitCompiler
-
         with pytest.raises(ValueError, match="must be 'soft' or 'hard'"):
             LinearThresholdUnitCompiler(mode="invalid")
 
     def test_ltu_hard_mode_and(self):
         """Test LTU compiler in hard mode with AND."""
-        from pysignet.compilation import LinearThresholdUnitCompiler
-
         P, Q = Symbol("P Q")
         X = Variable("X")
         expr = sp.And(P(X), Q(X))
@@ -787,8 +794,6 @@ class TestLTUCompilerEdgeCases:
 
     def test_ltu_hard_mode_or(self):
         """Test LTU compiler in hard mode with OR."""
-        from pysignet.compilation import LinearThresholdUnitCompiler
-
         P, Q = Symbol("P Q")
         X = Variable("X")
         expr = sp.Or(P(X), Q(X))
@@ -807,8 +812,6 @@ class TestLTUCompilerEdgeCases:
 
     def test_ltu_unsupported_expression_type(self):
         """Test error for unsupported expression type (line 216)."""
-        from pysignet.compilation import LinearThresholdUnitCompiler
-
         # Create an unsupported expression type
         # sympy.Xor is not supported
         P, Q = Symbol("P Q")
@@ -829,8 +832,6 @@ class TestLTUCompilerEdgeCases:
 
     def test_ltu_boolean_constants(self):
         """Test LTU compiler with boolean constants (lines 146-147)."""
-        from pysignet.compilation import LinearThresholdUnitCompiler
-
         P = Symbol("P")
         X = Variable("X")
 
@@ -858,8 +859,6 @@ class TestQuantifierEdgeCases:
 
     def test_quantifier_equality_unhashable_domain(self):
         """Test quantifier equality with domains that might fail conversion."""
-        from pysignet.logic import ForAll, Exists
-
         X = Variable("X")
         P = Symbol("P")
         body = P(X)
@@ -873,8 +872,6 @@ class TestQuantifierEdgeCases:
 
     def test_quantifier_inequality_different_domains(self):
         """Test quantifier inequality with different domains."""
-        from pysignet.logic import ForAll
-
         X = Variable("X")
         P = Symbol("P")
         body = P(X)
@@ -886,8 +883,6 @@ class TestQuantifierEdgeCases:
 
     def test_quantifier_equality_range_domain(self):
         """Test quantifier equality with range domains (line 96-97)."""
-        from pysignet.logic import ForAll
-
         X = Variable("X")
         P = Symbol("P")
         body = P(X)
@@ -924,8 +919,6 @@ class TestModuleUtilsEdgeCases:
 
     def test_unsupported_arity_wrap_error(self):
         """Test error for unsupported arity (line 142)."""
-        from pysignet.compilation.module_utils import wrap_module_as_predicate
-
         model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
         # Arity 3 is not supported - raises either ValueError or KeyError
@@ -938,8 +931,6 @@ class TestTNormCompilerEdgeCases:
 
     def test_tnorm_unsupported_expression(self):
         """Test error for unsupported expression type (line 176)."""
-        from pysignet.compilation import TNormCompiler
-
         P, Q = Symbol("P Q")
         X = Variable("X")
 
@@ -962,8 +953,6 @@ class TestConsistencyCheckerEdgeCases:
 
     def test_consistency_checker_implies(self):
         """Test consistency checker with Implies operator."""
-        from pysignet import ConsistencyChecker
-
         P, Q = Symbol("P Q")
         X = Variable("X")
         # Test Implies: P(X) -> Q(X)
@@ -991,8 +980,6 @@ class TestConsistencyCheckerEdgeCases:
 
     def test_consistency_checker_equivalent(self):
         """Test consistency checker with Equivalent operator."""
-        from pysignet import ConsistencyChecker
-
         P, Q = Symbol("P Q")
         X = Variable("X")
         expr = sp.Equivalent(P(X), Q(X))
@@ -1023,10 +1010,15 @@ class TestLossEdgeCasesAdditional:
         X = Variable("X")
         expr = P(X)
 
-        compiled = logic_to_loss(expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.5})
+        def p_func(x):
+            return torch.ones(x.shape[0]) * 0.5
+
+        compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(4, 10)
 
-        log_sat = compiled.log_satisfaction(X=x, quantify='exists')
+        log_sat = compiled.log_satisfaction(
+            X=x, quantify="exists"
+        )
 
         # log_satisfaction returns log-space result
         # For exists with product t-norm, result is in log space
@@ -1040,10 +1032,15 @@ class TestLossEdgeCasesAdditional:
         X = Variable("X")
         expr = P(X)
 
-        compiled = logic_to_loss(expr, {"P": lambda x: torch.ones(x.shape[0]) * 0.9})
+        def p_func(x):
+            return torch.ones(x.shape[0]) * 0.9
+
+        compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(4, 10)
 
-        log_sat = compiled.log_satisfaction(X=x, quantify='forall')
+        log_sat = compiled.log_satisfaction(
+            X=x, quantify="forall"
+        )
 
         assert log_sat.shape == ()
         # Log of product of 0.9s should be negative
@@ -1055,11 +1052,14 @@ class TestLossEdgeCasesAdditional:
         X = Variable("X")
         expr = P(X)
 
-        compiled = logic_to_loss(expr, {"P": lambda x: torch.ones(x.shape[0])})
+        def p_func(x):
+            return torch.ones(x.shape[0])
+
+        compiled = logic_to_loss(expr, {"P": p_func})
         x = torch.randn(4, 10)
 
         with pytest.raises(ValueError, match="Invalid quantify"):
-            compiled.loss(X=x, quantify='invalid')
+            compiled.loss(X=x, quantify="invalid")
 
 
 class TestExpansionEdgeCases:
@@ -1067,9 +1067,6 @@ class TestExpansionEdgeCases:
 
     def test_exists_expansion(self):
         """Test Exists quantifier expansion."""
-        from pysignet.logic import Exists
-        from pysignet.logic.expansion import expand_quantifier
-
         X = Variable("X")
         P = Symbol("P")
 
@@ -1167,7 +1164,10 @@ class TestCompiledExpressionRepr:
         X = Variable("X")
         expr = P(X)
 
-        compiled = compile_logic(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+        def p_func(x):
+            return torch.sigmoid(x.sum(dim=-1))
+
+        compiled = compile_logic(expr, {"P": p_func})
 
         # Access expr property
         assert compiled.expr is not None
@@ -1179,7 +1179,10 @@ class TestCompiledExpressionRepr:
         X = Variable("X")
         expr = P(X)
 
-        compiled = compile_logic(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+        def p_func(x):
+            return torch.sigmoid(x.sum(dim=-1))
+
+        compiled = compile_logic(expr, {"P": p_func})
 
         repr_str = repr(compiled)
 
@@ -1194,7 +1197,10 @@ class TestCompiledExpressionRepr:
         X, Y = Variable("X Y")
         expr = sp.And(P(X), P(Y))
 
-        compiled = compile_logic(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+        def p_func(x):
+            return torch.sigmoid(x.sum(dim=-1))
+
+        compiled = compile_logic(expr, {"P": p_func})
 
         # Create partial binding
         x = torch.randn(4, 10)
@@ -1269,9 +1275,10 @@ class TestBooleanSatisfactionWithQuantifiers:
     ValueError on quantifier expressions because it did not
     handle ForAll/Exists types.
 
-    Boolean conversion for function predicates with class indices
-    uses argmax: Digit(X, k) is True iff k is the argmax class.
-    This mirrors how model predicates are handled.
+    Boolean conversion uses threshold at 0.5: Digit(X, k) is True
+    iff the satisfaction degree exceeds 0.5. This ensures consistency
+    between soft and boolean evaluation -- when soft satisfaction is
+    near 0, boolean should also be False.
     """
 
     def test_exists_quantifier_return_boolean(self):
@@ -1279,10 +1286,9 @@ class TestBooleanSatisfactionWithQuantifiers:
         Digit = Symbol("Digit")
         X, Y = Variable("X Y")
 
-        from pysignet.logic.quantifier import Exists
         expr = Exists(Y, range(3), Digit(X, Y))
 
-        # Predicate: class 1 always has the highest prob
+        # Predicate: class 1 exceeds 0.5 threshold
         def digit_pred(x, class_idx):
             batch = x.shape[0]
             if class_idx == 1:
@@ -1296,19 +1302,39 @@ class TestBooleanSatisfactionWithQuantifiers:
 
         assert result.dtype == torch.bool
         assert result.shape == (4,)
-        # Argmax picks class 1 -> Exists is satisfied
+        # Class 1 is 0.9 > 0.5 -> Exists is satisfied
         assert result.all()
 
-    def test_forall_at_most_one_satisfied(self):
-        """Test at_most_one ForAll constraint with function predicate.
+    def test_exists_unsatisfied_when_all_below_threshold(self):
+        """Test Exists is False when no class exceeds 0.5."""
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
 
-        With argmax boolean conversion, at most one class is True,
-        so the pairwise mutual exclusion constraint is satisfied.
+        expr = Exists(Y, range(3), Digit(X, Y))
+
+        # All classes below 0.5 -> model is not confident
+        def digit_pred(x, class_idx):
+            batch = x.shape[0]
+            probs = {0: 0.2, 1: 0.35, 2: 0.45}
+            return torch.ones(batch) * probs[class_idx]
+
+        compiled = compile_logic(expr, {"Digit": digit_pred})
+
+        x = torch.randn(4, 10)
+        result = compiled(X=x, return_boolean=True)
+
+        assert result.dtype == torch.bool
+        assert result.shape == (4,)
+        # No class > 0.5 -> Exists is not satisfied
+        assert not result.any()
+
+    def test_forall_at_most_one_satisfied(self):
+        """Test at_most_one ForAll with one confident prediction.
+
+        Only one class exceeds 0.5, so no pair has both True.
         """
         Digit = Symbol("Digit")
         X, I, J = Variable("X I J")
-
-        from pysignet.logic.quantifier import ForAll
 
         n_classes = 3
         all_pairs = [
@@ -1320,12 +1346,12 @@ class TestBooleanSatisfactionWithQuantifiers:
             sp.Not(sp.And(Digit(X, I), Digit(X, J)))
         )
 
-        # Class 2 has highest prob -> argmax picks class 2 only
+        # Only class 2 exceeds 0.5
         def digit_pred(x, class_idx):
             batch = x.shape[0]
             if class_idx == 2:
-                return torch.ones(batch) * 0.7
-            return torch.ones(batch) * 0.15
+                return torch.ones(batch) * 0.8
+            return torch.ones(batch) * 0.1
 
         compiled = compile_logic(at_most_one, {"Digit": digit_pred})
 
@@ -1334,15 +1360,12 @@ class TestBooleanSatisfactionWithQuantifiers:
 
         assert result.dtype == torch.bool
         assert result.shape == (4,)
-        # Argmax selects one class -> no pair is both True
         assert result.all()
 
-    def test_forall_at_most_one_with_model(self):
-        """Test at_most_one ForAll with nn.Module predicate."""
+    def test_forall_at_most_one_violated(self):
+        """Test at_most_one ForAll violated when two classes > 0.5."""
         Digit = Symbol("Digit")
         X, I, J = Variable("X I J")
-
-        from pysignet.logic.quantifier import ForAll
 
         n_classes = 3
         all_pairs = [
@@ -1354,33 +1377,33 @@ class TestBooleanSatisfactionWithQuantifiers:
             sp.Not(sp.And(Digit(X, I), Digit(X, J)))
         )
 
-        model = nn.Sequential(
-            nn.Linear(10, n_classes), nn.Softmax(dim=-1)
-        )
+        # Classes 0 and 1 both exceed 0.5 -> pair (0,1) violates
+        def digit_pred(x, class_idx):
+            batch = x.shape[0]
+            if class_idx in (0, 1):
+                return torch.ones(batch) * 0.8
+            return torch.ones(batch) * 0.1
 
-        compiled = compile_logic(at_most_one, {"Digit": model})
+        compiled = compile_logic(at_most_one, {"Digit": digit_pred})
 
         x = torch.randn(4, 10)
         result = compiled(X=x, return_boolean=True)
 
         assert result.dtype == torch.bool
         assert result.shape == (4,)
-        # Model argmax selects one class -> at_most_one satisfied
-        assert result.all()
+        # Pair (0,1) both True -> Not(And(True, True)) = False
+        assert not result.any()
 
-    def test_nested_quantifiers_exactly_one(self):
-        """Test exactly-one with nested quantifiers.
+    def test_nested_quantifiers_exactly_one_satisfied(self):
+        """Test exactly-one with one confident class.
 
         Exists(Y, range(N), Digit(X,Y)) AND
         ForAll([I,J], pairs, NOT(Digit(X,I) AND Digit(X,J)))
 
-        With argmax boolean conversion, exactly one class is selected.
-        Both at_least_one and at_most_one are satisfied.
+        One class exceeds 0.5 -> both constraints satisfied.
         """
         Digit = Symbol("Digit")
         X, Y, I, J = Variable("X Y I J")
-
-        from pysignet.logic.quantifier import ForAll, Exists
 
         n_classes = 3
         at_least_one = Exists(Y, range(n_classes), Digit(X, Y))
@@ -1396,7 +1419,7 @@ class TestBooleanSatisfactionWithQuantifiers:
 
         exactly_one = sp.And(at_least_one, at_most_one)
 
-        # Only class 1 is high
+        # Only class 1 exceeds 0.5
         def digit_pred(x, class_idx):
             batch = x.shape[0]
             if class_idx == 1:
@@ -1412,18 +1435,15 @@ class TestBooleanSatisfactionWithQuantifiers:
         assert result.shape == (4,)
         assert result.all()
 
-    def test_nested_quantifiers_close_probabilities(self):
-        """Test exactly-one when no class exceeds 0.5.
+    def test_nested_quantifiers_exactly_one_violated(self):
+        """Test exactly-one violated when no class exceeds 0.5.
 
-        With argmax, exactly_one is satisfied as long as one class
-        has strictly higher probability, even if all are below 0.5.
-        For example, [0.2, 0.35, 0.45] should still satisfy
-        exactly-one because argmax selects class 2.
+        When the model is uncertain (all probabilities below 0.5),
+        exactly-one is not satisfied: at_least_one fails because
+        no Digit(X, k) is True.
         """
         Digit = Symbol("Digit")
         X, Y, I, J = Variable("X Y I J")
-
-        from pysignet.logic.quantifier import ForAll, Exists
 
         n_classes = 3
         at_least_one = Exists(Y, range(n_classes), Digit(X, Y))
@@ -1439,12 +1459,10 @@ class TestBooleanSatisfactionWithQuantifiers:
 
         exactly_one = sp.And(at_least_one, at_most_one)
 
-        # Probabilities [0.2, 0.35, 0.45] -- no class > 0.5
-        # but argmax still picks class 2
-        def digit_pred(x, class_idx):
+        # Near-uniform: no class exceeds 0.5
+        def digit_pred(x, _class_idx):
             batch = x.shape[0]
-            probs = {0: 0.2, 1: 0.35, 2: 0.45}
-            return torch.ones(batch) * probs[class_idx]
+            return torch.ones(batch) * 0.3
 
         compiled = compile_logic(exactly_one, {"Digit": digit_pred})
 
@@ -1453,8 +1471,8 @@ class TestBooleanSatisfactionWithQuantifiers:
 
         assert result.dtype == torch.bool
         assert result.shape == (4,)
-        # Argmax selects class 2 -> exactly_one satisfied
-        assert result.all()
+        # No class > 0.5 -> at_least_one fails -> exactly_one False
+        assert not result.any()
 
 
 class TestLogicLossFreeVariables:
@@ -1466,7 +1484,10 @@ class TestLogicLossFreeVariables:
         X = Variable("X")
         expr = P(X)
 
-        logic_loss = logic_to_loss(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+        def p_func(x):
+            return torch.sigmoid(x.sum(dim=-1))
+
+        logic_loss = logic_to_loss(expr, {"P": p_func})
 
         assert "X" in logic_loss.free_variables
         assert len(logic_loss.free_variables) == 1
@@ -1496,7 +1517,10 @@ class TestLogicLossInvalidQuantify:
         X = Variable("X")
         expr = P(X)
 
-        logic_loss = logic_to_loss(expr, {"P": lambda x: torch.sigmoid(x.sum(dim=-1))})
+        def p_func(x):
+            return torch.sigmoid(x.sum(dim=-1))
+
+        logic_loss = logic_to_loss(expr, {"P": p_func})
 
         x = torch.randn(4, 10)
 
@@ -1521,8 +1545,6 @@ class TestPredicateApplicationSymPyPrinting:
 
     def test_sympyrepr(self):
         """Test _sympyrepr method via srepr."""
-        from sympy import srepr
-
         P = Symbol("P")
         X = Variable("X")
         app = P(X, 1)

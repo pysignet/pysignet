@@ -260,7 +260,6 @@ class CompiledExpression:
         # pylint: disable=import-outside-toplevel
         from pysignet.consistency import ConsistencyChecker
         from pysignet.logic.expansion import _expand_nested_quantifiers
-        from pysignet.symbols import PredicateApplication
 
         if self._expr is None:
             raise ValueError(
