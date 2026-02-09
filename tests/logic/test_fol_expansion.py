@@ -193,7 +193,7 @@ class TestExistsExpansion:
             sp.And(P(0), Q(0)),
             sp.And(P(1), Q(1))
         )
-        assert expanded == expected
+        assert expanded.equals(expected)
 
 
 class TestNestedQuantifiers:
@@ -306,12 +306,12 @@ class TestVariableSubstitution:
         forall = ForAll(Y, [0, 1], body)
         expanded = expand_quantifier(forall)
 
-        # ((P(0) ∧ Q(0)) → P(0)) ∧ ((P(1) ∧ Q(1)) → P(1))
+        # ((P(0) ∧ Q(0)) -> P(0)) ∧ ((P(1) ∧ Q(1)) -> P(1))
         expected = sp.And(
             sp.Implies(sp.And(P(0), Q(0)), P(0)),
             sp.Implies(sp.And(P(1), Q(1)), P(1))
         )
-        assert expanded == expected
+        assert expanded.equals(expected)
 
     def test_free_variables_preserved(self):
         """Free variables (not quantified) are preserved."""
@@ -343,7 +343,7 @@ class TestVariableSubstitution:
             sp.And(P(0), Q(0), P(0)),
             sp.And(P(1), Q(1), P(1))
         )
-        assert expanded == expected
+        assert expanded.equals(expected)
 
 
 class TestEdgeCases:
