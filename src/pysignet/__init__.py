@@ -36,7 +36,7 @@ Advanced Usage:
 from .predicate import Predicate
 from .compilation import TNormCompiler
 from .loss import LogicLoss
-from .api import compile_logic, logic_to_loss
+from .api import compile_logic, logic_to_loss, consistency_report
 from .compilation.compiled_expression import CompiledExpression
 
 # Symbol API for predicates
@@ -46,8 +46,8 @@ from .context import EvaluationContext
 # Logic (First-Order Logic)
 from .logic import Variable, extract_variables, Binding, ground
 
-# Other exports
-from .consistency import ConsistencyChecker
+# Evaluation
+from .eval import ConsistencyChecker, ConsistencyReport
 from .tnorms import (
     TNorm,
     RProductTNorm,
@@ -62,6 +62,7 @@ __all__ = [
     # Core API
     "compile_logic",
     "logic_to_loss",
+    "consistency_report",
     "CompiledExpression",
     "LogicLoss",
     "TNormCompiler",
@@ -78,6 +79,7 @@ __all__ = [
     "ground",
     # Other
     "ConsistencyChecker",
+    "ConsistencyReport",
     "TNorm",
     "RProductTNorm",
     "SProductTNorm",

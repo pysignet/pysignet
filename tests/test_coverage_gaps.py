@@ -17,6 +17,7 @@ from sympy import srepr
 from pysignet import (
     Symbol,
     Variable,
+    Predicate,
     compile_logic,
     logic_to_loss,
     ConsistencyChecker,
@@ -949,54 +950,66 @@ class TestTNormCompilerEdgeCases:
 
 
 class TestConsistencyCheckerEdgeCases:
-    """Tests for consistency.py edge cases."""
+    """Tests for eval/checker.py edge cases."""
 
     def test_consistency_checker_implies(self):
         """Test consistency checker with Implies operator."""
         P, Q = Symbol("P Q")
         X = Variable("X")
-        # Test Implies: P(X) -> Q(X)
         expr = sp.Implies(P(X), Q(X))
 
         def p_pred(x):
             # First half True, second half False
-            result = torch.zeros(x.shape[0], dtype=torch.bool)
-            result[:x.shape[0]//2] = True
+            result = torch.zeros(
+                x.shape[0], dtype=torch.bool
+            )
+            result[:x.shape[0] // 2] = True
             return result
 
         def q_pred(x):
-            # All True
-            return torch.ones(x.shape[0], dtype=torch.bool)
+            return torch.ones(
+                x.shape[0], dtype=torch.bool
+            )
 
-        predicates = {"P": p_pred, "Q": q_pred}
+        predicates = {
+            "P": Predicate(p_pred, is_model=False),
+            "Q": Predicate(q_pred, is_model=False),
+        }
 
         checker = ConsistencyChecker(expr, predicates)
         x = torch.randn(4, 10)
-        result = checker(x)
+        result = checker(X=x)
 
-        # P -> Q should be satisfied when P is False OR Q is True
+        # P -> Q satisfied when P is False OR Q is True
         assert result.shape == (4,)
-        assert torch.all(result)  # All should be satisfied
+        assert torch.all(result)
 
     def test_consistency_checker_equivalent(self):
-        """Test consistency checker with Equivalent operator."""
+        """Test consistency checker with Equivalent."""
         P, Q = Symbol("P Q")
         X = Variable("X")
         expr = sp.Equivalent(P(X), Q(X))
 
         def p_pred(x):
-            return torch.ones(x.shape[0], dtype=torch.bool)
+            return torch.ones(
+                x.shape[0], dtype=torch.bool
+            )
 
         def q_pred(x):
-            return torch.ones(x.shape[0], dtype=torch.bool)
+            return torch.ones(
+                x.shape[0], dtype=torch.bool
+            )
 
-        predicates = {"P": p_pred, "Q": q_pred}
+        predicates = {
+            "P": Predicate(p_pred, is_model=False),
+            "Q": Predicate(q_pred, is_model=False),
+        }
 
         checker = ConsistencyChecker(expr, predicates)
         x = torch.randn(4, 10)
-        result = checker(x)
+        result = checker(X=x)
 
-        # P <-> Q should be satisfied when both are True
+        # P <-> Q satisfied when both are True
         assert result.shape == (4,)
         assert torch.all(result)
 

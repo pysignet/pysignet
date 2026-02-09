@@ -249,130 +249,33 @@ class CompiledExpression:
     ) -> torch.Tensor:
         """Evaluate expression with boolean (hard) decisions.
 
-        Uses ConsistencyChecker with boolean-converted predicates.
+        Delegates to ConsistencyChecker, which handles quantifier
+        expansion, Predicate-aware calling, and boolean conversion
+        (threshold at 0.5 for binary, argmax for multiclass).
 
         Args:
             bindings: Dict mapping variable names to tensors
 
         Returns:
             Boolean tensor of shape (batch_size,)
+
+        Raises:
+            ValueError: If original expression is not available.
         """
         # pylint: disable=import-outside-toplevel
-        from pysignet.consistency import ConsistencyChecker
-        from pysignet.logic.expansion import _expand_nested_quantifiers
+        from pysignet.eval import ConsistencyChecker
 
         if self._expr is None:
             raise ValueError(
-                "Boolean evaluation requires the original expression. "
-                "This CompiledExpression was created without storing the "
-                "expression."
+                "Boolean evaluation requires the original "
+                "expression. This CompiledExpression was "
+                "created without storing the expression."
             )
 
-        # Expand quantifiers (ForAll/Exists) into And/Or before
-        # boolean evaluation, since ConsistencyChecker only handles
-        # standard logical operators.
-        expanded_expr = _expand_nested_quantifiers(self._expr)
-
-        # Create boolean predicates that threshold soft outputs
-        # Pass bindings so predicates can look up variable inputs
-        boolean_predicates = self._create_boolean_predicates(bindings)
-
-        # Use ConsistencyChecker for boolean evaluation
-        # Pass bindings keyed by variable names
-        checker = ConsistencyChecker(expanded_expr, boolean_predicates)
-        return checker(bindings)
-
-    def _create_boolean_predicates(
-        self,
-        bindings: Dict[str, torch.Tensor],
-    ) -> Dict[str, Callable[[Any], torch.Tensor]]:
-        """Create boolean predicate functions from soft predicates.
-
-        Converts soft predicates to boolean by thresholding at 0.5.
-        For multiclass predicates, the class probability is extracted
-        first, then thresholded.
-
-        Args:
-            bindings: Variable bindings (used to get input tensors)
-
-        Returns:
-            Dict mapping predicate names to boolean predicate functions
-        """
-        boolean_predicates: Dict[str, Callable[[Any], torch.Tensor]] = {}
-
-        for name, predicate in self._predicates.items():
-            boolean_predicates[name] = self._make_boolean_predicate(
-                predicate, bindings
-            )
-
-        return boolean_predicates
-
-    def _make_boolean_predicate(
-        self,
-        predicate: Predicate,
-        bindings: Dict[str, torch.Tensor],
-    ) -> Callable[[Any], torch.Tensor]:
-        """Create a boolean predicate function from a soft predicate.
-
-        Converts soft [0,1] outputs to boolean by thresholding at 0.5.
-        A predicate is considered True when its satisfaction degree
-        exceeds 0.5 ("more likely than not").
-
-        For model predicates (nn.Module) with a class index, the
-        model is called once and the class probability is extracted
-        before thresholding. For function predicates, the class
-        index is passed as an argument.
-
-        Args:
-            predicate: The soft predicate to convert
-            bindings: Variable bindings
-            class_indices: Sorted list of all class indices for this
-                predicate in the expression (empty for binary predicates)
-
-        Returns:
-            Callable that returns boolean tensor
-        """
-        def boolean_pred(*args: Any) -> torch.Tensor:
-            # Extract class index if present (for multiclass predicates)
-            class_idx: Optional[int] = None
-            input_tensor: Optional[torch.Tensor] = None
-
-            for arg in args:
-                if isinstance(arg, int):
-                    class_idx = arg
-                elif isinstance(arg, torch.Tensor):
-                    input_tensor = arg
-
-            # If no tensor arg provided by ConsistencyChecker, use bindings
-            if input_tensor is None:
-                # Use first binding as input (common case: single variable)
-                input_tensor = next(iter(bindings.values()))
-
-            # Function predicates accept class_idx as an argument
-            if class_idx is not None and not predicate.is_model:
-                soft_output = predicate(input_tensor, class_idx)
-                if soft_output.dim() >= 2:
-                    soft_output = soft_output.squeeze(-1)
-                return soft_output > 0.5
-
-            # Model predicate: call once to get soft output
-            soft_output = predicate(input_tensor)
-
-            # Convert to boolean based on output shape
-            if soft_output.dim() >= 2 and soft_output.shape[-1] > 1:
-                # Multiclass output (batch, num_classes)
-                if class_idx is not None:
-                    return soft_output[:, class_idx] > 0.5
-                else:
-                    # No class specified - threshold max confidence
-                    return soft_output.max(dim=-1).values > 0.5
-            else:
-                # Binary output - threshold at 0.5
-                if soft_output.dim() >= 2:
-                    soft_output = soft_output.squeeze(-1)
-                return soft_output > 0.5
-
-        return boolean_pred
+        checker = ConsistencyChecker(
+            self._expr, self._predicates
+        )
+        return checker(**bindings)
 
     def partial(self, **variable_bindings: torch.Tensor) -> CompiledExpression:
         """Create new CompiledExpression with some variables bound.

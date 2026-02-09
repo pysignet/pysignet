@@ -1,6 +1,6 @@
-"""Convenience API for logic compilation."""
+"""Convenience API for logic compilation and evaluation."""
 
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Union
 
 import sympy as sp
 import torch
@@ -8,6 +8,7 @@ import torch
 from pysignet.predicate import Predicate
 from pysignet.compilation import TNormCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
+from pysignet.eval.report import ConsistencyReport
 from pysignet.loss import LogicLoss
 from pysignet.tnorms import TNorm, MixedTNorm
 
@@ -129,3 +130,56 @@ def logic_to_loss(
     """
     compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm)
     return LogicLoss(compiled, post_processing=post_processing)
+
+
+def consistency_report(
+    expression: Union[
+        sp.Basic,
+        Dict[str, sp.Basic],
+    ],
+    predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+) -> ConsistencyReport:
+    """Create a ConsistencyReport for measuring formula consistency.
+
+    Convenience function that auto-wraps raw callables in Predicate
+    objects and creates a ConsistencyReport. Equivalent to::
+
+        ConsistencyReport(expression, predicates)
+
+    Accepts a single SymPy expression or a dict mapping constraint
+    names to expressions for multi-constraint reporting.
+
+    The antecedent for conditional violation is auto-detected:
+    Implies(A, B) uses A; any other formula uses sp.true.
+
+    Args:
+        expression: SymPy logic expression or dict of named
+            expressions (e.g., {"sym": expr1, "trans": expr2}).
+        predicates: Dict mapping predicate names to Predicate objects or
+            callables that produce torch Tensors
+
+    Returns:
+        ConsistencyReport instance for accumulating and querying metrics
+
+    Example:
+        >>> P, Q = Symbol("P Q")
+        >>> X = Variable("X")
+        >>> expr = sp.Implies(P(X), Q(X))
+        >>> report = consistency_report(expr, {"P": model_p, "Q": model_q})
+        >>> for x_batch in dataloader:
+        ...     report.eval(X=x_batch)
+        >>> print(report.global_violation())
+    """
+    wrapped_predicates: Dict[str, Predicate] = {}
+    for key, value in predicates.items():
+        if isinstance(value, Predicate):
+            wrapped_predicates[key] = value
+        elif callable(value):
+            wrapped_predicates[key] = Predicate(value)
+        else:
+            raise TypeError(
+                f"Predicate '{key}' must be callable (function, lambda, "
+                f"nn.Module) or a Predicate instance, "
+                f"got {type(value).__name__}"
+            )
+    return ConsistencyReport(expression, wrapped_predicates)
