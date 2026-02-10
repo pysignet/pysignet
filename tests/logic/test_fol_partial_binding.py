@@ -412,10 +412,11 @@ class TestRealWorldUseCases:
         expr = Similar(X, Y)
 
         def similarity(x, y):
-            # Cosine similarity
+            # Cosine similarity rescaled to [0, 1]
             x_norm = x / x.norm(dim=-1, keepdim=True)
             y_norm = y / y.norm(dim=-1, keepdim=True)
-            return (x_norm * y_norm).sum(dim=-1)
+            cos_sim = (x_norm * y_norm).sum(dim=-1)
+            return (cos_sim + 1.0) / 2.0  # Map [-1, 1] to [0, 1]
 
         predicates = {"Similar": similarity}
         compiled = compile_logic(expr, predicates)
@@ -438,7 +439,7 @@ class TestRealWorldUseCases:
 
         # All similarities should be computed
         assert len(similarities) == 3
-        assert all(-1 <= s <= 1 for s in similarities)
+        assert all(0 <= s <= 1 for s in similarities)
 
     def test_partial_binding_for_constraint_checking(self):
         """Test using partial binding for checking constraints on fixed input."""

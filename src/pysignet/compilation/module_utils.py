@@ -153,27 +153,30 @@ def wrap_module_as_predicate(
 def _get_final_layer(module: nn.Module) -> nn.Module:
     """Get the final layer in a module's computation graph.
 
+    Only traverses nn.Sequential modules where execution order is
+    guaranteed. For non-Sequential custom modules, returns the module
+    itself since children order may not reflect execution order and
+    forward() may apply additional operations.
+
     Args:
         module: Module to inspect
 
     Returns:
-        The last layer in the module
+        The last layer in the module, or the module itself if
+        structure cannot be determined.
 
     Raises:
-        ValueError: If module is empty or has no recognizable structure
+        ValueError: If module is empty Sequential.
     """
     if isinstance(module, nn.Sequential):
         if len(module) == 0:
-            raise ValueError("Cannot infer arity from empty Sequential module.")
+            raise ValueError(
+                "Cannot infer arity from empty Sequential module."
+            )
         return _get_final_layer(module[-1])
 
-    # For custom modules, check if they have children
-    children = list(module.children())
-    if children:
-        # Recursively get final layer of last child
-        return _get_final_layer(children[-1])
-
-    # This is a leaf layer - return it
+    # For non-Sequential modules, return as-is -- children order
+    # does not guarantee execution order.
     return module
 
 

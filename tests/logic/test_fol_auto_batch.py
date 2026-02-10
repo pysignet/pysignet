@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import sympy as sp
 
-from pysignet import Symbol, compile_logic, logic_to_loss
+from pysignet import Symbol, compile_logic, logic_to_loss, Predicate
 from pysignet.logic import Variable, ForAll, Exists, expand_quantifier
 
 
@@ -204,20 +204,11 @@ class TestBatchReduction:
 
         expr = P(X)
 
-        # Model that returns different values
-        class TestModel(nn.Module):
-            def forward(self, x):
-                # Return values based on batch index
-                return x[:, 0]  # First feature
-
-        model = TestModel()
-
-        # Compile with logic_to_loss for batch quantification
-        predicates = {"P": model}
+        # Predicate that returns the first feature directly (in [0,1])
+        predicates = {"P": Predicate(lambda x: x[:, 0])}
         logic_loss = logic_to_loss(expr, predicates)
 
         # Create batch with specific values
-        batch_size = 3
         x = torch.tensor([[0.9], [0.8], [0.7]])
 
         result = logic_loss.satisfaction(X=x)

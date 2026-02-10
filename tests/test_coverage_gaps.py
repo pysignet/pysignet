@@ -304,7 +304,11 @@ class TestModuleUtils:
         assert isinstance(final, nn.Sigmoid)
 
     def test_get_final_layer_module_with_children(self):
-        """Test getting final layer from module with children."""
+        """Test getting final layer from non-Sequential custom module.
+
+        Non-Sequential modules return the module itself since children
+        order does not guarantee execution order.
+        """
         class CustomModel(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -317,7 +321,8 @@ class TestModuleUtils:
 
         model = CustomModel()
         final = _get_final_layer(model)
-        assert isinstance(final, nn.Sigmoid)
+        # Custom modules return themselves (not traversed)
+        assert isinstance(final, CustomModel)
 
 
 class TestCompilationBaseEdgeCases:

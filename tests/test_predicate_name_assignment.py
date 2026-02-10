@@ -686,8 +686,10 @@ class TestPredicateAutoSqueeze:
 
     def test_auto_squeeze_batch_1_to_batch(self) -> None:
         """Predicate should auto-squeeze (batch, 1) to (batch,)."""
-        # Function that returns (batch, 1)
-        pred = Predicate(lambda x: x.sum(dim=-1, keepdim=True))
+        # Function that returns (batch, 1) in [0, 1]
+        pred = Predicate(
+            lambda x: torch.sigmoid(x.sum(dim=-1, keepdim=True))
+        )
 
         x = torch.randn(5, 10)
         result = pred(x)
@@ -697,8 +699,8 @@ class TestPredicateAutoSqueeze:
 
     def test_batch_shape_unchanged(self) -> None:
         """Predicate should leave (batch,) shape unchanged."""
-        # Function that returns (batch,)
-        pred = Predicate(lambda x: x.sum(dim=-1))
+        # Function that returns (batch,) in [0, 1]
+        pred = Predicate(lambda x: torch.sigmoid(x.sum(dim=-1)))
 
         x = torch.randn(5, 10)
         result = pred(x)

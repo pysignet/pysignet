@@ -4,6 +4,7 @@ This module tests the Predicate wrapper class, including deterministic
 vs. model predicates, return value handling, and value clamping.
 """
 
+import pytest
 import sympy as sp
 import torch
 import torch.nn as nn
@@ -118,8 +119,8 @@ def test_non_tensor_predicate_return() -> None:
     assert torch.allclose(satisfaction, torch.tensor(0.75))
 
 
-def test_predicate_clamping_above_one() -> None:
-    """Test that predicates returning values >1 are clamped to [0,1]."""
+def test_predicate_above_one_raises() -> None:
+    """Test that non-module predicates returning >1 raise ValueError."""
     # pylint: disable=invalid-name
     X = Variable("X")
 
@@ -132,15 +133,14 @@ def test_predicate_clamping_above_one() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
 
-    # Should be clamped to 1.0
-    assert torch.allclose(satisfaction, torch.tensor(1.0))
-    assert satisfaction.max() <= 1.0
+    # Should raise ValueError instead of silently clamping
+    with pytest.raises(ValueError, match="outside.*0.*1"):
+        logic_loss(X=x)
 
 
-def test_predicate_clamping_below_zero() -> None:
-    """Test that predicates returning values <0 are clamped to [0,1]."""
+def test_predicate_below_zero_raises() -> None:
+    """Test that non-module predicates returning <0 raise ValueError."""
     # pylint: disable=invalid-name
     X = Variable("X")
 
@@ -153,11 +153,10 @@ def test_predicate_clamping_below_zero() -> None:
 
     logic_loss = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
 
-    # Should be clamped to 0.0
-    assert torch.allclose(satisfaction, torch.tensor(0.0))
-    assert satisfaction.min() >= 0.0
+    # Should raise ValueError instead of silently clamping
+    with pytest.raises(ValueError, match="outside.*0.*1"):
+        logic_loss(X=x)
 
 
 def test_predicate_with_neural_network() -> None:

@@ -99,8 +99,8 @@ class TestForAllForAllNesting:
         # Only 1*1 = 1 combination
         model = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
-        def model_func(inputs, y, z):
-            return model(inputs).squeeze(-1) + y + z
+        def model_func(_inputs, _y, _z):
+            return model(_inputs).squeeze(-1)
 
         compiled = compile_logic(expr, {"P": model_func})
 
@@ -263,8 +263,8 @@ class TestMixedQuantifierNesting:
         p_model = nn.Sequential(nn.Linear(3, 2), nn.Softmax(dim=-1))
         q_model = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
-        def q_func(inputs, z):
-            return q_model(inputs).squeeze(-1) * z
+        def q_func(inputs, _z):
+            return q_model(inputs).squeeze(-1)
 
         compiled = compile_logic(expr, {"P": p_model, "Q": q_func})
 
@@ -655,8 +655,8 @@ class TestEdgeCases:
         # Only 1 combination
         model = nn.Sequential(nn.Linear(3, 1), nn.Sigmoid())
 
-        def model_func(inputs, y, z):
-            return model(inputs).squeeze(-1) * y * z
+        def model_func(_inputs, _y, _z):
+            return model(_inputs).squeeze(-1)
 
         compiled = compile_logic(expr, {"P": model_func})
 

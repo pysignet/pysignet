@@ -270,7 +270,11 @@ class TestCustomModules:
     """Test with custom nn.Module subclasses."""
 
     def test_custom_unary_module(self):
-        """Test custom module with single output."""
+        """Test custom module with single output.
+
+        Non-Sequential custom modules return None for arity since
+        children order does not guarantee execution order.
+        """
         class CustomModel(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -281,9 +285,10 @@ class TestCustomModules:
                 return self.fc2(torch.relu(self.fc1(x)))
 
         model = CustomModel()
-        assert infer_module_arity(model) == 1
+        assert infer_module_arity(model) is None
         assert has_final_activation(model) is False
 
+        # Can still wrap with explicit arity
         wrapper = wrap_module_as_predicate(model, arity=1)
         batch_size = 4
         x = torch.randn(batch_size, 10)
@@ -291,7 +296,11 @@ class TestCustomModules:
         assert output.shape == (batch_size,)
 
     def test_custom_binary_module(self):
-        """Test custom module with multiple outputs."""
+        """Test custom module with multiple outputs.
+
+        Non-Sequential custom modules return None for arity since
+        children order does not guarantee execution order.
+        """
         class CustomModel(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -301,9 +310,10 @@ class TestCustomModules:
                 return self.fc(x)
 
         model = CustomModel()
-        assert infer_module_arity(model) == 2
+        assert infer_module_arity(model) is None
         assert has_final_activation(model) is False
 
+        # Can still wrap with explicit arity
         wrapper = wrap_module_as_predicate(model, arity=2)
         batch_size = 4
         x = torch.randn(batch_size, 10)

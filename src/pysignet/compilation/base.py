@@ -263,7 +263,7 @@ class LogicCompiler(ABC):
             # Wrap the predicate value
             wrapped_predicates[key] = self._wrap_predicate_value(key, value)
 
-        # Assign names and validate no reuse
+        # Assign names, configure activation, and validate no reuse
         for key, pred in wrapped_predicates.items():
             if pred.name is not None and pred.name != key:
                 raise ValueError(
@@ -274,6 +274,8 @@ class LogicCompiler(ABC):
                     f"different name."
                 )
             pred.name = key
+            if key in predicate_arities:
+                pred.configure_activation(predicate_arities[key])
 
         # Verify all symbols have corresponding predicates
         symbols = self._extract_predicate_symbols(expanded_expr)

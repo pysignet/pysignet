@@ -98,6 +98,12 @@ class TestModuleVariableIndex:
         # After softmax, values should be in [0, 1]
         assert torch.all((result >= 0) & (result <= 1))
 
+        # Should match manual softmax computation
+        with torch.no_grad():
+            probs = torch.softmax(model(x), dim=-1)
+            expected = probs[torch.arange(batch_size), y]
+        assert torch.allclose(result, expected)
+
 
 class TestModuleVariableIndexCorrectness:
     """Verify that variable indexing produces correct values."""
