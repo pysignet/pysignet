@@ -1,5 +1,6 @@
 """Base class for logic compilation strategies."""
 
+import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Set, cast
 import warnings
@@ -612,6 +613,115 @@ class LogicCompiler(ABC):
         result = ctx.get_or_compute(cache_key, lambda: predicate(*call_args))
         return cast(torch.Tensor, result)
 
+    def _get_module_forward_param_count(
+        self, module: nn.Module
+    ) -> int:
+        """Get the number of input parameters for a module's forward().
+
+        Uses inspect.signature on the bound forward method, which
+        automatically excludes 'self'.
+
+        Args:
+            module: nn.Module to inspect
+
+        Returns:
+            Number of positional parameters, or -1 if inspection fails.
+        """
+        try:
+            sig = inspect.signature(module.forward)
+            params = [
+                p
+                for p in sig.parameters.values()
+                if p.kind
+                in (
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                )
+            ]
+            return len(params)
+        except (ValueError, TypeError):
+            return -1
+
+    def _resolve_var_inputs(
+        self,
+        variables: List[VariableSymbol],
+        inputs: Dict[str, torch.Tensor],
+    ) -> List[torch.Tensor]:
+        """Resolve variable symbols to their bound tensors.
+
+        Args:
+            variables: List of variable symbols to resolve.
+            inputs: Dict mapping variable names to tensors.
+
+        Returns:
+            List of tensors corresponding to each variable.
+
+        Raises:
+            ValueError: If a variable is missing from inputs.
+        """
+        resolved: List[torch.Tensor] = []
+        for var in variables:
+            var_name = str(var)
+            if var_name not in inputs:
+                raise ValueError(
+                    f"Missing input for variable '{var_name}'. "
+                    f"Expected key in input dict."
+                )
+            resolved.append(inputs[var_name])
+        return resolved
+
+    def _apply_variable_indices(
+        self,
+        result: torch.Tensor,
+        index_vars: List[VariableSymbol],
+        inputs: Dict[str, torch.Tensor],
+    ) -> torch.Tensor:
+        """Apply per-element indexing using variable tensors.
+
+        For each index variable, selects elements along dimension 1
+        using the variable's bound tensor as per-element indices.
+        For example, output[i, index[i]] for each batch element i.
+
+        Args:
+            result: Module output tensor, shape (batch, ...).
+            index_vars: Variables whose values are output indices.
+            inputs: Dict mapping variable names to tensors.
+
+        Returns:
+            Tensor after per-element index selection.
+        """
+        for var in index_vars:
+            if result.dim() <= 1:
+                break
+            index_tensor = self._resolve_var_inputs([var], inputs)[0]
+            result = result[
+                torch.arange(result.shape[0]), index_tensor.long()
+            ]
+        return result
+
+    def _apply_constant_indices(
+        self, result: torch.Tensor, constants: List[Any]
+    ) -> torch.Tensor:
+        """Apply column selection using constant indices.
+
+        For each constant, selects a fixed column (or slice) from the
+        output along dimension 1.
+
+        Args:
+            result: Module output tensor, shape (batch, ...).
+            constants: List of constant index values.
+
+        Returns:
+            Tensor after constant column selection.
+        """
+        for const in constants:
+            if result.dim() <= 1:
+                break
+            result = result[:, const] if result.dim() == 2 else (
+                result.select(dim=1, index=const)
+            )
+        return result
+
     def _evaluate_module_predicate(
         self,
         unused_app: PredicateApplication,
@@ -623,8 +733,14 @@ class LogicCompiler(ABC):
     ) -> torch.Tensor:
         """Evaluate an nn.Module predicate.
 
-        Passes variable inputs to the module, then uses constants as output
-        indices to select specific channels.
+        Passes variable inputs to the module, then uses constants and
+        variable indices as output selectors.
+
+        For multiclass modules, if the expression has more variable
+        arguments than the module's forward() accepts, the extra
+        variables are treated as per-element output indices. For
+        example, Digit(X, Y) with a 10-class model calls model(X)
+        and selects output[batch_idx, Y[batch_idx]].
 
         Args:
             unused_app: PredicateApplication (unused, for API consistency)
@@ -639,45 +755,41 @@ class LogicCompiler(ABC):
         """
         func = predicate.func
 
-        # Extract variable inputs in order
-        var_inputs: List[torch.Tensor] = []
-        for var in free_vars:
-            var_name = str(var)
-            if var_name not in inputs:
-                raise ValueError(
-                    f"Missing input for variable '{var_name}'. "
-                    f"Expected key in input dict."
-                )
-            var_inputs.append(inputs[var_name])
+        # Determine how many free_vars are model inputs vs indices.
+        # For multiclass modules, extra variables act as output indices.
+        assert isinstance(func, nn.Module)
+        n_forward_params = self._get_module_forward_param_count(func)
+        if 0 < n_forward_params < len(free_vars):
+            n_model_inputs = n_forward_params
+        else:
+            n_model_inputs = len(free_vars)
 
-        # Create cache key
+        model_vars = free_vars[:n_model_inputs]
+        index_vars = free_vars[n_model_inputs:]
+
+        # Resolve model input tensors
+        var_inputs = self._resolve_var_inputs(model_vars, inputs)
+
+        # Cache key based on model inputs only (indices don't affect
+        # the forward pass)
         cache_key = (id(func), tuple(id(inp) for inp in var_inputs))
 
-        # Call module with variable inputs
+        # Call module with model inputs only
         full_output = ctx.get_or_compute(
             cache_key, lambda: predicate(*var_inputs)
         )
         full_output = cast(torch.Tensor, full_output)
 
-        # Handle constants as output indices
-        if len(constants) > 0:
-            result = full_output
-            for const in constants:
-                if result.dim() == 1:
-                    # Already a batch of scalars, can't index further
-                    break
-                elif result.dim() == 2:
-                    # Shape: (batch, num_outputs) - select column
-                    result = result[:, const]
-                else:
-                    # Higher dimensional - index first non-batch dimension
-                    result = result.select(dim=1, index=const)
-            return result
-        else:
-            # No constants - return full output, squeeze if needed
+        # Apply output selection (variable indices, then constants)
+        if not index_vars and not constants:
             if full_output.dim() == 2 and full_output.shape[1] == 1:
                 return full_output.squeeze(-1)
             return full_output
+
+        result = self._apply_variable_indices(
+            full_output, index_vars, inputs
+        )
+        return self._apply_constant_indices(result, constants)
 
     def _evaluate_boolean_constant(
         self, const: sp.Basic, inputs: Dict[str, torch.Tensor]
