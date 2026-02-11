@@ -18,8 +18,8 @@ import torch
 
 from pysignet.batch_handler import BatchHandlerMixin
 from pysignet.compilation.compiled_expression import CompiledExpression
-from pysignet.tnorms import RProductTNorm
-from pysignet.compilation import TNormCompiler
+from pysignet.compilation.tnorm_compiler import TNormCompiler
+from pysignet.tnorms import SProductTNorm
 
 
 class LogicLoss(BatchHandlerMixin):
@@ -57,33 +57,31 @@ class LogicLoss(BatchHandlerMixin):
         self,
         compiled_expr: CompiledExpression,
         post_processing: (
-            str | Callable[[torch.Tensor], torch.Tensor] | None
+            str
+            | Callable[[torch.Tensor], torch.Tensor]
+            | None
         ) = None,
     ) -> None:
         """Initialize LogicLoss.
 
         Args:
             compiled_expr: CompiledExpression to wrap
-            post_processing: Default post-processing ('log', 'linear',
-                callable). If None, uses the compiler's recommended
-                mode.
+            post_processing: Default post-processing
+                ('log', 'linear', callable). If None, uses the
+                compiler's recommended mode.
         """
         self._compiled_expr = compiled_expr
 
-        # Get compiler from the compiled expression
-        compiler = compiled_expr.compiler
-        if compiler is not None:
-            self._compiler = compiler
-        else:
-            # Fallback: create a default TNormCompiler
-            self._compiler = TNormCompiler(tnorm=RProductTNorm())
+        self._compiler = self._get_compiler(compiled_expr)
 
+        pp = self._compiler.recommended_postprocessing
         self.default_post_processing: (
             str | Callable[[torch.Tensor], torch.Tensor]
         ) = (
-            post_processing
-            if post_processing is not None
-            else self._compiler.recommended_postprocessing
+            post_processing if post_processing is not None
+            else pp
+        )
+
         )
 
     def satisfaction(
@@ -170,7 +168,9 @@ class LogicLoss(BatchHandlerMixin):
         quantify: Literal["forall", "exists", "none"] = "forall",
         reduction: Literal["mean", "sum", "none"] = "none",
         post_processing: (
-            str | Callable[[torch.Tensor], torch.Tensor] | None
+            str
+            | Callable[[torch.Tensor], torch.Tensor]
+            | None
         ) = None,
         **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:

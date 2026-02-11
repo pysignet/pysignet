@@ -9,6 +9,9 @@ as expression evaluation.
 from typing import Literal, TYPE_CHECKING
 
 import torch
+from pysignet.compilation import CompiledExpression, TNormCompiler
+from pysignet.tnorms import RProductTNorm
+from pysignet.tnorms import MixedTNorm
 
 if TYPE_CHECKING:
     from pysignet.compilation.base import LogicCompiler
@@ -36,6 +39,25 @@ class BatchHandlerMixin:
     """
 
     _compiler: "LogicCompiler"
+
+    def _get_compiler(self, compiled_expr: CompiledExpression):
+
+        # Get compiler from the compiled expression
+        compiler = compiled_expr.compiler
+        if compiler is not None:
+
+            # If the compiler is a TNormCompiler with a MixedTNorm, then
+            # use a RProductTNorm based one instead. Otherwise, the Godel
+            # conjunction will get used, which will only propagate gradients
+            # to the worst element in a batch.
+
+            if isinstance(compiler, TNormCompiler):
+                if isinstance(compiler.tnorm, MixedTNorm):
+                    return TNormCompiler(tnorm=RProductTNorm())
+            return compiler
+        else:
+            # Fallback: create a default TNormCompiler
+            return TNormCompiler(tnorm=RProductTNorm())
 
     def _reduce_batch(
         self,
@@ -73,13 +95,9 @@ class BatchHandlerMixin:
 
         if tensor.numel() == 0:
             if quantifier == "forall":
-                return torch.tensor(
-                    1.0, dtype=tensor.dtype, device=tensor.device
-                )
+                return torch.tensor(1.0, dtype=tensor.dtype, device=tensor.device)
             else:
-                return torch.tensor(
-                    0.0, dtype=tensor.dtype, device=tensor.device
-                )
+                return torch.tensor(0.0, dtype=tensor.dtype, device=tensor.device)
 
         if quantifier == "forall":
             return self._compiler.conjunction(tensor)

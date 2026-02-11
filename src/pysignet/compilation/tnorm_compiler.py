@@ -9,6 +9,7 @@ from pysignet.compilation.base import LogicCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.predicate import Predicate
 from pysignet.tnorms import TNorm, RProductTNorm
+from pysignet.tnorms.product import SProductTNorm
 from pysignet.context import EvaluationContext
 from pysignet.logic import extract_variables
 
@@ -45,6 +46,11 @@ class TNormCompiler(LogicCompiler):
     def recommended_postprocessing(self) -> str:
         """Delegate to t-norm's recommendation."""
         return self._tnorm.recommended_postprocessing
+
+    @property
+    def tnorm(self) -> TNorm:
+        """The TNorm that is used for this relaxation"""
+        return self._tnorm
 
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Delegate to t-norm conjunction."""
@@ -122,6 +128,7 @@ class TNormCompiler(LogicCompiler):
         # Return CompiledExpression with compiler reference
         return CompiledExpression(
             compiled_logic=compiled_logic,
+            compiled_logic_log=compiled_logic_log,
             free_variables=set(v.name for v in free_vars),
             predicates=wrapped_predicates,
             compiler=self,
