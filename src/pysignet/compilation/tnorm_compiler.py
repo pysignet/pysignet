@@ -52,6 +52,10 @@ class TNormCompiler(LogicCompiler):
         """The TNorm that is used for this relaxation"""
         return self._tnorm
 
+    def _is_product_conjunction(self) -> bool:
+        """Product t-norms support log-space fusion."""
+        return isinstance(self._tnorm, SProductTNorm)
+
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Delegate to t-norm conjunction."""
         return self._tnorm.conjunction(values)
@@ -122,6 +126,23 @@ class TNormCompiler(LogicCompiler):
 
             # Evaluate expression
             return self._evaluate_expression(
+                expanded_expr, inputs, wrapped_predicates, ctx
+            )
+
+        # Create a log-space closure for fused log-activation
+        def compiled_logic_log(
+            inputs: Dict[str, torch.Tensor],
+        ) -> torch.Tensor:
+            """Evaluate compiled logic in log-space.
+
+            Args:
+                inputs: Dict mapping variable names to tensors
+
+            Returns:
+                Log-satisfaction tensor of shape (batch_size,)
+            """
+            ctx = EvaluationContext()
+            return self._evaluate_expression_log(
                 expanded_expr, inputs, wrapped_predicates, ctx
             )
 

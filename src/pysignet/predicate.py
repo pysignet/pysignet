@@ -37,6 +37,7 @@ import warnings
 from typing import Any, Callable, Optional
 
 import torch
+import torch.nn.functional as F
 
 # Tolerance for floating-point noise in range validation
 _RANGE_TOLERANCE = 1e-6
@@ -283,6 +284,61 @@ class Predicate:
 
         # Clamp tiny float noise
         return torch.clamp(result, 0.0, 1.0)
+
+    def _apply_module_log_activation(
+        self, result: torch.Tensor
+    ) -> torch.Tensor:
+        """Apply log-space activation for nn.Module predicates.
+
+        Uses fused ops (logsigmoid, log_softmax) when the activation
+        would be auto-applied, avoiding the need for epsilon.
+
+        Args:
+            result: Raw module output tensor (logits).
+
+        Returns:
+            Log-activated tensor (values in (-inf, 0]).
+        """
+        if self._activation == "sigmoid":
+            # pylint: disable=not-callable
+            activated = F.logsigmoid(result)
+            if activated.dim() >= 2 and activated.shape[-1] == 1:
+                activated = activated.squeeze(-1)
+            return activated
+
+        if self._activation == "softmax":
+            return torch.log_softmax(result, dim=-1)
+
+        # Has existing activation or unknown structure:
+        # fall back to normal activation then log
+        normal = self._apply_module_activation(result)
+        return torch.log(normal + 1e-10)
+
+    def log_call(self, *args: Any, **kwargs: Any) -> torch.Tensor:
+        """Evaluate the named neuron and return log-satisfaction.
+
+        Uses fused log-space ops (logsigmoid, log_softmax) when
+        possible for numerical stability. Falls back to
+        log(output + eps) for non-module predicates or modules
+        with existing activations.
+
+        Args:
+            *args: Positional arguments forwarded to the named neuron.
+            **kwargs: Keyword arguments forwarded to the named neuron.
+
+        Returns:
+            Tensor of log-satisfaction degrees in (-inf, 0].
+        """
+        result = self.func(*args, **kwargs)
+
+        if not isinstance(result, torch.Tensor):
+            result = torch.tensor(result, dtype=torch.float32)
+
+        if isinstance(self.func, torch.nn.Module):
+            return self._apply_module_log_activation(result)
+
+        validated = self._validate_non_module_result(result)
+        return torch.log(validated + 1e-10)
 
     def __repr__(self) -> str:
         """Return string representation of the predicate.

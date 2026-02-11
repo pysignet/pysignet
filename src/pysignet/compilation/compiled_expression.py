@@ -82,6 +82,9 @@ class CompiledExpression:
         partial_bindings: Optional[Dict[str, torch.Tensor]] = None,
         compiler: Optional[LogicCompiler] = None,
         expr: Optional[sp.Basic] = None,
+        compiled_logic_log: Optional[
+            Callable[[Dict[str, torch.Tensor]], torch.Tensor]
+        ] = None,
     ) -> None:
         """Initialize CompiledExpression.
 
@@ -96,8 +99,11 @@ class CompiledExpression:
             compiler: Optional LogicCompiler that produced this
                 expression
             expr: Optional original SymPy expression (for repr/debugging)
+            compiled_logic_log: Optional callable for log-space evaluation
+                using fused ops (logsigmoid, log_softmax).
         """
         self._compiled_logic = compiled_logic
+        self._compiled_logic_log = compiled_logic_log
         self._free_variables = free_variables
         self._predicates = predicates
         self._partial_bindings = partial_bindings or {}
@@ -188,6 +194,7 @@ class CompiledExpression:
         self,
         *,  # Force keyword-only arguments
         return_boolean: bool = False,
+        log_mode: bool = False,
         **variable_bindings: torch.Tensor,
     ) -> torch.Tensor:
         """Evaluate compiled expression with variable bindings.
@@ -203,14 +210,22 @@ class CompiledExpression:
             return_boolean: If True, return boolean satisfaction using hard
                 decisions (threshold at 0.5 for binary, argmax for multiclass).
                 Default is False (soft satisfaction).
+            log_mode: If True, evaluate in log-space using fused ops
+                (logsigmoid, log_softmax) for numerical stability.
+                Returns log-satisfaction values in (-inf, 0].
+                Default is False.
             **variable_bindings: Variable bindings as keyword arguments
                 (e.g., X=x_tensor, Y=y_tensor)
 
         Returns:
-            If return_boolean is False: Satisfaction tensor of shape
-                (batch_size,) with values in [0, 1].
-            If return_boolean is True: Boolean tensor of shape (batch_size,)
-                indicating whether the formula is satisfied.
+            If return_boolean is False and log_mode is False:
+                Satisfaction tensor of shape (batch_size,) in [0, 1].
+            If log_mode is True:
+                Log-satisfaction tensor of shape (batch_size,) in
+                (-inf, 0].
+            If return_boolean is True: Boolean tensor of shape
+                (batch_size,) indicating whether the formula is
+                satisfied.
 
         Raises:
             ValueError: If any free variable is not bound
@@ -220,8 +235,11 @@ class CompiledExpression:
             >>> # Soft satisfaction (default)
             >>> result = compiled(X=x, Y=y)  # shape: (batch_size,)
             >>>
+            >>> # Log-space satisfaction
+            >>> result = compiled(log_mode=True, X=x)  # log-probs
+            >>>
             >>> # Boolean satisfaction
-            >>> result = compiled(X=x, Y=y, return_boolean=True)  # bool tensor
+            >>> result = compiled(X=x, Y=y, return_boolean=True)
         """
         # Merge partial bindings with new bindings
         all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
@@ -239,6 +257,10 @@ class CompiledExpression:
 
         if return_boolean:
             return self._evaluate_boolean_satisfaction(all_bindings)
+
+        # Log-space evaluation using fused ops
+        if log_mode and self._compiled_logic_log is not None:
+            return self._compiled_logic_log(all_bindings)
 
         # Evaluate the expression and return per-batch results
         # No batch reduction - LogicLoss handles quantification
@@ -345,6 +367,7 @@ class CompiledExpression:
             partial_bindings=new_bindings,
             compiler=self._compiler,
             expr=self._expr,
+            compiled_logic_log=self._compiled_logic_log,
         )
 
     def get_trainable_parameters(self) -> List[nn.Parameter]:

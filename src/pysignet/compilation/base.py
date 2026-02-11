@@ -81,6 +81,18 @@ class LogicCompiler(ABC):
             Tensor of shape (...) with disjunction applied.
         """
 
+    def _is_product_conjunction(self) -> bool:
+        """Check if conjunction is product-based (log-fusible).
+
+        Product conjunction satisfies log(AND(a,b)) = log(a) + log(b),
+        enabling log-space fusion. Override in subclasses to return
+        True for product-based t-norms.
+
+        Returns:
+            True if conjunction is product, False otherwise.
+        """
+        return False
+
     def negation(self, a: torch.Tensor) -> torch.Tensor:
         """Relaxed NOT operation: 1 - a.
 
@@ -506,6 +518,7 @@ class LogicCompiler(ABC):
         inputs: Dict[str, torch.Tensor],
         predicates: Dict[str, Predicate],
         ctx: EvaluationContext,
+        log_mode: bool = False,
     ) -> torch.Tensor:
         """Evaluate PredicateApplication with variable and constant arguments.
 
@@ -553,12 +566,14 @@ class LogicCompiler(ABC):
         if is_module:
             # nn.Module: pass variable inputs, use constants as output indices
             return self._evaluate_module_predicate(
-                app, inputs, predicate, free_vars, constants, ctx
+                app, inputs, predicate, free_vars, constants, ctx,
+                log_mode=log_mode,
             )
         else:
             # Regular callable: pass all arguments in order
             return self._evaluate_callable_predicate(
-                app, inputs, predicate, ctx
+                app, inputs, predicate, ctx,
+                log_mode=log_mode,
             )
 
     def _evaluate_callable_predicate(
@@ -567,6 +582,7 @@ class LogicCompiler(ABC):
         inputs: Dict[str, torch.Tensor],
         predicate: Predicate,
         ctx: EvaluationContext,
+        log_mode: bool = False,
     ) -> torch.Tensor:
         """Evaluate a regular callable predicate.
 
@@ -609,10 +625,22 @@ class LogicCompiler(ABC):
             else:
                 return a
 
-        cache_key = (id(func), tuple(_make_hashable(a) for a in call_args))
+        cache_key_base = (
+            id(func), tuple(_make_hashable(a) for a in call_args)
+        )
+        cache_key = (
+            ("log", cache_key_base) if log_mode else cache_key_base
+        )
 
         # Call with all arguments
-        result = ctx.get_or_compute(cache_key, lambda: predicate(*call_args))
+        if log_mode:
+            result = ctx.get_or_compute(
+                cache_key, lambda: predicate.log_call(*call_args)
+            )
+        else:
+            result = ctx.get_or_compute(
+                cache_key, lambda: predicate(*call_args)
+            )
         return cast(torch.Tensor, result)
 
     def _get_module_forward_param_count(
@@ -732,6 +760,7 @@ class LogicCompiler(ABC):
         free_vars: List[VariableSymbol],
         constants: List[Any],
         ctx: EvaluationContext,
+        log_mode: bool = False,
     ) -> torch.Tensor:
         """Evaluate an nn.Module predicate.
 
@@ -773,13 +802,25 @@ class LogicCompiler(ABC):
         var_inputs = self._resolve_var_inputs(model_vars, inputs)
 
         # Cache key based on model inputs only (indices don't affect
-        # the forward pass)
-        cache_key = (id(func), tuple(id(inp) for inp in var_inputs))
+        # the forward pass). Use separate namespace for log_mode.
+        cache_key_base = (
+            id(func), tuple(id(inp) for inp in var_inputs)
+        )
+        cache_key = (
+            ("log", cache_key_base) if log_mode
+            else cache_key_base
+        )
 
         # Call module with model inputs only
-        full_output = ctx.get_or_compute(
-            cache_key, lambda: predicate(*var_inputs)
-        )
+        if log_mode:
+            full_output = ctx.get_or_compute(
+                cache_key,
+                lambda: predicate.log_call(*var_inputs),
+            )
+        else:
+            full_output = ctx.get_or_compute(
+                cache_key, lambda: predicate(*var_inputs)
+            )
         full_output = cast(torch.Tensor, full_output)
 
         # Apply output selection (variable indices, then constants)
@@ -955,3 +996,58 @@ class LogicCompiler(ABC):
             self._evaluate_expression(expr.args[0], inputs, predicates, ctx),
             self._evaluate_expression(expr.args[1], inputs, predicates, ctx),
         )
+
+    def _evaluate_expression_log(
+        self,
+        expr: sp.Basic,
+        inputs: Dict[str, torch.Tensor],
+        predicates: Dict[str, Predicate],
+        ctx: EvaluationContext,
+    ) -> torch.Tensor:
+        """Evaluate expression in log-space for numerical stability.
+
+        For predicate applications, uses fused log-activation ops
+        (logsigmoid, log_softmax). For product conjunction (And),
+        computes sum of logs instead of log of product.
+
+        Other operators (Or, Not, Implies, Equivalent) fall back to
+        linear-space evaluation then take log, since they do not
+        benefit from log-space fusion.
+
+        Args:
+            expr: SymPy expression to evaluate
+            inputs: Dict mapping variable names to tensors
+            predicates: Dict of predicates
+            ctx: Evaluation context for caching
+
+        Returns:
+            Tensor of shape (batch_size,) with log-satisfaction values
+        """
+        # Predicate application: use fused log ops
+        if isinstance(expr, PredicateApplication):
+            return self._evaluate_predicate_application(
+                expr, inputs, predicates, ctx, log_mode=True
+            )
+
+        # Boolean constants
+        if expr in (sp.true, sp.false):
+            linear = self._evaluate_boolean_constant(expr, inputs)
+            return torch.log(linear + 1e-10)
+
+        # Product conjunction: log(prod(a_i)) = sum(log(a_i))
+        # Only valid for product t-norms. Non-product (Godel,
+        # Lukasiewicz) fall back to linear-space.
+        if isinstance(expr, sp.And) and self._is_product_conjunction():
+            args = [
+                self._evaluate_expression_log(
+                    a, inputs, predicates, ctx
+                )
+                for a in expr.args
+            ]
+            return torch.stack(args).sum(dim=0)
+
+        # All other operators (and non-product And): fall back
+        linear = self._evaluate_expression(
+            expr, inputs, predicates, ctx
+        )
+        return torch.log(linear + 1e-10)

@@ -40,7 +40,9 @@ class BatchHandlerMixin:
 
     _compiler: "LogicCompiler"
 
-    def _get_compiler(self, compiled_expr: CompiledExpression):
+    def _get_compiler(
+        self, compiled_expr: CompiledExpression
+    ) -> "LogicCompiler":
 
         # Get compiler from the compiled expression
         compiler = compiled_expr.compiler

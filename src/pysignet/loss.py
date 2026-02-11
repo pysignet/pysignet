@@ -82,6 +82,12 @@ class LogicLoss(BatchHandlerMixin):
             else pp
         )
 
+        # Cache whether batch compiler uses product conjunction
+        self._product_conjunction = (
+            isinstance(self._compiler, TNormCompiler)
+            and isinstance(
+                self._compiler.tnorm, SProductTNorm
+            )
         )
 
     def satisfaction(
@@ -122,7 +128,8 @@ class LogicLoss(BatchHandlerMixin):
 
         # Get per-batch satisfaction from compiled expression
         per_batch = self._compiled_expr(
-            return_boolean=False, **variable_bindings
+            return_boolean=False, log_mode=False,
+            **variable_bindings,
         )
 
         # Apply batch quantification using BatchHandlerMixin
@@ -136,8 +143,11 @@ class LogicLoss(BatchHandlerMixin):
         """Compute log-satisfaction for numerical stability.
 
         For product-based compilers with large batches, computing
-        satisfaction in linear space can underflow to zero. This
-        method computes log(satisfaction) for stability.
+        satisfaction in linear space can underflow to zero. When
+        using product conjunction with forall quantification, this
+        method computes sum(log(p_i)) directly instead of
+        log(product(p_i)), which is mathematically identical but
+        avoids underflow.
 
         Args:
             quantify: Batch quantification mode (same as satisfaction())
@@ -159,7 +169,18 @@ class LogicLoss(BatchHandlerMixin):
                 f"Must be one of {valid_quantifiers}."
             )
 
-        # Get satisfaction, then take log
+        # Log-space shortcut for product forall:
+        # log(prod(p_i)) = sum(log(p_i)), avoids underflow.
+        # Uses fused log-activation ops (logsigmoid, log_softmax)
+        # when available for better numerical stability.
+        if quantify == "forall" and self._product_conjunction:
+            per_batch = self._compiled_expr(
+                return_boolean=False, log_mode=True,
+                **variable_bindings,
+            )
+            return per_batch.sum()
+
+        # Fallback: compute satisfaction, then take log
         sat = self.satisfaction(quantify=quantify, **variable_bindings)
         return torch.log(sat + 1e-10)
 
@@ -226,9 +247,26 @@ class LogicLoss(BatchHandlerMixin):
                 f"the reduction parameter."
             )
 
+        # Determine post-processing mode
+        postprocessing_type = (
+            post_processing
+            if post_processing is not None
+            else self.default_post_processing
+        )
+
+        # For log post-processing, delegate to log_satisfaction
+        # which handles log-space computation to avoid underflow
+        if postprocessing_type == "log":
+            log_sat = self.log_satisfaction(
+                quantify=quantify, **variable_bindings
+            )
+            loss_values = -log_sat
+            return self._apply_reduction(loss_values, reduction=reduction)
+
         # Get per-batch satisfaction from compiled expression
         per_batch = self._compiled_expr(
-            return_boolean=False, **variable_bindings
+            return_boolean=False, log_mode=False,
+            **variable_bindings,
         )
 
         # Apply batch quantification
@@ -237,18 +275,8 @@ class LogicLoss(BatchHandlerMixin):
         else:
             satisfaction = self._reduce_batch(per_batch, quantifier=quantify)
 
-        # Determine post-processing mode
-        postprocessing_type = (
-            post_processing
-            if post_processing is not None
-            else self.default_post_processing
-        )
-
         # Apply post-processing to convert satisfaction to loss
-        if postprocessing_type == "log":
-            # Negative log with numerical stability
-            loss_values = -torch.log(satisfaction + 1e-10)
-        elif postprocessing_type == "linear":
+        if postprocessing_type == "linear":
             # Linear: 1 - satisfaction
             loss_values = 1.0 - satisfaction
         elif callable(postprocessing_type):
