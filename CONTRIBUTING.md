@@ -374,19 +374,16 @@ black --check src/ tests/ examples/     # Formatting check
 
 ### Pre-commit Hook
 
-The repository includes a pre-commit hook that runs automatically. To set it up
-manually:
+The repository includes a pre-commit hook that runs automatically. To set it up run:
 
 ```bash
-cp .git/hooks/pre-commit.sample .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+bash scripts/install-hooks.sh
 ```
 
 The hook runs:
 - `poetry install`
 - `pytest tests/ -q --cov=src/pysignet --cov-fail-under=95`
 - `mypy src/ --ignore-missing-imports`
-- Example syntax checking
 
 ## Questions?
 
