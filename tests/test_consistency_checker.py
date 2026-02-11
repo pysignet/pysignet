@@ -6,12 +6,15 @@ measurement using the eval module's ConsistencyChecker.
 
 # pylint: disable=invalid-name
 
+import warnings
+
 import pytest
 import sympy as sp
 import torch
 import torch.nn as nn
 
 from pysignet import ConsistencyChecker, Symbol, Predicate
+from pysignet.api import consistency_report
 from pysignet.logic import Variable
 
 
@@ -684,6 +687,109 @@ class TestMulticlassModulePredicates:
         result = checker(X=x)
         assert result.all(), (
             "Exists over all classes should always be True"
+        )
+
+    def test_custom_module_activation_configured(self) -> None:
+        """Test that custom (non-Sequential) modules get activation.
+
+        Custom nn.Modules cannot auto-detect activation from
+        structure. The checker must configure activation using
+        expression-context arity so that softmax is applied
+        before argmax, not clamping (which corrupts argmax
+        when logits exceed 1.0).
+        """
+
+        class CustomClassifier(nn.Module):
+            """Custom module that returns raw logits."""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.fc = nn.Linear(4, 10)
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                return self.fc(x)
+
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
+        expr = Digit(X, Y)
+
+        torch.manual_seed(42)
+        model = CustomClassifier()
+
+        predicates = {"Digit": Predicate(model)}
+        checker = ConsistencyChecker(expr, predicates)
+
+        x = torch.randn(8, 4)
+
+        # Ground truth: argmax of raw logits (softmax is
+        # monotonic so argmax is the same on logits)
+        with torch.no_grad():
+            logits = model(x)
+            predicted = logits.argmax(dim=-1)
+
+        # Consistency with correct labels should equal accuracy
+        result = checker(X=x, Y=predicted)
+        assert result.all(), (
+            "All examples should be satisfied when Y matches "
+            "the model's argmax prediction"
+        )
+
+    def test_consistency_matches_accuracy_via_api(self) -> None:
+        """Test that consistency equals accuracy through the API.
+
+        Uses consistency_report (the public API) with a custom
+        module. Verifies no activation warning is emitted and
+        that consistency matches accuracy exactly.
+        """
+
+        class Classifier(nn.Module):
+            """Custom module returning raw logits."""
+
+            def __init__(self) -> None:
+                super().__init__()
+                self.fc = nn.Linear(4, 10)
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                return self.fc(x)
+
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
+        expr = Digit(X, Y)
+
+        torch.manual_seed(42)
+        model = Classifier()
+        x = torch.randn(50, 4)
+
+        with torch.no_grad():
+            predicted = model(x).argmax(dim=-1)
+
+        # Make some labels wrong so accuracy < 1
+        y = predicted.clone()
+        y[:10] = (y[:10] + 1) % 10
+        accuracy = (predicted == y).float().mean().item()
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            report = consistency_report(
+                expr, {"Digit": model}
+            )
+            report.eval(X=x, Y=y)
+
+            # No activation warning should be emitted
+            activation_warnings = [
+                x for x in w
+                if "Could not determine activation" in str(
+                    x.message
+                )
+            ]
+            assert len(activation_warnings) == 0, (
+                "No activation warning should be emitted"
+            )
+
+        consistency = report.global_consistency()
+        assert abs(accuracy - consistency) < 1e-6, (
+            f"Consistency {consistency:.4f} should match "
+            f"accuracy {accuracy:.4f}"
         )
 
     def test_binary_model_not_affected(self) -> None:

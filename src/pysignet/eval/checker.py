@@ -86,6 +86,12 @@ class ConsistencyChecker:
                 f"Missing predicates for symbols: {missing}"
             )
 
+        # Configure activation for nn.Module predicates using
+        # expression-context arity (mirrors compilation path).
+        # Without this, custom modules fall back to clamping
+        # which corrupts argmax.
+        self._configure_predicate_activations()
+
     def __call__(
         self, **variable_bindings: torch.Tensor
     ) -> torch.Tensor:
@@ -419,6 +425,30 @@ class ConsistencyChecker:
             dtype=torch.bool,
             device=sample.device,
         )
+
+    def _configure_predicate_activations(self) -> None:
+        """Configure activation on predicates from expression arity.
+
+        Walks the expanded expression to find predicate arities,
+        then calls configure_activation on each predicate. This
+        ensures custom nn.Module predicates (non-Sequential) get
+        softmax/sigmoid applied instead of falling back to
+        clamping.
+        """
+        arities: Dict[str, int] = {}
+        for app in self._extract_predicate_applications(
+            self._expression
+        ):
+            name = app.predicate_name
+            arity = len(app.application_args)
+            if name not in arities:
+                arities[name] = arity
+
+        for name, pred in self._predicates.items():
+            if pred.name is None:
+                pred.name = name
+            if name in arities:
+                pred.configure_activation(arities[name])
 
     def _extract_predicate_symbols(
         self, expr: sp.Basic
