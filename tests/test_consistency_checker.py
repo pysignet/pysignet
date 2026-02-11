@@ -9,6 +9,7 @@ measurement using the eval module's ConsistencyChecker.
 import pytest
 import sympy as sp
 import torch
+import torch.nn as nn
 
 from pysignet import ConsistencyChecker, Symbol, Predicate
 from pysignet.logic import Variable
@@ -550,4 +551,165 @@ class TestErrorHandling:
         result = checker(X=torch.randn(1, 10))
 
         expected = torch.tensor([True, False, True])
+        assert torch.equal(result, expected)
+
+
+class TestMulticlassModulePredicates:
+    """Test consistency checker with multiclass nn.Module predicates.
+
+    These tests verify that the checker correctly splits variables
+    into model inputs vs output indices for nn.Module predicates,
+    mirroring the logic in the compilation path (base.py).
+    """
+
+    def test_multiclass_variable_index(self) -> None:
+        """Test Digit(X, Y) with multiclass model and variable Y.
+
+        This reproduces the MNIST notebook scenario: a model that
+        takes one input and produces 10-class output, where Y is
+        a per-element class label variable.
+        """
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
+        expr = Digit(X, Y)
+
+        # Simple 10-class model: input -> 10 logits
+        model = nn.Sequential(
+            nn.Linear(4, 10),
+        )
+
+        predicates = {"Digit": Predicate(model)}
+        checker = ConsistencyChecker(expr, predicates)
+
+        # Batch of 3 inputs
+        torch.manual_seed(42)
+        x = torch.randn(3, 4)
+
+        # Get model predictions to determine expected results
+        with torch.no_grad():
+            logits = model(x)
+            predicted = logits.argmax(dim=-1)
+
+        # Y matches predicted classes -> should be satisfied
+        result = checker(X=x, Y=predicted)
+        assert result.all(), (
+            "Should be satisfied when Y matches argmax"
+        )
+
+        # Y is wrong for all -> should be violated
+        wrong_y = (predicted + 1) % 10
+        result = checker(X=x, Y=wrong_y)
+        assert not result.any(), (
+            "Should be violated when Y never matches argmax"
+        )
+
+    def test_multiclass_constant_index(self) -> None:
+        """Test Digit(X, 3) with constant class index."""
+        Digit = Symbol("Digit")
+        X = Variable("X")
+        expr = Digit(X, 3)
+
+        model = nn.Sequential(
+            nn.Linear(4, 10),
+        )
+
+        predicates = {"Digit": Predicate(model)}
+        checker = ConsistencyChecker(expr, predicates)
+
+        torch.manual_seed(42)
+        x = torch.randn(3, 4)
+
+        with torch.no_grad():
+            logits = model(x)
+            predicted = logits.argmax(dim=-1)
+
+        result = checker(X=x)
+        expected = predicted == 3
+        assert torch.equal(result, expected)
+
+    def test_multiclass_mixed_satisfied_violated(self) -> None:
+        """Test that variable index gives correct per-element results.
+
+        Some examples match argmax, some do not.
+        """
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
+        expr = Digit(X, Y)
+
+        model = nn.Sequential(
+            nn.Linear(4, 10),
+        )
+
+        predicates = {"Digit": Predicate(model)}
+        checker = ConsistencyChecker(expr, predicates)
+
+        torch.manual_seed(42)
+        x = torch.randn(4, 4)
+
+        with torch.no_grad():
+            logits = model(x)
+            predicted = logits.argmax(dim=-1)
+
+        # Mix correct and incorrect labels
+        y = predicted.clone()
+        y[1] = (y[1] + 1) % 10  # Make second wrong
+        y[3] = (y[3] + 1) % 10  # Make fourth wrong
+
+        result = checker(X=x, Y=y)
+        expected = torch.tensor([True, False, True, False])
+        assert torch.equal(result, expected)
+
+    def test_multiclass_in_formula(self) -> None:
+        """Test multiclass predicate inside a logical formula.
+
+        Exists(Y, range(10), Digit(X, Y)) should always be True
+        since argmax always picks some class.
+        """
+        from pysignet.logic import Exists
+
+        Digit = Symbol("Digit")
+        X, Y = Variable("X Y")
+        expr = Exists(Y, range(10), Digit(X, Y))
+
+        model = nn.Sequential(
+            nn.Linear(4, 10),
+        )
+
+        predicates = {"Digit": Predicate(model)}
+        checker = ConsistencyChecker(expr, predicates)
+
+        torch.manual_seed(42)
+        x = torch.randn(3, 4)
+
+        result = checker(X=x)
+        assert result.all(), (
+            "Exists over all classes should always be True"
+        )
+
+    def test_binary_model_not_affected(self) -> None:
+        """Test that binary models (single output) still work.
+
+        P(X) with a binary model should not be affected by the
+        variable index splitting logic.
+        """
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+
+        model = nn.Sequential(
+            nn.Linear(4, 1),
+            nn.Sigmoid(),
+        )
+
+        predicates = {"P": Predicate(model)}
+        checker = ConsistencyChecker(expr, predicates)
+
+        torch.manual_seed(42)
+        x = torch.randn(3, 4)
+
+        with torch.no_grad():
+            out = model(x).squeeze(-1)
+            expected = out > 0.5
+
+        result = checker(X=x)
         assert torch.equal(result, expected)

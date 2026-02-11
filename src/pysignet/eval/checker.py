@@ -29,6 +29,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import sympy as sp
 import torch
 
+from pysignet.compilation.module_utils import (
+    resolve_variable_inputs,
+    split_model_and_index_vars,
+)
 from pysignet.eval.boolean import to_boolean
 from pysignet.predicate import Predicate
 from pysignet.symbols import PredicateApplication
@@ -159,8 +163,12 @@ class ConsistencyChecker:
     ) -> torch.Tensor:
         """Evaluate nn.Module predicate to boolean.
 
-        Passes variable tensors to the model. Uses constants as
-        output indices. Boolean conversion:
+        Splits variables into model inputs and output indices
+        (mirroring the compilation path). Only model input
+        variables are passed to the model; extra variables are
+        used as per-element output indices via argmax comparison.
+
+        Boolean conversion:
         - Multiclass (batch, C) with C > 1: argmax == class_idx
         - Binary (batch,) or (batch, 1): threshold at 0.5
 
@@ -177,11 +185,18 @@ class ConsistencyChecker:
         Returns:
             Boolean tensor of shape (batch_size,).
         """
-        var_tensors = self._resolve_variables(
-            variables, bindings
+        assert isinstance(predicate.func, torch.nn.Module)
+
+        # Split variables into model inputs and index variables
+        model_vars, index_vars = split_model_and_index_vars(
+            predicate.func, variables
         )
 
-        # Cache model output
+        var_tensors = resolve_variable_inputs(
+            model_vars, bindings
+        )
+
+        # Cache model output (keyed on model inputs only)
         cache_key = (
             id(predicate.func),
             tuple(id(t) for t in var_tensors),
@@ -193,7 +208,18 @@ class ConsistencyChecker:
                 )
         output = model_cache[cache_key]
 
-        # Extract integer class index from constants
+        # Handle variable indices: per-element argmax comparison
+        if index_vars:
+            index_tensors = resolve_variable_inputs(
+                index_vars, bindings
+            )
+            # For multiclass output, compare argmax to the
+            # per-element index variable
+            return to_boolean(
+                output, class_idx=index_tensors[0]
+            )
+
+        # Handle constant indices
         int_consts = [
             c for c in constants if isinstance(c, int)
         ]
@@ -331,35 +357,6 @@ class ConsistencyChecker:
             else:
                 constants.append(arg)
         return variables, constants
-
-    @staticmethod
-    def _resolve_variables(
-        variables: List[VariableSymbol],
-        bindings: Dict[str, torch.Tensor],
-    ) -> List[torch.Tensor]:
-        """Resolve variable symbols to tensors from bindings.
-
-        Args:
-            variables: List of VariableSymbol to resolve.
-            bindings: Variable name -> tensor dict.
-
-        Returns:
-            List of tensors in the same order as variables.
-
-        Raises:
-            ValueError: If a variable is missing from bindings.
-        """
-        tensors: List[torch.Tensor] = []
-        for var in variables:
-            var_name = str(var)
-            if var_name not in bindings:
-                raise ValueError(
-                    f"Missing binding for variable "
-                    f"'{var_name}'. Available bindings: "
-                    f"{sorted(bindings.keys())}"
-                )
-            tensors.append(bindings[var_name])
-        return tensors
 
     @staticmethod
     def _build_call_args(

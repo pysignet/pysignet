@@ -5,6 +5,7 @@ This module provides functions for smart handling of nn.Module predicates:
 2. Detect existing activations (Sigmoid/Softmax)
 3. Wrap modules with appropriate signatures
 4. Auto-add activation only if not already present
+5. Shared helpers for variable resolution and model/index splitting
 
 Key principles:
 - Single responsibility: each function does one thing
@@ -12,7 +13,8 @@ Key principles:
 - Explicit validation: arity must match module output dimensionality
 """
 
-from typing import Callable, Dict, Optional, cast
+import inspect
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import torch
 import torch.nn as nn
@@ -148,6 +150,93 @@ def wrap_module_as_predicate(
             f"Unsupported arity {arity}. "
             f"Only 1 (unary) and 2 (binary) supported."
         )
+
+
+def get_module_forward_param_count(module: nn.Module) -> int:
+    """Get the number of input parameters for a module's forward().
+
+    Uses inspect.signature on the bound forward method, which
+    automatically excludes 'self'.
+
+    Args:
+        module: nn.Module to inspect.
+
+    Returns:
+        Number of positional parameters, or -1 if inspection
+        fails.
+    """
+    try:
+        sig = inspect.signature(module.forward)
+        params = [
+            p
+            for p in sig.parameters.values()
+            if p.kind
+            in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            )
+        ]
+        return len(params)
+    except (ValueError, TypeError):
+        return -1
+
+
+def resolve_variable_inputs(
+    variables: List[Any],
+    inputs: Dict[str, torch.Tensor],
+) -> List[torch.Tensor]:
+    """Resolve variable symbols to their bound tensors.
+
+    Args:
+        variables: List of variable symbols to resolve. Each
+            must be convertible to str to get its name.
+        inputs: Dict mapping variable names to tensors.
+
+    Returns:
+        List of tensors in the same order as variables.
+
+    Raises:
+        ValueError: If a variable is missing from inputs.
+    """
+    resolved: List[torch.Tensor] = []
+    for var in variables:
+        var_name = str(var)
+        if var_name not in inputs:
+            raise ValueError(
+                f"Missing input for variable '{var_name}'. "
+                f"Expected key in input dict."
+            )
+        resolved.append(inputs[var_name])
+    return resolved
+
+
+def split_model_and_index_vars(
+    module: nn.Module,
+    free_vars: List[Any],
+) -> Tuple[List[Any], List[Any]]:
+    """Split free variables into model inputs and index variables.
+
+    For multiclass modules, extra variables beyond what forward()
+    accepts are treated as per-element output indices. For example,
+    Digit(X, Y) with a model whose forward(x) takes 1 arg splits
+    into model_vars=[X] and index_vars=[Y].
+
+    Args:
+        module: nn.Module to inspect for forward() param count.
+        free_vars: List of free variables from the expression.
+
+    Returns:
+        Tuple of (model_vars, index_vars).
+    """
+    n_forward_params = get_module_forward_param_count(module)
+    if 0 < n_forward_params < len(free_vars):
+        n_model_inputs = n_forward_params
+    else:
+        n_model_inputs = len(free_vars)
+
+    model_vars = free_vars[:n_model_inputs]
+    index_vars = free_vars[n_model_inputs:]
+    return model_vars, index_vars
 
 
 def _get_final_layer(module: nn.Module) -> nn.Module:

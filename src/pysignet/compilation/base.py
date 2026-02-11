@@ -1,6 +1,5 @@
 """Base class for logic compilation strategies."""
 
-import inspect
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Set, cast
 import warnings
@@ -16,7 +15,11 @@ from pysignet.logic.quantifier import Quantifier
 from pysignet.logic.expansion import expand_quantifier
 from pysignet.logic.variable import VariableSymbol
 from pysignet.compilation.arity import validate_predicate_arity
-from pysignet.compilation.module_utils import infer_module_arity
+from pysignet.compilation.module_utils import (
+    infer_module_arity,
+    resolve_variable_inputs,
+    split_model_and_index_vars,
+)
 from pysignet.compilation.compiled_expression import CompiledExpression
 
 
@@ -643,41 +646,14 @@ class LogicCompiler(ABC):
             )
         return cast(torch.Tensor, result)
 
-    def _get_module_forward_param_count(
-        self, module: nn.Module
-    ) -> int:
-        """Get the number of input parameters for a module's forward().
-
-        Uses inspect.signature on the bound forward method, which
-        automatically excludes 'self'.
-
-        Args:
-            module: nn.Module to inspect
-
-        Returns:
-            Number of positional parameters, or -1 if inspection fails.
-        """
-        try:
-            sig = inspect.signature(module.forward)
-            params = [
-                p
-                for p in sig.parameters.values()
-                if p.kind
-                in (
-                    inspect.Parameter.POSITIONAL_ONLY,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                )
-            ]
-            return len(params)
-        except (ValueError, TypeError):
-            return -1
-
     def _resolve_var_inputs(
         self,
         variables: List[VariableSymbol],
         inputs: Dict[str, torch.Tensor],
     ) -> List[torch.Tensor]:
         """Resolve variable symbols to their bound tensors.
+
+        Delegates to the shared resolve_variable_inputs utility.
 
         Args:
             variables: List of variable symbols to resolve.
@@ -689,16 +665,7 @@ class LogicCompiler(ABC):
         Raises:
             ValueError: If a variable is missing from inputs.
         """
-        resolved: List[torch.Tensor] = []
-        for var in variables:
-            var_name = str(var)
-            if var_name not in inputs:
-                raise ValueError(
-                    f"Missing input for variable '{var_name}'. "
-                    f"Expected key in input dict."
-                )
-            resolved.append(inputs[var_name])
-        return resolved
+        return resolve_variable_inputs(variables, inputs)
 
     def _apply_variable_indices(
         self,
@@ -789,14 +756,9 @@ class LogicCompiler(ABC):
         # Determine how many free_vars are model inputs vs indices.
         # For multiclass modules, extra variables act as output indices.
         assert isinstance(func, nn.Module)
-        n_forward_params = self._get_module_forward_param_count(func)
-        if 0 < n_forward_params < len(free_vars):
-            n_model_inputs = n_forward_params
-        else:
-            n_model_inputs = len(free_vars)
-
-        model_vars = free_vars[:n_model_inputs]
-        index_vars = free_vars[n_model_inputs:]
+        model_vars, index_vars = split_model_and_index_vars(
+            func, free_vars
+        )
 
         # Resolve model input tensors
         var_inputs = self._resolve_var_inputs(model_vars, inputs)

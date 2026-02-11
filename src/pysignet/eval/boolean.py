@@ -8,14 +8,14 @@ hard boolean decisions using appropriate thresholding rules:
 - Others: threshold at 0.5
 """
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 
 
 def to_boolean(
     output: torch.Tensor,
-    class_idx: Optional[int] = None,
+    class_idx: Optional[Union[int, torch.Tensor]] = None,
 ) -> torch.Tensor:
     """Convert soft output to a boolean decision tensor.
 
@@ -31,8 +31,10 @@ def to_boolean(
     Args:
         output: Soft prediction tensor with values in [0, 1].
         class_idx: Optional class index for multiclass outputs.
-            When provided and output is 2D with multiple columns,
-            uses argmax comparison instead of thresholding.
+            Can be an int (same class for all examples) or a
+            tensor of per-element class indices. When provided
+            and output is 2D with multiple columns, uses argmax
+            comparison instead of thresholding.
 
     Returns:
         Boolean tensor of shape (batch,).
