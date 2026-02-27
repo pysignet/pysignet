@@ -41,7 +41,8 @@ class BatchHandlerMixin:
     _compiler: "LogicCompiler"
 
     def _get_compiler(
-        self, compiled_expr: CompiledExpression
+        self,
+        compiled_expr: CompiledExpression,
     ) -> "LogicCompiler":
 
         # Get compiler from the compiled expression
@@ -97,9 +98,17 @@ class BatchHandlerMixin:
 
         if tensor.numel() == 0:
             if quantifier == "forall":
-                return torch.tensor(1.0, dtype=tensor.dtype, device=tensor.device)
+                return torch.tensor(
+                    1.0,
+                    dtype=tensor.dtype,
+                    device=tensor.device,
+                )
             else:
-                return torch.tensor(0.0, dtype=tensor.dtype, device=tensor.device)
+                return torch.tensor(
+                    0.0,
+                    dtype=tensor.dtype,
+                    device=tensor.device,
+                )
 
         if quantifier == "forall":
             return self._compiler.conjunction(tensor)
