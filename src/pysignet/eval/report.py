@@ -37,6 +37,15 @@ import sympy as sp
 import torch
 
 from pysignet.eval.checker import ConsistencyChecker
+from pysignet.eval.display import (
+    html_chart_multi,
+    html_chart_single,
+    html_history_multi,
+    html_history_single,
+    html_metrics_multi,
+    html_metrics_single,
+    _html_no_data,
+)
 from pysignet.predicate import Predicate
 
 
@@ -467,6 +476,138 @@ class ConsistencyReport:
             "total_count": self._total_count,
             "constraints": constraints,
         }
+
+    # -- HTML display methods ----------------------------------
+
+    def _has_any_implies(self) -> bool:
+        """Check if any constraint is an Implies."""
+        return any(
+            v is not None
+            for v in self._antecedents.values()
+        )
+
+    def _single_metrics_args(
+        self,
+    ) -> Dict[str, Any]:
+        """Collect single-mode metrics for display."""
+        rho = self._global_violation_for("default")
+        tau: Optional[float] = None
+        if self._antecedents["default"] is not None:
+            tau = self._conditional_violation_for("default")
+        return {
+            "satisfied": self._satisfied_counts["default"],
+            "total": self._total_count,
+            "rho": rho,
+            "consistency": 1.0 - rho,
+            "tau": tau,
+        }
+
+    def _multi_metrics_args(
+        self,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Collect multi-mode per-constraint metrics."""
+        result: Dict[str, Dict[str, Any]] = {}
+        for name in self._names:
+            rho = self._global_violation_for(name)
+            result[name] = {
+                "satisfied": self._satisfied_counts[name],
+                "rho": rho,
+                "consistency": 1.0 - rho,
+                "tau": self._conditional_violation_for(name),
+            }
+        return result
+
+    def to_html_metrics(self) -> str:
+        """Metrics-only HTML card.
+
+        Shows satisfaction count, rho, consistency, and
+        tau (only for Implies expressions).
+
+        Returns:
+            HTML string.
+        """
+        if self._total_count == 0:
+            return _html_no_data()
+        if self._is_single:
+            m = self._single_metrics_args()
+            return html_metrics_single(
+                m["satisfied"],
+                m["total"],
+                m["rho"],
+                m["consistency"],
+                m["tau"],
+            )
+        return html_metrics_multi(
+            self._multi_metrics_args(),
+            self._total_count,
+            self._has_any_implies(),
+        )
+
+    def to_html_chart(self) -> str:
+        """Metrics + inline CSS bar chart.
+
+        Shows the same information as to_html_metrics() plus
+        a horizontal bar visualizing the consistency rate.
+
+        Returns:
+            HTML string.
+        """
+        if self._total_count == 0:
+            return _html_no_data()
+        if self._is_single:
+            m = self._single_metrics_args()
+            return html_chart_single(
+                m["satisfied"],
+                m["total"],
+                m["rho"],
+                m["consistency"],
+                m["tau"],
+            )
+        return html_chart_multi(
+            self._multi_metrics_args(),
+            self._total_count,
+            self._has_any_implies(),
+        )
+
+    def to_html_history(self) -> str:
+        """Metrics + per-batch history table with mini bars.
+
+        Shows the same information as to_html_metrics() plus
+        a table of per-batch rho values. Truncates to the
+        last 20 batches when history is long.
+
+        Returns:
+            HTML string.
+        """
+        if self._total_count == 0:
+            return _html_no_data()
+        if self._is_single:
+            m = self._single_metrics_args()
+            return html_history_single(
+                m["satisfied"],
+                m["total"],
+                m["rho"],
+                m["consistency"],
+                m["tau"],
+                self._history,
+            )
+        return html_history_multi(
+            self._multi_metrics_args(),
+            self._total_count,
+            self._has_any_implies(),
+            self._names,
+            self._history,
+        )
+
+    def _repr_html_(self) -> str:
+        """Jupyter notebook default display.
+
+        Delegates to to_html_chart().
+
+        Returns:
+            HTML string.
+        """
+        return self.to_html_chart()
 
     def reset(self) -> None:
         """Clear all accumulated state."""
