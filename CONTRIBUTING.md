@@ -374,7 +374,13 @@ black --check src/ tests/ examples/     # Formatting check
 
 ### Pre-commit Hook
 
-The repository includes a pre-commit hook that runs automatically. To set it up run:
+The repository includes a pre-commit hook in `.githooks/pre-commit`. To enable it:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Or use the convenience script:
 
 ```bash
 bash scripts/install-hooks.sh
@@ -384,6 +390,8 @@ The hook runs:
 - `poetry install`
 - `pytest tests/ -q --cov=src/pysignet --cov-fail-under=95`
 - `mypy src/ --ignore-missing-imports`
+
+To skip the hook for a single commit: `git commit --no-verify`
 
 ## Questions?
 

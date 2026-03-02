@@ -80,6 +80,25 @@ Or with Poetry:
 poetry add pysignet
 ```
 
+## Getting Started (Development)
+
+To contribute or run the examples locally:
+
+```bash
+# 1. Clone and install dependencies
+git clone https://github.com/pysignet/pysignet.git
+cd pysignet
+poetry install
+
+# 2. Enable the pre-commit hook
+git config core.hooksPath .githooks
+
+# 3. Verify setup
+poetry run pytest tests/
+```
+
+The pre-commit hook runs tests, coverage, and type checks automatically before each commit. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow.
+
 ## Core Concepts
 
 ### Symbols and Variables
