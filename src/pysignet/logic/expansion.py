@@ -101,10 +101,21 @@ def _substitute_in_predicate_application(
     expr: PredicateApplication, variable: VariableSymbol, value: Any
 ) -> PredicateApplication:
     """Substitute variable in a PredicateApplication."""
-    new_args = tuple(
-        value if arg == variable else arg for arg in expr.application_args
-    )
-    return PredicateApplication(expr.predicate_name, new_args)
+    new_args = []
+    for arg in expr.application_args:
+        if arg == variable:
+            new_args.append(value)
+        elif isinstance(arg, sp.Basic) and variable in arg.free_symbols:
+            # Substitute within SymPy arithmetic expressions (e.g. S - I).
+            # Convert concrete SymPy integers to Python ints so that
+            # predicate callables receive indexable integers.
+            substituted = arg.subs(variable, value)
+            if isinstance(substituted, sp.Integer):
+                substituted = int(substituted)
+            new_args.append(substituted)
+        else:
+            new_args.append(arg)
+    return PredicateApplication(expr.predicate_name, tuple(new_args))
 
 
 def _substitute_in_quantifier(

@@ -566,3 +566,136 @@ class TestInternalHelpers:
 
         # Should return the value
         assert result == 5
+
+    def test_substitute_variable_in_arithmetic_predicate_arg(self):
+        """Substitution into arithmetic expression in predicate argument."""
+        import sympy as sp
+        from pysignet.logic.expansion import _substitute_in_predicate_application
+
+        S, I = Variable("S I")
+        Digit = Symbol("Digit")
+        X = Variable("X")
+
+        # Digit(X, S - I) with S=5 substituted should give Digit(X, 5-I)
+        app = Digit(X, S - I)
+        result = _substitute_in_predicate_application(app, S, 5)
+
+        # The second argument should now be 5 - I (still symbolic in I)
+        assert result.application_args[0] == X
+        assert result.application_args[1] == 5 - I
+
+    def test_substitute_both_variables_in_arithmetic_arg(self):
+        """Substituting both variables in an arithmetic arg yields a Python int."""
+        import sympy as sp
+        from pysignet.logic.expansion import _substitute_in_predicate_application
+
+        S, I = Variable("S I")
+        Digit = Symbol("Digit")
+        X = Variable("X")
+
+        # Digit(X, S - I): first substitute S=5, then I=3
+        app = Digit(X, S - I)
+        after_s = _substitute_in_predicate_application(app, S, 5)
+        after_i = _substitute_in_predicate_application(after_s, I, 3)
+
+        # Result should be Digit(X, 2) where 2 is a plain Python int
+        assert after_i.application_args[1] == 2
+        assert isinstance(after_i.application_args[1], int)
+
+
+class TestArithmeticPredicateArguments:
+    """Tests for predicate arguments that are arithmetic expressions of quantified vars."""
+
+    def test_forall_exists_arithmetic_arg_expansion(self):
+        """ForAll-Exists with arithmetic argument S-I expands to concrete integers."""
+        S, I = Variable("S I")
+        Digit = Symbol("Digit")
+        X1, X2 = Variable("X1 X2")
+
+        # Inner: Exists(I, [0,1,2], Digit(X2, S-I))
+        # With S=2 this should give Digit(X2,2) v Digit(X2,1) v Digit(X2,0)
+        exists = Exists(I, [0, 1, 2], Digit(X2, S - I))
+        outer = ForAll(S, [2], exists)
+        expanded = expand_quantifier(outer)
+
+        # S=2 only: Digit(X2,2) v Digit(X2,1) v Digit(X2,0)
+        expected = sp.Or(Digit(X2, 2), Digit(X2, 1), Digit(X2, 0))
+        assert expanded.equals(expected)
+
+    def test_arithmetic_arg_becomes_python_int_not_sympy_integer(self):
+        """After full substitution the argument is a Python int, not a SymPy Integer."""
+        S, I = Variable("S I")
+        Digit = Symbol("Digit")
+        X = Variable("X")
+
+        exists = Exists(I, [3], Digit(X, S - I))
+        outer = ForAll(S, [5], exists)
+        expanded = expand_quantifier(outer)
+
+        # Expanded to Digit(X, 2)
+        arg = expanded.application_args[1]
+        assert arg == 2
+        assert isinstance(arg, int), (
+            f"Expected Python int, got {type(arg)}: {arg!r}"
+        )
+
+    def test_negative_arithmetic_arg_preserved(self):
+        """Out-of-range arithmetic args (negative) are preserved as Python int."""
+        S, I = Variable("S I")
+        Digit = Symbol("Digit")
+        X = Variable("X")
+
+        # S=0, I=5 => S-I = -5
+        exists = Exists(I, [5], Digit(X, S - I))
+        outer = ForAll(S, [0], exists)
+        expanded = expand_quantifier(outer)
+
+        arg = expanded.application_args[1]
+        assert arg == -5
+        assert isinstance(arg, int)
+
+    def test_addition_constraint_pattern(self):
+        """Full ForAll-Implies-Exists pattern from the MNIST addition notebook."""
+        import torch
+        from pysignet import logic_to_loss
+        from pysignet.logic.quantifier import ForAll, Exists
+
+        Sum = Symbol("Sum")
+        Digit = Symbol("Digit")
+        X1, X2, S_actual, S, I = Variable("X1 X2 S_actual S I")
+
+        expr = ForAll(
+            S, range(19),
+            sp.Implies(
+                Sum(S_actual, S),
+                Exists(I, range(10), sp.And(Digit(X1, I), Digit(X2, S - I))),
+            ),
+        )
+
+        received_args = []
+
+        def digit_fn(x, digit_idx):
+            received_args.append(digit_idx)
+            if not (0 <= digit_idx <= 9):
+                return torch.zeros(x.shape[0])
+            return torch.full((x.shape[0],), 0.5)
+
+        predicates = {
+            "Sum": lambda s_actual, s: (s_actual == s).float(),
+            "Digit": digit_fn,
+        }
+
+        loss_fn = logic_to_loss(expr, predicates)
+        x = torch.randn(4, 10)
+        sums = torch.tensor([3, 5, 7, 9])
+
+        # Must not raise TypeError about SymPy relational truth values
+        loss = loss_fn.loss(X1=x, X2=x, S_actual=sums)
+
+        assert loss.shape == ()
+        assert not torch.isnan(loss)
+        # All digit_idx args received by the predicate must be plain Python ints
+        for idx in received_args:
+            assert isinstance(idx, int), (
+                f"Expected Python int, got {type(idx)}: {idx!r}"
+            )
