@@ -3,6 +3,7 @@ name: Deploy Docs
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -24,7 +25,9 @@ jobs:
           path: .venv
           key: venv-docs-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
-        run: poetry install --no-interaction --with docs
+        run: |
+          poetry install --no-interaction --with docs
+          poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall
       - name: Deploy docs
         env:
           PAGES_DEPLOY_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
