@@ -32,13 +32,15 @@ class MixedTNorm(TNorm):
             Default is 4.
 
     Example:
-        >>> tnorm = MixedTNorm(threshold=4)
-        >>> # Small conjunction (3 args) -> RProduct
-        >>> values = torch.tensor([[0.8], [0.7], [0.6]])
-        >>> tnorm.conjunction(values)  # 0.8 * 0.7 * 0.6 = 0.336
-        >>> # Large conjunction (6 args) -> Godel
-        >>> values = torch.tensor([[0.9], [0.8], [0.7], [0.6], [0.5], [0.4]])
-        >>> tnorm.conjunction(values)  # min = 0.4
+        ```python
+        tnorm = MixedTNorm(threshold=4)
+        # Small conjunction (3 args) -> RProduct
+        values = torch.tensor([[0.8], [0.7], [0.6]])
+        tnorm.conjunction(values)  # 0.8 * 0.7 * 0.6 = 0.336
+        # Large conjunction (6 args) -> Godel
+        values = torch.tensor([[0.9], [0.8], [0.7], [0.6], [0.5], [0.4]])
+        tnorm.conjunction(values)  # min = 0.4
+        ```
     """
 
     def __init__(self, threshold: int = 4) -> None:

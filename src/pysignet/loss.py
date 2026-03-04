@@ -45,12 +45,13 @@ class LogicLoss(BatchHandlerMixin):
             or callable. If None, uses the compiler's recommendation.
 
     Example:
-        >>> from pysignet import logic_to_loss
-        >>> logic_loss = logic_to_loss(expr, predicates)
-        >>>
-        >>> sat = logic_loss.satisfaction(X=x)  # Soft truth values
-        >>> loss = logic_loss.loss(X=x)         # For training
-        >>> params = logic_loss.trainable_parameters
+        ```python
+        from pysignet import logic_to_loss
+        logic_loss = logic_to_loss(expr, predicates)
+        sat = logic_loss.satisfaction(X=x)  # Soft truth values
+        loss = logic_loss.loss(X=x)         # For training
+        params = logic_loss.trainable_parameters
+        ```
     """
 
     def __init__(
@@ -114,9 +115,11 @@ class LogicLoss(BatchHandlerMixin):
             ValueError: If quantify is invalid
 
         Examples:
-            >>> sat = logic_loss.satisfaction(X=x)  # scalar (forall)
-            >>> sat = logic_loss.satisfaction(X=x, quantify='exists')
-            >>> sat = logic_loss.satisfaction(X=x, quantify='none')
+            ```python
+            sat = logic_loss.satisfaction(X=x)  # scalar (forall)
+            sat = logic_loss.satisfaction(X=x, quantify='exists')
+            sat = logic_loss.satisfaction(X=x, quantify='none')
+            ```
         """
         # Validate quantify parameter
         valid_quantifiers = ("forall", "exists", "none")
@@ -160,7 +163,9 @@ class LogicLoss(BatchHandlerMixin):
             - (batch_size,) if quantify='none'
 
         Examples:
-            >>> log_sat = logic_loss.log_satisfaction(X=x)
+            ```python
+            log_sat = logic_loss.log_satisfaction(X=x)
+            ```
         """
         valid_quantifiers = ("forall", "exists", "none")
         if quantify not in valid_quantifiers:
@@ -214,7 +219,7 @@ class LogicLoss(BatchHandlerMixin):
         Returns:
             Loss value (lower = better satisfaction):
             - Scalar if quantify='forall'/'exists', or
-              reduction='mean'/'sum'
+                reduction='mean'/'sum'
             - (batch_size,) if quantify='none' and reduction='none'
 
         Raises:
@@ -224,10 +229,12 @@ class LogicLoss(BatchHandlerMixin):
                 quantify='forall'/'exists'
 
         Examples:
-            >>> loss = logic_loss.loss(X=x)  # scalar
-            >>> loss = logic_loss.loss(
-            ...     X=x, quantify='none', reduction='mean'
-            ... )
+            ```python
+            loss = logic_loss.loss(X=x)  # scalar
+            loss = logic_loss.loss(
+                X=x, quantify='none', reduction='mean'
+            )
+            ```
         """
         # Validate quantify
         valid_quantifiers = ("forall", "exists", "none")
@@ -309,8 +316,10 @@ class LogicLoss(BatchHandlerMixin):
             ValueError: If variable doesn't exist in expression
 
         Examples:
-            >>> partial = logic_loss.partial(X=x)
-            >>> result = partial(Y=y)
+            ```python
+            partial = logic_loss.partial(X=x)
+            result = partial(Y=y)
+            ```
         """
         # Delegate to CompiledExpression
         partial_expr = self._compiled_expr.partial(**variable_bindings)
@@ -343,7 +352,9 @@ class LogicLoss(BatchHandlerMixin):
             predicates
 
         Example:
-            >>> params = logic_loss.trainable_parameters
-            >>> optimizer = torch.optim.Adam(params, lr=0.001)
+            ```python
+            params = logic_loss.trainable_parameters
+            optimizer = torch.optim.Adam(params, lr=0.001)
+            ```
         """
         return self._compiled_expr.get_trainable_parameters()

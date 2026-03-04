@@ -70,6 +70,11 @@ ignore_missing_imports = true
 module = "pysignet.*"
 ignore_missing_imports = false
 
+[tool.poetry.group.docs.dependencies]
+mkdocs = ">=1.6,<2.0"
+mkdocs-material = "^9.5"
+mkdocstrings = {extras = ["python"], version = "^0.27"}
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

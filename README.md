@@ -52,7 +52,7 @@ logic_loss = logic_to_loss(expr, predicates)
 x = torch.randn(32, 10)  # batch of 32 inputs
 
 # Evaluate satisfaction (default: forall quantification over batch)
-satisfaction = logic_loss(X=x)  # Scalar in [0, 1]
+satisfaction = logic_loss.satisfaction(X=x)  # Scalar in [0, 1]
 
 # Compute loss for training
 loss = logic_loss.loss(X=x)  # Scalar loss
@@ -151,7 +151,7 @@ Digit, Even = Symbol("Digit Even")
 
 # "For digits in 0, 2, 4, if X is classified as that digit, then X is even"
 # Expands to: Implies(Digit(X,0), Even(X)) AND Implies(Digit(X,2), Even(X)) AND
-Implies(Digit(X,2), Even(X))
+#             Implies(Digit(X,4), Even(X))
 expr = ForAll(Y, [0, 2, 4], Implies(Digit(X, Y), Even(X)))
 
 # "X is classified as some digit 0-9"
@@ -168,13 +168,13 @@ logic_loss = logic_to_loss(expr, predicates)
 x = torch.randn(32, 10)
 
 # Universal quantification (default): ALL batch elements must satisfy
-satisfaction = logic_loss(X=x, quantify='forall')  # Scalar
+satisfaction = logic_loss.satisfaction(X=x, quantify='forall')  # Scalar
 
 # Existential quantification: AT LEAST ONE element must satisfy
-satisfaction = logic_loss(X=x, quantify='exists')  # Scalar
+satisfaction = logic_loss.satisfaction(X=x, quantify='exists')  # Scalar
 
 # No quantification: per-element satisfaction
-satisfaction = logic_loss(X=x, quantify='none')  # Shape: (32,)
+satisfaction = logic_loss.satisfaction(X=x, quantify='none')  # Shape: (32,)
 ```
 
 For per-batch results only (without quantification), use `compile_logic`:
@@ -193,13 +193,15 @@ T-norms are continuous relaxations of logical operators:
 | AND         | a * b          | max(0, a+b-1)      | min(a, b)    |
 | OR          | a+b-a*b        | min(1, a+b)        | max(a, b)    |
 | NOT         | 1-a            | 1-a                | 1-a          |
-| IMPLIES     | min(1, b/a)    | min(1, 1-a+b)      | 1 if a<=b    |
+| IMPLIES     | min(1, b/a)    | min(1, 1-a+b)      | max(1-a, b)  |
 
 ```python
-# Use different t-norms
-logic_loss = compile_logic(expr, predicates, tnorm='rproduct')  # Default
-logic_loss = compile_logic(expr, predicates, tnorm='lukasiewicz')
-logic_loss = compile_logic(expr, predicates, tnorm='godel')
+from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm, GodelTNorm
+
+# Use different t-norms (pass instances, not strings)
+logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
+logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
 ```
 
 ## Examples
@@ -282,7 +284,7 @@ satisfaction = compiled(X=x1, Y=x2)  # Shape: (32,)
 
 # For training with quantification and loss
 logic_loss = logic_to_loss(expr, predicates)
-satisfaction = logic_loss(X=x1, Y=x2)  # Scalar (forall)
+satisfaction = logic_loss.satisfaction(X=x1, Y=x2)  # Scalar (forall)
 ```
 
 ## API Reference
@@ -295,7 +297,7 @@ Returns `CompiledExpression` for per-batch evaluation:
 compile_logic(
     expression,           # SymPy logic expression with FOL
     predicates,           # Dict mapping symbol names to callables/models
-    tnorm='rproduct'      # T-norm: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
+    tnorm=None            # TNorm instance (default: MixedTNorm)
 ) -> CompiledExpression
 ```
 
@@ -307,7 +309,7 @@ Returns `LogicLoss` with quantification and loss methods:
 logic_to_loss(
     expression,           # SymPy logic expression with FOL
     predicates,           # Dict mapping symbol names to callables/models
-    tnorm='rproduct'      # T-norm: 'rproduct', 'sproduct', 'lukasiewicz', 'godel'
+    tnorm=None            # TNorm instance (default: MixedTNorm)
 ) -> LogicLoss
 ```
 
@@ -326,10 +328,10 @@ result = partial(Y=y)
 
 ```python
 # Evaluation with quantification
-satisfaction = logic_loss(X=x, quantify='forall')  # Scalar [0, 1]
-satisfaction = logic_loss(X=x, quantify='exists')  # Scalar [0, 1]
-satisfaction = logic_loss(X=x, quantify='none')    # Shape: (batch_size,)
-log_sat = logic_loss.log_satisfaction(X=x)         # (-inf, 0]
+satisfaction = logic_loss.satisfaction(X=x, quantify='forall')  # Scalar [0, 1]
+satisfaction = logic_loss.satisfaction(X=x, quantify='exists')  # Scalar [0, 1]
+satisfaction = logic_loss.satisfaction(X=x, quantify='none')    # Shape: (batch_size,)
+log_sat = logic_loss.log_satisfaction(X=x)                      # (-inf, 0]
 
 # Loss computation
 loss = logic_loss.loss(X=x, quantify='forall')                    # Scalar

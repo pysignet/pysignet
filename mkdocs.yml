@@ -1,0 +1,39 @@
+site_name: pysignet
+site_description: Logic-as-loss for neural networks
+site_url: https://pysignet.github.io
+repo_url: https://github.com/pysignet/pysignet
+repo_name: pysignet/pysignet
+
+theme:
+  name: material
+  logo: assets/pysignet-logo.png
+  favicon: assets/pysignet-logo.png
+  features:
+    - content.code.copy
+    - navigation.sections
+  palette:
+    - scheme: default
+      primary: indigo
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: false
+            show_root_heading: true
+
+nav:
+  - Home: index.md
+  - Core Concepts: concepts.md
+  - API Reference:
+    - Overview: api.md
+    - Functions: api-functions.md
+    - CompiledExpression: api-compiled-expression.md
+    - LogicLoss: api-logic-loss.md
+    - T-Norms: api-tnorms.md
+  - Advanced:
+    - Custom Compilers: custom-compilers.md

@@ -39,28 +39,33 @@ def compile_logic(
     Raises:
         ValueError: If unknown mode specified
 
-    Example:
-        Direct satisfaction evaluation::
+    Examples:
+        Direct satisfaction evaluation:
 
-            >>> P, Q = Symbol("P Q")
-            >>> X = Variable("X")
-            >>> expr = sp.And(P(X), Q(X))
-            >>> compiled = compile_logic(expr, {"P": model_p, "Q": model_q})
-            >>> satisfaction = compiled(X=x)  # shape: (batch_size,)
+        ```python
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        expr = sp.And(P(X), Q(X))
+        compiled = compile_logic(expr, {"P": model_p, "Q": model_q})
+        satisfaction = compiled(X=x)  # shape: (batch_size,)
+        ```
 
-        Wrap in LogicLoss for training::
+        Wrap in LogicLoss for training:
 
-            >>> compiled = compile_logic(expr, predicates)
-            >>> logic_loss = LogicLoss(compiled)
-            >>> loss = logic_loss.loss(X=x)
+        ```python
+        compiled = compile_logic(expr, predicates)
+        logic_loss = LogicLoss(compiled)
+        loss = logic_loss.loss(X=x)
+        ```
 
-        With custom t-norm::
+        With a custom t-norm:
 
-            >>> from pysignet.tnorms import LukasiewiczTNorm
-            >>> compiled = compile_logic(
-            ...     expr, predicates,
-            ...     tnorm=LukasiewiczTNorm()
-            ... )
+        ```python
+        from pysignet.tnorms import LukasiewiczTNorm
+        compiled = compile_logic(
+            expr, predicates, tnorm=LukasiewiczTNorm()
+        )
+        ```
     """
     # Auto-wrap raw callables in Predicate objects
     wrapped_predicates: Dict[str, Predicate | Callable[..., torch.Tensor]] = {}
@@ -104,7 +109,7 @@ def logic_to_loss(
     """Compile logic expression and wrap in LogicLoss.
 
     Convenience function that compiles a logic expression and wraps it
-    in a LogicLoss for training. Equivalent to::
+    in a LogicLoss for training. Equivalent to:
 
         compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm)
         LogicLoss(compiled, post_processing=post_processing)
@@ -122,11 +127,13 @@ def logic_to_loss(
         LogicLoss instance ready for computing satisfaction and loss
 
     Example:
-        >>> P, Q = Symbol("P Q")
-        >>> X = Variable("X")
-        >>> expr = sp.Implies(P(X), Q(X))
-        >>> logic_loss = logic_to_loss(expr, {"P": model_p, "Q": model_q})
-        >>> loss = logic_loss.loss(X=x)
+        ```python
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        expr = sp.Implies(P(X), Q(X))
+        logic_loss = logic_to_loss(expr, {"P": model_p, "Q": model_q})
+        loss = logic_loss.loss(X=x)
+        ```
     """
     compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm)
     return LogicLoss(compiled, post_processing=post_processing)
@@ -142,7 +149,7 @@ def consistency_report(
     """Create a ConsistencyReport for measuring formula consistency.
 
     Convenience function that auto-wraps raw callables in Predicate
-    objects and creates a ConsistencyReport. Equivalent to::
+    objects and creates a ConsistencyReport. Equivalent to:
 
         ConsistencyReport(expression, predicates)
 
@@ -162,13 +169,15 @@ def consistency_report(
         ConsistencyReport instance for accumulating and querying metrics
 
     Example:
-        >>> P, Q = Symbol("P Q")
-        >>> X = Variable("X")
-        >>> expr = sp.Implies(P(X), Q(X))
-        >>> report = consistency_report(expr, {"P": model_p, "Q": model_q})
-        >>> for x_batch in dataloader:
-        ...     report.eval(X=x_batch)
-        >>> print(report.global_violation())
+        ```python
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        expr = sp.Implies(P(X), Q(X))
+        report = consistency_report(expr, {"P": model_p, "Q": model_q})
+        for x_batch in dataloader:
+            report.eval(X=x_batch)
+        print(report.global_violation())
+        ```
     """
     wrapped_predicates: Dict[str, Predicate] = {}
     for key, value in predicates.items():

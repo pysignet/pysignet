@@ -1,0 +1,35 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-in-project: true
+      - name: Load cached venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-docs-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+      - name: Install dependencies
+        run: poetry install --no-interaction --with docs
+      - name: Deploy docs
+        env:
+          PAGES_DEPLOY_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git remote add pages https://x-access-token:${PAGES_DEPLOY_TOKEN}@github.com/pysignet/pysignet.github.io.git
+          poetry run mkdocs gh-deploy --force --remote-name pages --branch main

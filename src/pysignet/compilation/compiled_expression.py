@@ -58,20 +58,22 @@ class CompiledExpression:
         expr: Optional original SymPy expression (for repr/debugging)
 
     Example:
-        >>> # Create compiled expression
-        >>> compiled = compiler.compile(expr, predicates)
-        >>>
-        >>> # Evaluate with full bindings - returns (batch_size,)
-        >>> result = compiled(X=x, Y=y)  # shape: (batch_size,)
-        >>>
-        >>> # Partial binding
-        >>> partial = compiled.partial(X=x)
-        >>> result = partial(Y=y)  # shape: (batch_size,)
-        >>>
-        >>> # Introspection
-        >>> print(compiled.free_variables)  # {'X', 'Y'}
-        >>> print(partial.free_variables)   # {'Y'}
-        >>> print(compiled.compiler)        # TNormCompiler(...)
+        ```python
+        # Create compiled expression
+        compiled = compiler.compile(expr, predicates)
+
+        # Evaluate with full bindings - returns (batch_size,)
+        result = compiled(X=x, Y=y)  # shape: (batch_size,)
+
+        # Partial binding
+        partial = compiled.partial(X=x)
+        result = partial(Y=y)  # shape: (batch_size,)
+
+        # Introspection
+        print(compiled.free_variables)  # {'X', 'Y'}
+        print(partial.free_variables)   # {'Y'}
+        print(compiled.compiler)        # TNormCompiler(...)
+        ```
     """
 
     def __init__(
@@ -183,9 +185,11 @@ class CompiledExpression:
             Set of variable names not yet bound
 
         Example:
-            >>> compiled.free_variables  # {'X', 'Y'}
-            >>> partial = compiled.partial(X=x)
-            >>> partial.free_variables   # {'Y'}
+            ```python
+            compiled.free_variables  # {'X', 'Y'}
+            partial = compiled.partial(X=x)
+            partial.free_variables   # {'Y'}
+            ```
         """
         bound = set(self._partial_bindings.keys())
         return self._free_variables - bound
@@ -232,14 +236,16 @@ class CompiledExpression:
             ValueError: If return_boolean=True but expression is not available
 
         Example:
-            >>> # Soft satisfaction (default)
-            >>> result = compiled(X=x, Y=y)  # shape: (batch_size,)
-            >>>
-            >>> # Log-space satisfaction
-            >>> result = compiled(log_mode=True, X=x)  # log-probs
-            >>>
-            >>> # Boolean satisfaction
-            >>> result = compiled(X=x, Y=y, return_boolean=True)
+            ```python
+            # Soft satisfaction (default)
+            result = compiled(X=x, Y=y)  # shape: (batch_size,)
+
+            # Log-space satisfaction
+            result = compiled(log_mode=True, X=x)  # log-probs
+
+            # Boolean satisfaction
+            result = compiled(X=x, Y=y, return_boolean=True)
+            ```
         """
         # Merge partial bindings with new bindings
         all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
@@ -324,15 +330,17 @@ class CompiledExpression:
             ValueError: If variable doesn't exist in expression
 
         Example:
-            >>> # Bind X, leaving Y for later
-            >>> partial = compiled.partial(X=x)
-            >>> print(partial.free_variables)  # {'Y'}
-            >>>
-            >>> # Chain partial bindings
-            >>> result = compiled.partial(X=x).partial(Y=y)(Z=z)
-            >>>
-            >>> # Bind multiple at once
-            >>> partial = compiled.partial(X=x, Y=y)
+            ```python
+            # Bind X, leaving Y for later
+            partial = compiled.partial(X=x)
+            print(partial.free_variables)  # {'Y'}
+
+            # Chain partial bindings
+            result = compiled.partial(X=x).partial(Y=y)(Z=z)
+
+            # Bind multiple at once
+            partial = compiled.partial(X=x, Y=y)
+            ```
         """
         if not variable_bindings:
             raise ValueError("Must provide at least one variable binding")
@@ -378,8 +386,10 @@ class CompiledExpression:
             predicates
 
         Example:
-            >>> params = compiled.get_trainable_parameters()
-            >>> optimizer = torch.optim.Adam(params, lr=0.001)
+            ```python
+            params = compiled.get_trainable_parameters()
+            optimizer = torch.optim.Adam(params, lr=0.001)
+            ```
         """
         params: List[nn.Parameter] = []
         for pred in self._predicates.values():
