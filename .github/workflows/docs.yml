@@ -8,8 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,11 +26,12 @@ jobs:
         run: |
           poetry install --no-interaction --with docs
           poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall
-      - name: Deploy docs
-        env:
-          PAGES_DEPLOY_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git remote add pages https://x-access-token:${PAGES_DEPLOY_TOKEN}@github.com/pysignet/pysignet.github.io.git
-          poetry run mkdocs gh-deploy --force --remote-name pages --remote-branch main
+      - name: Build docs
+        run: poetry run mkdocs build
+      - name: Deploy to pysignet.github.io
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          external_repository: pysignet/pysignet.github.io
+          publish_branch: main
+          publish_dir: ./site
