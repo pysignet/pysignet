@@ -148,7 +148,7 @@ class Quantifier(Boolean):  # type: ignore[misc]
             prettyForm with the human-readable quantifier string.
         """
         del printer  # unused
-        from sympy.printing.pretty.stringpict import prettyForm
+        from sympy.printing.pretty.stringpict import prettyForm  # pylint: disable=import-outside-toplevel
         return prettyForm(str(self))
 
     def _latex(self, printer: Any) -> str:

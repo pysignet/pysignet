@@ -8,7 +8,7 @@ import torch
 from pysignet.compilation.base import LogicCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.predicate import Predicate
-from pysignet.tnorms import TNorm, RProductTNorm, MixedTNorm
+from pysignet.tnorms import TNorm, MixedTNorm
 from pysignet.tnorms.product import SProductTNorm
 from pysignet.context import EvaluationContext
 from pysignet.logic import extract_variables
@@ -25,10 +25,10 @@ class TNormCompiler(LogicCompiler):
     expression when called with inputs.
 
     Args:
-        tnorm: T-norm instance for relaxation (default: RProductTNorm)
+        tnorm: T-norm instance for relaxation (default: MixedTNorm)
 
     Example:
-        >>> compiler = TNormCompiler(tnorm=RProductTNorm())
+        >>> compiler = TNormCompiler()  # uses MixedTNorm by default
         >>> compiled = compiler.compile(expr, predicates)
         >>> satisfaction = compiled(X=x)  # Returns tensor in [0, 1]
     """

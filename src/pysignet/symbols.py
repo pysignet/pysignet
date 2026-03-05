@@ -309,7 +309,7 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
             prettyForm with the human-readable predicate application string.
         """
         del printer  # unused
-        from sympy.printing.pretty.stringpict import prettyForm
+        from sympy.printing.pretty.stringpict import prettyForm  # pylint: disable=import-outside-toplevel
         args_str = ", ".join(str(arg) for arg in self.application_args)
         return prettyForm(f"{self.predicate_name}({args_str})")
 

@@ -105,7 +105,7 @@ class LogicLoss(BatchHandlerMixin):
         else:
             parts.append("  expr=<compiled>,")
         free = self.free_variables
-        parts.append(f"  free_variables={{{', '.join(sorted(free))}}},")
+        parts.append(f"  free_variables={{{", ".join(sorted(free))}}},")
         parts.append(f"  post_processing={self.default_post_processing},")
         compiler_name = type(self._compiler).__name__
         parts.append(f"  compiler={compiler_name}")
