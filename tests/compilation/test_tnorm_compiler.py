@@ -16,6 +16,7 @@ from pysignet.tnorms import (
     SProductTNorm,
     LukasiewiczTNorm,
     GodelTNorm,
+    MixedTNorm,
 )
 
 
@@ -28,9 +29,9 @@ class TestTNormCompilerBasics:
         compiler = TNormCompiler(tnorm=RProductTNorm())
         assert isinstance(compiler._tnorm, RProductTNorm)
 
-        # Test with default (should be RProductTNorm)
+        # Test with default (should be MixedTNorm)
         compiler_default = TNormCompiler()
-        assert isinstance(compiler_default._tnorm, RProductTNorm)
+        assert isinstance(compiler_default._tnorm, MixedTNorm)
 
     def test_compile_returns_callable(self) -> None:
         """Test that compile() returns a callable."""

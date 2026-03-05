@@ -8,7 +8,7 @@ import torch
 from pysignet.compilation.base import LogicCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.predicate import Predicate
-from pysignet.tnorms import TNorm, RProductTNorm
+from pysignet.tnorms import TNorm, RProductTNorm, MixedTNorm
 from pysignet.tnorms.product import SProductTNorm
 from pysignet.context import EvaluationContext
 from pysignet.logic import extract_variables
@@ -38,9 +38,9 @@ class TNormCompiler(LogicCompiler):
 
         Args:
             tnorm: T-norm for logical operator relaxation. If None, uses
-                  RProductTNorm as default.
+                  MixedTNorm as default (matches compile_logic default).
         """
-        self._tnorm = tnorm or RProductTNorm()
+        self._tnorm = tnorm or MixedTNorm()
 
     @property
     def recommended_postprocessing(self) -> str:

@@ -24,9 +24,9 @@ Quick Start:
     loss = logic_loss.loss(X=x_tensor)
 
 Advanced Usage:
-    from pysignet import TNormCompiler, LogicLoss
+    from pysignet import TNormCompiler, LogicLoss, RProductTNorm
 
-    compiler = TNormCompiler(tnorm='rproduct')
+    compiler = TNormCompiler(tnorm=RProductTNorm())
     compiled = compiler.compile(expr, predicates)
     logic_loss = LogicLoss(compiled)
     loss = logic_loss.loss(X=x_tensor)
