@@ -89,9 +89,9 @@ def compile_logic(
         tnorm_instance = tnorm or MixedTNorm()
         compiler = TNormCompiler(tnorm=tnorm_instance)
     else:
-        raise ValueError(
-            f"Unknown mode: {mode}. Expected 'tnorm'. "
-            + "(Future: 'semantic', 'kenn')"
+        raise NotImplementedError(
+            f"Mode '{mode}' is not yet implemented. "
+            f"Only 'tnorm' is supported in this release."
         )
 
     # Compile the expression with wrapped predicates

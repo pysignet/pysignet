@@ -348,8 +348,8 @@ class TestCompileLogicErrorHandling:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-        # Invalid mode should raise ValueError
-        with pytest.raises(ValueError, match="Unknown mode"):
+        # Invalid mode should raise NotImplementedError
+        with pytest.raises(NotImplementedError, match="not yet implemented"):
             compile_logic(expr, predicates, mode="invalid_mode")
 
     def test_missing_predicates_raises_error(self) -> None:
@@ -375,8 +375,8 @@ class TestCompileLogicErrorHandling:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5)}
 
-        # Test mode error message - should mention invalid mode and expected values
-        with pytest.raises(ValueError, match=r"semantic.*tnorm|tnorm.*semantic"):
+        # Test mode error message - should mention not yet implemented
+        with pytest.raises(NotImplementedError, match="not yet implemented"):
             compile_logic(expr, predicates, mode="semantic")
 
 
