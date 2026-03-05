@@ -7,7 +7,7 @@ values from the domain.
 Multiple variables are handled via nesting quantifiers.
 """
 
-from typing import Any, Iterable, Tuple
+from typing import Any, Iterable, List, Tuple
 import sympy as sp
 from sympy.logic.boolalg import Boolean
 
@@ -123,6 +123,50 @@ class Quantifier(Boolean):  # type: ignore[misc]
         else:
             var = self.variable
         return hash((self.__class__, var, self.body))
+
+    def _domain_repr(self) -> str:
+        """Return a compact string representation of the domain.
+
+        Returns:
+            Domain string, truncated to first 5 elements if longer.
+        """
+        domain_list: List[Any] = list(self.domain)
+        if len(domain_list) > 5:
+            return str(domain_list[:5])[:-1] + ", ...]"
+        return str(domain_list)
+
+    def _pretty(self, printer: Any) -> Any:
+        """Return pretty form for SymPy pretty printer (used by Jupyter).
+
+        Without this method, Jupyter displays nested quantifiers as the
+        class name when rendering parent SymPy expressions.
+
+        Args:
+            printer: SymPy pretty printer instance (unused).
+
+        Returns:
+            prettyForm with the human-readable quantifier string.
+        """
+        del printer  # unused
+        from sympy.printing.pretty.stringpict import prettyForm
+        return prettyForm(str(self))
+
+    def _latex(self, printer: Any) -> str:
+        """Return LaTeX representation for Jupyter notebook rendering.
+
+        Args:
+            printer: SymPy LaTeX printer instance (unused).
+
+        Returns:
+            LaTeX string for this quantifier.
+        """
+        del printer  # unused
+        name = type(self).__name__
+        domain_str = self._domain_repr()
+        return (
+            f"\\text{{{name}}}({self.variable}, "
+            f"\\text{{{domain_str}}}, {sp.latex(self.body)})"
+        )
 
 
 class ForAll(Quantifier):

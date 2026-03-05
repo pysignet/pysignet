@@ -5,7 +5,7 @@
 **Symbols** represent named predicates — functions that map inputs to truth values in [0, 1]:
 
 ```python
-from pysignet import Symbol, Variable
+from pysignet import Symbol, Variable, And, Or, Not, Implies, Equivalent
 
 # Create predicate symbols
 P, Q, R = Symbol("P Q R")
@@ -48,7 +48,7 @@ For binary relations, use two separate variables:
 ```python
 X1, X2 = Variable("X1 X2")
 Similar = Symbol("Similar")
-expr = sp.Equivalent(Similar(X1, X2), Similar(X2, X1))  # Symmetry
+expr = Equivalent(Similar(X1, X2), Similar(X2, X1))  # Symmetry
 
 predicates = {
     "Similar": lambda x1, x2: similarity_model(
@@ -63,14 +63,14 @@ logic_loss.satisfaction(X1=batch1, X2=batch2)
 Use `ForAll` and `Exists` to quantify over finite domains:
 
 ```python
-from pysignet.logic import ForAll, Exists
+from pysignet import ForAll, Exists  # or: from pysignet.logic import ForAll, Exists
 
 X, Y = Variable("X Y")
 Digit, Even = Symbol("Digit Even")
 
 # ForAll expands to a conjunction
 # "For digits in {0, 2, 4}: if X is classified as that digit, then X is even"
-expr = ForAll(Y, [0, 2, 4], sp.Implies(Digit(X, Y), Even(X)))
+expr = ForAll(Y, [0, 2, 4], Implies(Digit(X, Y), Even(X)))
 # Expands to:
 #   Implies(Digit(X,0), Even(X)) AND Implies(Digit(X,2), Even(X)) AND Implies(Digit(X,4), Even(X))
 

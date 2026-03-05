@@ -4,15 +4,14 @@ Converts SymPy logic expressions to differentiable loss functions using t-norms,
 enabling training of neural networks with logical constraints.
 
 Quick Start:
-    import sympy as sp
-    from pysignet import Symbol, Variable, logic_to_loss
+    from pysignet import Symbol, Variable, Implies, logic_to_loss
 
     # Create variables and predicate symbols
     X = Variable("X")
     P, Q = Symbol("P Q")
 
     # Build logic expression with FOL syntax
-    expr = sp.Implies(P(X), Q(X))  # If P(X) then Q(X)
+    expr = Implies(P(X), Q(X))  # If P(X) then Q(X)
 
     predicates = {
         "P": model_p,  # Any callable or nn.Module
@@ -30,6 +29,17 @@ Advanced Usage:
     compiled = compiler.compile(expr, predicates)
     logic_loss = LogicLoss(compiled)
     loss = logic_loss.loss(X=x_tensor)
+
+Logic Operators (re-exported from SymPy for convenience):
+    from pysignet import And, Or, Not, Implies, Equivalent
+    from pysignet import ForAll, Exists  # Domain quantifiers
+
+    expr = Implies(And(P(X), Q(X)), R(X))
+    expr = ForAll(Y, range(10), Digit(X, Y))
+
+    Power users can import from SymPy directly if needed:
+    import sympy as sp
+    expr = sp.Implies(P(X), Q(X))  # Equivalent to psn.Implies(P(X), Q(X))
 """
 
 # Core API
@@ -45,6 +55,12 @@ from .context import EvaluationContext
 
 # Logic (First-Order Logic)
 from .logic import Variable, extract_variables, Binding, ground
+from .logic.quantifier import ForAll, Exists
+
+# Logic operators re-exported from SymPy for convenience.
+# These are identical to the SymPy types - no wrapping or copying.
+# Power users who need advanced SymPy features can still import sympy directly.
+from sympy import And, Or, Not, Implies, Equivalent
 
 # Evaluation
 from .eval import ConsistencyChecker, ConsistencyReport
@@ -72,14 +88,23 @@ __all__ = [
     "PredicateSymbol",
     "PredicateApplication",
     "EvaluationContext",
-    # Logic
+    # Logic variables and quantifiers
     "Variable",
+    "ForAll",
+    "Exists",
     "extract_variables",
     "Binding",
     "ground",
-    # Other
+    # Logic operators (re-exported from SymPy)
+    "And",
+    "Or",
+    "Not",
+    "Implies",
+    "Equivalent",
+    # Evaluation
     "ConsistencyChecker",
     "ConsistencyReport",
+    # T-norms
     "TNorm",
     "RProductTNorm",
     "SProductTNorm",

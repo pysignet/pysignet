@@ -12,7 +12,7 @@ Batch quantification control:
 - quantify='none': No quantification (return per-batch results)
 """
 
-from typing import Callable, List, Literal
+from typing import Any, Callable, List, Literal
 
 import torch
 
@@ -90,6 +90,37 @@ class LogicLoss(BatchHandlerMixin):
                 self._compiler.tnorm, SProductTNorm
             )
         )
+
+    def __repr__(self) -> str:
+        """Return string representation of LogicLoss.
+
+        Returns:
+            Multi-line string showing expression, free variables,
+            and post-processing mode.
+        """
+        parts = ["LogicLoss("]
+        expr = self._compiled_expr.expr
+        if expr is not None:
+            parts.append(f"  expr={expr},")
+        else:
+            parts.append("  expr=<compiled>,")
+        free = self.free_variables
+        parts.append(f"  free_variables={{{', '.join(sorted(free))}}},")
+        parts.append(f"  post_processing={self.default_post_processing},")
+        compiler_name = type(self._compiler).__name__
+        parts.append(f"  compiler={compiler_name}")
+        parts.append(")")
+        return "\n".join(parts)
+
+    def _repr_pretty_(self, p: Any, cycle: bool) -> None:
+        """Pretty print for IPython/Jupyter.
+
+        Args:
+            p: IPython pretty printer
+            cycle: Whether we are in a cycle (unused)
+        """
+        del cycle  # unused
+        p.text(repr(self))
 
     def satisfaction(
         self,

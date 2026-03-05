@@ -295,3 +295,33 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
             String representation for SymPy repr printing.
         """
         return self._sympystr(printer)
+
+    def _pretty(self, printer: Any) -> Any:
+        """Return pretty form for SymPy pretty printer (used by Jupyter).
+
+        Without this method, Jupyter displays nested PredicateApplication
+        nodes as just the class name when rendering parent expressions.
+
+        Args:
+            printer: SymPy pretty printer instance (unused).
+
+        Returns:
+            prettyForm with the human-readable predicate application string.
+        """
+        del printer  # unused
+        from sympy.printing.pretty.stringpict import prettyForm
+        args_str = ", ".join(str(arg) for arg in self.application_args)
+        return prettyForm(f"{self.predicate_name}({args_str})")
+
+    def _latex(self, printer: Any) -> str:
+        """Return LaTeX representation for Jupyter notebook rendering.
+
+        Args:
+            printer: SymPy LaTeX printer instance (unused).
+
+        Returns:
+            LaTeX string in format "\\text{PredicateName}(args)".
+        """
+        del printer  # unused
+        args_str = ", ".join(str(arg) for arg in self.application_args)
+        return f"\\text{{{self.predicate_name}}}({args_str})"

@@ -13,15 +13,14 @@ implication, mutual exclusion, or quantified constraints — become training sig
 ```python
 import torch
 import torch.nn as nn
-import sympy as sp
-from pysignet import Symbol, Variable, logic_to_loss
+from pysignet import Symbol, Variable, Implies, logic_to_loss
 
 # Define predicate symbols and FOL variables
 P, Q = Symbol("P Q")
 X = Variable("X")
 
 # "For all inputs X: if P(X) then Q(X)"
-expr = sp.Implies(P(X), Q(X))
+expr = Implies(P(X), Q(X))
 
 # Map symbols to neural network models
 model_p = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())

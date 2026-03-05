@@ -24,8 +24,7 @@ This library bridges symbolic logic (SymPy) with differentiable optimization
 ```python
 import torch
 import torch.nn as nn
-import sympy as sp
-from pysignet import Symbol, Variable, logic_to_loss
+from pysignet import Symbol, Variable, Implies, logic_to_loss
 
 # Define symbols and variables
 P, Q = Symbol("P Q")
@@ -33,7 +32,7 @@ X = Variable("X")
 
 # Define a logical expression using FOL
 # "For all inputs X, if P(X) then Q(X)"
-expr = sp.Implies(P(X), Q(X))
+expr = Implies(P(X), Q(X))
 
 # Define neural network models
 model_p = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
@@ -105,7 +104,7 @@ The pre-commit hook runs tests, coverage, and type checks automatically before e
 
 **Symbols** represent predicates (named neurons):
 ```python
-from pysignet import Symbol, Variable
+from pysignet import Symbol, Variable, And, Or, Not, Implies, Equivalent
 
 # Create predicate symbols
 P, Q, R = Symbol("P Q R")
@@ -144,7 +143,7 @@ predicates = {"Digit": model}  # Returns (batch, 10), index selects class
 Quantify over finite domains:
 
 ```python
-from pysignet.logic import ForAll, Exists
+from pysignet import ForAll, Exists  # or: from pysignet.logic import ForAll, Exists
 
 X, Y = Variable("X Y")
 Digit, Even = Symbol("Digit Even")
@@ -209,8 +208,7 @@ logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
 ### MNIST Digit Classification with Logic
 
 ```python
-from pysignet import Symbol, Variable, compile_logic
-from pysignet.logic import Exists
+from pysignet import Symbol, Variable, Exists, compile_logic
 
 # "Each image is classified as exactly one digit"
 X, Y = Variable("X Y")
@@ -244,7 +242,7 @@ for images, labels in dataloader:
 P, Q = Symbol("P Q")
 X = Variable("X")
 
-expr = sp.Implies(P(X), sp.Not(Q(X)))
+expr = Implies(P(X), Not(Q(X)))
 
 # For training with loss computation
 logic_loss = logic_to_loss(expr, {
