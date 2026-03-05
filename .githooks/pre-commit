@@ -40,9 +40,19 @@ else
     FAILED=1
 fi
 
-# 3. Check for syntax errors in examples
+# 3. Run pylint
 echo ""
-echo "3. Checking example syntax..."
+echo "3. Running pylint..."
+if poetry run pylint src/; then
+    echo -e "${GREEN}[PASS]${NC} Pylint passed"
+else
+    echo -e "${RED}[FAIL]${NC} Pylint failed"
+    FAILED=1
+fi
+
+# 4. Check for syntax errors in examples
+echo ""
+echo "4. Checking example syntax..."
 EXAMPLE_ERRORS=0
 for f in examples/*.py; do
     if ! python -m py_compile "$f" 2>/dev/null; then
