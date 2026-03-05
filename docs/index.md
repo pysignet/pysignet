@@ -2,6 +2,9 @@
 
 ![pysignet logo](assets/pysignet-logo.png)
 
+[![GitHub](https://img.shields.io/badge/GitHub-pysignet%2Fpysignet-181717?logo=github&logoColor=white)](https://github.com/pysignet/pysignet)
+[![CI](https://github.com/pysignet/pysignet/actions/workflows/ci.yml/badge.svg)](https://github.com/pysignet/pysignet/actions/workflows/ci.yml)
+
 pysignet is a PyTorch library that converts symbolic predicate logic expressions
 (written in SymPy notation) into differentiable loss functions, enabling you to
 train neural networks with logical constraints using First-Order Logic (FOL). It
