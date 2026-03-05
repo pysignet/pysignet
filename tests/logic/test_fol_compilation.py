@@ -26,11 +26,11 @@ class TestBasicFOLCompilation:
         # Digit classifier - returns scalar satisfaction per batch element
         digit_model = lambda x: torch.sigmoid(x.sum(dim=-1))
 
-        logic_loss = compile_logic(expr, {"Digit": digit_model})
+        compiled = compile_logic(expr, {"Digit": digit_model})
 
         # Batch of 4 samples
         x = torch.randn(4, 28*28)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         # Should return satisfaction for batch
         assert result.shape == (4,)
@@ -46,11 +46,11 @@ class TestBasicFOLCompilation:
 
         digit_model = lambda x: torch.sigmoid(x.sum(dim=-1))
 
-        logic_loss = compile_logic(expr, {"Digit": digit_model})
+        compiled = compile_logic(expr, {"Digit": digit_model})
 
         x = torch.randn(3, 28*28)
         # Both X and Y use the same tensor (explicit binding for each)
-        result = logic_loss(X=x, Y=x)
+        result = compiled(X=x, Y=x)
 
         # Universal quantification: for all i, j in batch
         # Should return (3,) - one result per batch element
@@ -68,11 +68,11 @@ class TestBasicFOLCompilation:
         p_model = lambda x: torch.sigmoid(torch.randn(x.shape[0], 1)).squeeze(-1)
         q_model = lambda x: torch.sigmoid(torch.randn(x.shape[0], 1)).squeeze(-1)
 
-        logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(5, 10)
         # Both X and Y use the same tensor (explicit binding for each)
-        result = logic_loss(X=x, Y=x)
+        result = compiled(X=x, Y=x)
 
         assert result.shape == (5,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -91,10 +91,10 @@ class TestFOLBatchQuantification:
         # P always outputs 0.8
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
 
-        logic_loss = compile_logic(expr, {"P": p_model})
+        compiled = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(4, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         # ∀X: P(X) with batch size 4
         # Should be conjunction of P(0), P(1), P(2), P(3)
@@ -115,11 +115,11 @@ class TestFOLBatchQuantification:
             # Simple relation: satisfaction based on x and y
             return torch.sigmoid(x.sum(dim=-1) + y.sum(dim=-1))
 
-        logic_loss = compile_logic(expr, {"Rel": rel_model})
+        compiled = compile_logic(expr, {"Rel": rel_model})
 
         x = torch.randn(3, 5)
         y = torch.randn(3, 4)
-        result = logic_loss(X=x, Y=y)
+        result = compiled(X=x, Y=y)
 
         assert result.shape == (3,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -139,10 +139,10 @@ class TestFOLMixedExpressions:
         # Multi-class digit classifier - binary predicate (x, class_index)
         digit_model = lambda x, y: torch.softmax(torch.randn(x.shape[0], 10), dim=-1)[:, y]
 
-        logic_loss = compile_logic(expr, {"Digit": digit_model})
+        compiled = compile_logic(expr, {"Digit": digit_model})
 
         x = torch.randn(4, 784)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         assert result.shape == (4,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -158,10 +158,10 @@ class TestFOLMixedExpressions:
         p_model = lambda x: torch.full((x.shape[0],), 0.9)
         q_model = lambda x: torch.full((x.shape[0],), 0.7)
 
-        logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         assert result.shape == (3,)
         # Should be conjunction of P(X) (0.9) and Q(X) (0.7)
@@ -184,7 +184,7 @@ class TestFOLComplexExpressions:
         q_model = lambda x: torch.full((x.shape[0],), 0.7)
         r_model = lambda x: torch.full((x.shape[0],), 0.9)
 
-        logic_loss = compile_logic(expr, {
+        compiled = compile_logic(expr, {
             "P": p_model,
             "Q": q_model,
             "R": r_model
@@ -192,7 +192,7 @@ class TestFOLComplexExpressions:
 
         x = torch.randn(2, 5)
         # Both X and Y use the same tensor (explicit binding for each)
-        result = logic_loss(X=x, Y=x)
+        result = compiled(X=x, Y=x)
 
         assert result.shape == (2,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -209,10 +209,10 @@ class TestFOLComplexExpressions:
         p_model = lambda x: torch.full((x.shape[0],), 0.3)
         q_model = lambda x: torch.full((x.shape[0],), 0.4)
 
-        logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(3, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         assert result.shape == (3,)
         # P(X) ∨ Q(X) for each batch element
@@ -237,10 +237,10 @@ class TestFOLGradients:
         model = torch.nn.Linear(5, 1)
         p_model = lambda x: torch.sigmoid(model(x)).squeeze(-1)
 
-        logic_loss = compile_logic(expr, {"P": p_model})
+        compiled = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(4, 5, requires_grad=True)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         # Compute loss and backprop
         loss = result.mean()
@@ -265,10 +265,10 @@ class TestFOLEdgeCases:
         p_model = lambda x: torch.full((x.shape[0],), 0.8)
         q_model = lambda x: torch.full((x.shape[0],), 0.7)
 
-        logic_loss = compile_logic(expr, {"P": p_model, "Q": q_model})
+        compiled = compile_logic(expr, {"P": p_model, "Q": q_model})
 
         x = torch.randn(4, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         assert result.shape == (4,)
         # Should be simple conjunction, no quantification
@@ -283,10 +283,10 @@ class TestFOLEdgeCases:
 
         p_model = lambda x: torch.full((x.shape[0],), 0.9)
 
-        logic_loss = compile_logic(expr, {"P": p_model})
+        compiled = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(1, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         # With batch size 1, ∀X quantifies over just 1 element
         assert result.shape == (1,)
@@ -301,10 +301,10 @@ class TestFOLEdgeCases:
 
         p_model = lambda x: torch.sigmoid(torch.randn(x.shape[0]))
 
-        logic_loss = compile_logic(expr, {"P": p_model})
+        compiled = compile_logic(expr, {"P": p_model})
 
         x = torch.randn(100, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         assert result.shape == (100,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -322,11 +322,11 @@ class TestFOLWithDictInputs:
 
         p_model = lambda x: torch.sigmoid(x.sum(dim=-1))
 
-        logic_loss = compile_logic(expr, {"P": p_model})
+        compiled = compile_logic(expr, {"P": p_model})
 
         # Keyword argument with variable name
         x = torch.randn(5, 10)
-        result = logic_loss(X=x)
+        result = compiled(X=x)
 
         assert result.shape == (5,)
         assert torch.all((result >= 0) & (result <= 1))

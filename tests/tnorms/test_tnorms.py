@@ -38,9 +38,9 @@ def test_product_and() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Product t-norm AND: 0.8 * 0.6 = 0.48
     assert torch.allclose(satisfaction, torch.tensor(0.48), atol=1e-5)
@@ -60,9 +60,9 @@ def test_product_or() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Product t-conorm OR: 0.8 + 0.6 - 0.8*0.6 = 0.92
     expected = 0.8 + 0.6 - 0.8 * 0.6
@@ -80,9 +80,9 @@ def test_product_not() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # NOT: 1 - 0.7 = 0.3
     assert torch.allclose(satisfaction, torch.tensor(0.3), atol=1e-5)
@@ -102,9 +102,9 @@ def test_product_implies() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # P -> Q = ~P | Q = 0.2 | 0.6
     not_p = 0.2
@@ -126,9 +126,9 @@ def test_product_equivalent() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # P <-> Q = (P -> Q) AND (Q -> P)
     # P -> Q = NOT P OR Q = 0.2 + 0.6 - 0.12 = 0.68
@@ -158,9 +158,9 @@ def test_lukasiewicz_and() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Łukasiewicz AND: max(0, 0.8 + 0.6 - 1) = 0.4
     assert torch.allclose(satisfaction, torch.tensor(0.4), atol=1e-5)
@@ -180,9 +180,9 @@ def test_lukasiewicz_or() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Łukasiewicz OR: min(1, 0.7 + 0.5) = min(1, 1.2) = 1.0
     assert torch.allclose(satisfaction, torch.tensor(1.0), atol=1e-5)
@@ -199,9 +199,9 @@ def test_lukasiewicz_not() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # NOT: 1 - 0.7 = 0.3 (same across all t-norms)
     assert torch.allclose(satisfaction, torch.tensor(0.3), atol=1e-5)
@@ -221,9 +221,9 @@ def test_lukasiewicz_implies() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # P -> Q = ~P | Q = NOT(0.8) | 0.5 = 0.2 | 0.5
     # Łukasiewicz OR: min(1, 0.2 + 0.5) = 0.7
@@ -245,9 +245,9 @@ def test_lukasiewicz_equivalent() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # P <-> Q = (P -> Q) AND (Q -> P)
     # P -> Q = min(1, 0.2 + 0.6) = 0.8
@@ -277,9 +277,9 @@ def test_godel_and() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Gödel AND: min(0.7, 0.5) = 0.5
     assert torch.allclose(satisfaction, torch.tensor(0.5), atol=1e-5)
@@ -299,9 +299,9 @@ def test_godel_or() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Gödel OR: max(0.7, 0.5) = 0.7
     assert torch.allclose(satisfaction, torch.tensor(0.7), atol=1e-5)
@@ -318,9 +318,9 @@ def test_godel_not() -> None:
 
     predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # NOT: 1 - 0.7 = 0.3 (same across all t-norms)
     assert torch.allclose(satisfaction, torch.tensor(0.3), atol=1e-5)
@@ -340,9 +340,9 @@ def test_godel_implies() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # P -> Q = ~P | Q = 0.2 | 0.5
     # Gödel OR: max(0.2, 0.5) = 0.5
@@ -364,9 +364,9 @@ def test_godel_equivalent() -> None:
         "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # P <-> Q = (P -> Q) AND (Q -> P)
     # P -> Q = max(0.2, 0.6) = 0.6
@@ -396,9 +396,9 @@ def test_product_multi_and() -> None:
         "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Product AND: 0.8 * 0.6 * 0.5 = 0.24
     assert torch.allclose(satisfaction, torch.tensor(0.24), atol=1e-5)
@@ -418,9 +418,9 @@ def test_lukasiewicz_multi_or() -> None:
         "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Łukasiewicz OR is associative:
     # 0.3 | 0.4 = min(1, 0.7) = 0.7
@@ -442,9 +442,9 @@ def test_godel_multi_and() -> None:
         "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
     }
 
-    logic_loss = compile_logic(expr, predicates, tnorm=GodelTNorm())
+    compiled = compile_logic(expr, predicates, tnorm=GodelTNorm())
     x = torch.randn(1, 5)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Gödel AND: min(0.8, 0.6, 0.5) = 0.5
     assert torch.allclose(satisfaction, torch.tensor(0.5), atol=1e-5)

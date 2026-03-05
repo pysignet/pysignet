@@ -38,9 +38,9 @@ class TestCompileLogicBasics:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-        logic_loss = compile_logic(expr, predicates, mode="tnorm")
+        compiled = compile_logic(expr, predicates, mode="tnorm")
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # Should return satisfaction values
         assert torch.allclose(satisfaction, torch.tensor(0.7), atol=1e-5)
@@ -69,9 +69,9 @@ class TestCompileLogicBasics:
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6)}
 
         # Should work without specifying mode (defaults to 'tnorm')
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         assert torch.allclose(satisfaction, torch.tensor(0.6), atol=1e-5)
 
@@ -91,9 +91,9 @@ class TestCompileLogicTNormMode:
             "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        logic_loss = compile_logic(expr, predicates, tnorm=RProductTNorm())
+        compiled = compile_logic(expr, predicates, tnorm=RProductTNorm())
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # R-Product AND: 0.8 * 0.6 = 0.48
         assert torch.allclose(satisfaction, torch.tensor(0.48), atol=1e-5)
@@ -110,9 +110,9 @@ class TestCompileLogicTNormMode:
             "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        logic_loss = compile_logic(expr, predicates, tnorm=SProductTNorm())
+        compiled = compile_logic(expr, predicates, tnorm=SProductTNorm())
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # S-Product AND: 0.8 * 0.6 = 0.48 (same as R-Product for AND)
         assert torch.allclose(satisfaction, torch.tensor(0.48), atol=1e-5)
@@ -129,9 +129,9 @@ class TestCompileLogicTNormMode:
             "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.6),
         }
 
-        logic_loss = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+        compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # Lukasiewicz AND: max(0, 0.8 + 0.6 - 1) = 0.4
         expected = max(0.0, 0.8 + 0.6 - 1.0)
@@ -151,9 +151,9 @@ class TestCompileLogicTNormMode:
 
         # Don't specify tnorm - defaults to MixedTNorm
         # MixedTNorm uses RProduct for small arities (<=4): 0.8 * 0.6 = 0.48
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # MixedTNorm with 2 args uses RProduct AND: 0.8 * 0.6 = 0.48
         assert torch.allclose(satisfaction, torch.tensor(0.48), atol=1e-5)
@@ -276,7 +276,7 @@ class TestCompileLogicUsability:
 
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
         # Use with different batch sizes
         x1 = torch.randn(1, 3)
@@ -284,9 +284,9 @@ class TestCompileLogicUsability:
         x3 = torch.randn(3, 3)
 
         # Use quantify='none' to get per-batch results
-        satisfaction1 = logic_loss(X=x1, quantify="none")
-        satisfaction2 = logic_loss(X=x2, quantify="none")
-        satisfaction3 = logic_loss(X=x3, quantify="none")
+        satisfaction1 = compiled(X=x1, quantify="none")
+        satisfaction2 = compiled(X=x2, quantify="none")
+        satisfaction3 = compiled(X=x3, quantify="none")
 
         # All should return correct per-batch satisfaction
         assert satisfaction1.shape == (1,)
@@ -308,9 +308,9 @@ class TestCompileLogicUsability:
             "Q": Predicate(lambda x: torch.ones(x.shape[0]) * 0.3),
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # Product OR: 0.5 + 0.3 - 0.5*0.3 = 0.65
         expected = 0.5 + 0.3 - 0.5 * 0.3
@@ -400,11 +400,11 @@ class TestCompileLogicWithComplexExpressions:
             "S": Predicate(lambda x: torch.ones(x.shape[0]) * 0.5),
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
         batch_size = 10
         x = torch.randn(batch_size, 5)
         # Use quantify='none' to get per-batch results
-        satisfaction = logic_loss(X=x, quantify="none")
+        satisfaction = compiled(X=x, quantify="none")
 
         # Should compute without error
         assert isinstance(satisfaction, torch.Tensor)
@@ -430,9 +430,9 @@ class TestCompileLogicWithComplexExpressions:
             for i in range(5)
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
         x = torch.randn(1, 5)
-        satisfaction = logic_loss(X=x)
+        satisfaction = compiled(X=x)
 
         # Default MixedTNorm: 5 args > threshold (4), uses Godel (min)
         # min(0.9, 0.8, 0.7, 0.6, 0.5) = 0.5
@@ -449,17 +449,17 @@ class TestCompileLogicWithComplexExpressions:
         expr_true = sp.And(P(X), sp.true)
         predicates = {"P": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7)}
 
-        logic_loss_true = compile_logic(expr_true, predicates)
+        compiled_true = compile_logic(expr_true, predicates)
         x = torch.randn(1, 5)
-        satisfaction_true = logic_loss_true(X=x)
+        satisfaction_true = compiled_true(X=x)
 
         # P ∧ true = P
         assert torch.allclose(satisfaction_true, torch.tensor(0.7), atol=1e-5)
 
         # Test with sp.false
         expr_false = sp.Or(P(X), sp.false)
-        logic_loss_false = compile_logic(expr_false, predicates)
-        satisfaction_false = logic_loss_false(X=x)
+        compiled_false = compile_logic(expr_false, predicates)
+        satisfaction_false = compiled_false(X=x)
 
         # P ∨ false = P
         assert torch.allclose(satisfaction_false, torch.tensor(0.7), atol=1e-5)
@@ -481,11 +481,11 @@ class TestCompileLogicInputHandling:
             "Q": Predicate(lambda x: (x[:, 1] > 0).float()),
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
         # Single tensor input shared across all predicates
         x = torch.tensor([[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0]])
-        satisfaction = logic_loss(X=x, quantify="none")
+        satisfaction = compiled(X=x, quantify="none")
 
         # P and Q for each row:
         # Row 0: P=1, Q=1 -> AND = 1
@@ -508,14 +508,14 @@ class TestCompileLogicInputHandling:
             "Q": Predicate(lambda y: torch.ones(y.shape[0]) * 0.6),
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
         # Dict input with keys matching variable names
         inputs = {
             "X": torch.randn(1, 3),
             "Y": torch.randn(1, 5),
         }
-        satisfaction = logic_loss(**inputs)
+        satisfaction = compiled(**inputs)
 
         # Should handle dict inputs correctly
         # Product AND: 0.8 * 0.6 = 0.48
@@ -535,15 +535,15 @@ class TestCompileLogicInputHandling:
             "R": Predicate(lambda x: torch.ones(x.shape[0]) * 0.7),
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
         # Can use keyword argument (all predicates use same variable X)
         x_tensor = torch.randn(1, 3)
-        satisfaction_tensor = logic_loss(X=x_tensor)
+        satisfaction_tensor = compiled(X=x_tensor)
 
         # Or dict unpacked with variable name as key
         x_dict = {"X": torch.randn(1, 3)}
-        satisfaction_dict = logic_loss(**x_dict)
+        satisfaction_dict = compiled(**x_dict)
 
         # Both should compute correctly
         # Product: 0.9 * 0.8 * 0.7
@@ -640,10 +640,10 @@ class TestCompileLogicGradients:
             "Q": model_q,  # Raw module, should be auto-wrapped
         }
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
         # Get trainable parameters
-        params = logic_loss.get_trainable_parameters()
+        params = compiled.get_trainable_parameters()
 
         # Should get parameters from both models
         assert isinstance(params, list)

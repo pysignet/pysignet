@@ -27,13 +27,13 @@ def test_deterministic_predicate() -> None:
 
     predicates = {"P": Predicate( deterministic_func, is_model=False)}
 
-    logic_loss = compile_logic(expr, predicates)
+    compiled = compile_logic(expr, predicates)
 
     x_pos = torch.ones(1, 3)
     x_neg = -torch.ones(1, 3)
 
-    assert (logic_loss(X=x_pos) == 1.0).all()
-    assert (logic_loss(X=x_neg) == 0.0).all()
+    assert (compiled(X=x_pos) == 1.0).all()
+    assert (compiled(X=x_neg) == 0.0).all()
 
 
 def test_model_predicate_auto_detection() -> None:
@@ -69,8 +69,8 @@ def test_get_trainable_parameters() -> None:
         "Q": Predicate( lambda x: (x > 0).float().mean(dim=-1)),
     }
 
-    logic_loss = compile_logic(expr, predicates)
-    params = logic_loss.get_trainable_parameters()
+    compiled = compile_logic(expr, predicates)
+    params = compiled.get_trainable_parameters()
 
     # Should only get parameters from model_p
     assert len(params) == 2  # weight and bias
@@ -91,8 +91,8 @@ def test_get_trainable_parameters_no_models() -> None:
         "Q": Predicate( lambda x: torch.ones(x.shape[0]) * 0.6),
     }
 
-    logic_loss = compile_logic(expr, predicates)
-    params = logic_loss.get_trainable_parameters()
+    compiled = compile_logic(expr, predicates)
+    params = compiled.get_trainable_parameters()
 
     # Should return empty list
     assert len(params) == 0
@@ -110,9 +110,9 @@ def test_non_tensor_predicate_return() -> None:
     # Predicate that returns a Python float (will be converted to tensor)
     predicates = {"P": Predicate( lambda x: 0.75)}
 
-    logic_loss = compile_logic(expr, predicates)
+    compiled = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
-    satisfaction = logic_loss(X=x)
+    satisfaction = compiled(X=x)
 
     # Should convert 0.75 to tensor
     assert isinstance(satisfaction, torch.Tensor)
@@ -131,12 +131,12 @@ def test_predicate_above_one_raises() -> None:
     # Predicate that returns values > 1
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * 2.5)}
 
-    logic_loss = compile_logic(expr, predicates)
+    compiled = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
 
     # Should raise ValueError instead of silently clamping
     with pytest.raises(ValueError, match="outside.*0.*1"):
-        logic_loss(X=x)
+        compiled(X=x)
 
 
 def test_predicate_below_zero_raises() -> None:
@@ -151,12 +151,12 @@ def test_predicate_below_zero_raises() -> None:
     # Predicate that returns values < 0
     predicates = {"P": Predicate( lambda x: torch.ones(x.shape[0]) * -1.5)}
 
-    logic_loss = compile_logic(expr, predicates)
+    compiled = compile_logic(expr, predicates)
     x = torch.randn(1, 3)
 
     # Should raise ValueError instead of silently clamping
     with pytest.raises(ValueError, match="outside.*0.*1"):
-        logic_loss(X=x)
+        compiled(X=x)
 
 
 def test_predicate_with_neural_network() -> None:

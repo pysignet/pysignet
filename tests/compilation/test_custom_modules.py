@@ -32,12 +32,12 @@ class TestCustomUnaryModules:
                 return torch.sigmoid(self.linear(x).squeeze(-1))
 
         model = CustomUnary()
-        logic_loss = compile_logic(expr, {"P": model})
+        compiled = compile_logic(expr, {"P": model})
 
         batch_size = 5
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify="none")
+        result = compiled(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
         assert torch.all((result >= 0) & (result <= 1))
@@ -84,12 +84,12 @@ class TestCustomUnaryModules:
         model_p = CustomModel("P")
         model_q = CustomModel("Q")
 
-        logic_loss = compile_logic(expr, {"P": model_p, "Q": model_q})
+        compiled = compile_logic(expr, {"P": model_p, "Q": model_q})
 
         batch_size = 3
         x = torch.randn(batch_size, 8)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify="none")
+        result = compiled(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -150,12 +150,12 @@ class TestCustomBinaryModules:
                 return torch.softmax(self.linear(x), dim=-1)
 
         model = CustomBinary()
-        logic_loss = compile_logic(expr, {"P": model})
+        compiled = compile_logic(expr, {"P": model})
 
         batch_size = 3
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify="none")
+        result = compiled(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -176,12 +176,12 @@ class TestCustomBinaryModules:
                 return torch.softmax(self.layers(x), dim=-1)
 
         model = CustomClassifier()
-        logic_loss = compile_logic(expr, {"P": model})
+        compiled = compile_logic(expr, {"P": model})
 
         batch_size = 5
         x = torch.randn(batch_size, 8)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify="none")
+        result = compiled(X=x, quantify="none")
 
         assert result.shape == (batch_size,)
 
@@ -307,11 +307,11 @@ class TestMixedCustomAndSequential:
         # Sequential module
         seq_model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
-        logic_loss = compile_logic(expr, {"P": CustomModel(), "Q": seq_model})
+        compiled = compile_logic(expr, {"P": CustomModel(), "Q": seq_model})
 
         batch_size = 5
         x = torch.randn(batch_size, 10)
         # Use quantify='none' to get per-batch results
-        result = logic_loss(X=x, quantify="none")
+        result = compiled(X=x, quantify="none")
 
         assert result.shape == (batch_size,)

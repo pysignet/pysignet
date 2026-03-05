@@ -101,7 +101,7 @@ class TestPredicateNameAssignment:
 
         predicates = {"P": pred_p, "Q": pred_q}
 
-        logic_loss = compile_logic(expr, predicates)
+        compiled = compile_logic(expr, predicates)
 
         assert pred_p.name == "P"
         assert pred_q.name == "Q"
