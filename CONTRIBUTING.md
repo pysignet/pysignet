@@ -188,16 +188,15 @@ Use Google-style docstrings for public modules, classes, and functions:
 ```python
 def compile_logic(
     expression: sp.Basic,
-    predicates: dict[str, PredicateType],
-    tnorm: str = "rproduct"
+    predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+    tnorm: Optional[TNorm] = None,
 ) -> CompiledExpression:
     """Compile a logical expression into a differentiable function.
 
     Args:
         expression: A SymPy expression representing the logical constraint.
         predicates: Mapping from symbol names to predicate functions.
-        tnorm: T-norm to use for fuzzy logic operations. One of
-            'rproduct', 'sproduct', 'lukasiewicz', or 'godel'.
+        tnorm: T-norm instance for relaxation (default: MixedTNorm).
 
     Returns:
         A compiled expression that can be evaluated on tensor inputs.
@@ -207,10 +206,12 @@ def compile_logic(
         TypeError: If predicates have incorrect signatures.
 
     Example:
-        >>> P, Q = Symbol("P Q")
-        >>> X = Variable("X")
-        >>> compiled = compile_logic(sp.And(P(X), Q(X)), {"P": model_p, "Q": model_q})
-        >>> result = compiled(X=input_tensor)
+        ```python
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        compiled = compile_logic(And(P(X), Q(X)), {"P": model_p, "Q": model_q})
+        result = compiled(X=input_tensor)
+        ```
     """
 ```
 
@@ -306,12 +307,12 @@ def test_conjunction_tnorms(tnorm_name, expected, sample_tensor):
 
 2. **Run type checking:**
    ```bash
-   mypy src/ tests/ examples/
+   poetry run python -m mypy src/ --ignore-missing-imports
    ```
 
 3. **Run linting:**
    ```bash
-   pylint src/ tests/ examples/
+   poetry run pylint src/
    ```
 
 4. **Format code:**
@@ -326,7 +327,7 @@ def test_conjunction_tnorms(tnorm_name, expected, sample_tensor):
 - [ ] Type hints added for all new functions
 - [ ] Docstrings added for public APIs
 - [ ] No mypy errors or warnings
-- [ ] Pylint score maintained (10.00/10)
+- [ ] Pylint passes clean (`poetry run pylint src/`)
 - [ ] Coverage remains above 95%
 - [ ] Commit messages follow conventional format
 - [ ] PR description explains the changes
@@ -356,10 +357,10 @@ How was this tested?
 
 ```bash
 # Run all quality checks
-pytest tests/                           # Tests + coverage
-mypy src/ tests/ examples/              # Type checking
-pylint src/ tests/ examples/            # Linting
-black --check src/ tests/ examples/     # Formatting check
+poetry run python -m pytest tests/                              # Tests + coverage
+poetry run python -m mypy src/ --ignore-missing-imports        # Type checking
+poetry run pylint src/                                         # Linting
+poetry run black --check src/ tests/ examples/                 # Formatting check
 ```
 
 ### Individual Checks
@@ -368,30 +369,28 @@ black --check src/ tests/ examples/     # Formatting check
 |---------------|----------------------|-------------------|
 | Tests         | `pytest tests/`      | All pass          |
 | Coverage      | `pytest --cov`       | >= 95%            |
-| Type checking | `mypy src/`          | Zero errors       |
-| Linting       | `pylint src/`        | Score >= 9.0      |
+| Type checking | `poetry run python -m mypy src/ --ignore-missing-imports` | Zero errors |
+| Linting       | `poetry run pylint src/`                                  | Score 10.00 |
 | Formatting    | `black --check src/` | No changes needed |
 
 ### Pre-commit Hook
 
-The repository includes a pre-commit hook in `.githooks/pre-commit`. To enable it:
+The repository includes a pre-commit hook in `.githooks/pre-commit`. It is
+already activated in this repo via `git config core.hooksPath .githooks`.
 
+The hook runs the same checks as CI, in order:
+1. `pytest tests/ -q --cov=src/pysignet --cov-fail-under=95`
+2. `mypy src/ --ignore-missing-imports`
+3. `pylint src/`
+4. Syntax check of all `examples/*.py`
+
+To run it manually:
 ```bash
-git config core.hooksPath .githooks
+.githooks/pre-commit
 ```
 
-Or use the convenience script:
-
-```bash
-bash scripts/install-hooks.sh
-```
-
-The hook runs:
-- `poetry install`
-- `pytest tests/ -q --cov=src/pysignet --cov-fail-under=95`
-- `mypy src/ --ignore-missing-imports`
-
-To skip the hook for a single commit: `git commit --no-verify`
+The hook must stay in sync with `.github/workflows/ci.yml`. If CI adds a new
+check, add it to the hook as well.
 
 ## Questions?
 
