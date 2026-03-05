@@ -3,10 +3,11 @@
 ![pysignet logo](assets/pysignet-logo.png)
 
 pysignet is a PyTorch library that converts symbolic predicate logic expressions
-(written in SymPy) into differentiable loss functions, enabling you to train
-neural networks with logical constraints using First-Order Logic (FOL). It bridges
-symbolic reasoning and gradient-based optimization so that logical rules — such as
-implication, mutual exclusion, or quantified constraints — become training signals.
+(written in SymPy notation, with minor extensions) into differentiable loss
+functions, enabling you to train neural networks with logical constraints using
+First-Order Logic (FOL). It bridges symbolic reasoning and gradient-based
+optimization so that logical rules, such as implication, mutual exclusion, or
+quantified constraints, become training signals.
 
 ## Quick Start
 
@@ -36,7 +37,7 @@ logic_loss = logic_to_loss(expr, predicates)
 
 # Training loop
 x = torch.randn(32, 10)
-loss = logic_loss.loss(X=x)   # Scalar loss
+loss = logic_loss.loss(X=x)   # Bind X to x to get a scalar loss
 loss.backward()               # Gradients flow to both models
 ```
 
