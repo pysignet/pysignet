@@ -23,9 +23,7 @@ jobs:
           path: .venv
           key: venv-docs-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
       - name: Install dependencies
-        run: |
-          poetry install --no-interaction --with docs
-          poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu --force-reinstall
+        run: poetry install --no-interaction --with docs
       - name: Build docs
         run: poetry run mkdocs build
       - name: Deploy to pysignet.github.io
