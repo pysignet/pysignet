@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/pysignet/pysignet/actions/workflows/ci.yml/badge.svg)](https://github.com/pysignet/pysignet/actions/workflows/ci.yml)
 
-![Pysignet logo](assets/pysignet-logo.png)
+![Pysignet logo](docs/assets/pysignet-logo.png)
 
 pysignet is a PyTorch library that converts symbolic predicate logic expressions
 (written in SymPy notation) into differentiable loss functions, enabling you to
