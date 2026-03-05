@@ -1,6 +1,6 @@
 # pysignet
 
-![pysignet logo](assets/pysignet-logo.png)
+![pysignet logo](assets/pysignet-logo-full.png)
 
 [![GitHub](https://img.shields.io/badge/GitHub-pysignet%2Fpysignet-181717?logo=github&logoColor=white)](https://github.com/pysignet/pysignet)
 [![CI](https://github.com/pysignet/pysignet/actions/workflows/ci.yml/badge.svg)](https://github.com/pysignet/pysignet/actions/workflows/ci.yml)
