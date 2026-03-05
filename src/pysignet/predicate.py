@@ -239,9 +239,7 @@ class Predicate:
         warnings.warn(
             f"Predicate '{self.name}': Could not determine activation "
             f"for this nn.Module. Output will be clamped to [0, 1]. "
-            f"Consider adding a final Sigmoid() or Softmax() layer, "
-            f"or wrap your model with "
-            f"wrap_module_as_predicate().",
+            f"Consider adding a final Sigmoid() or Softmax() layer.",
             UserWarning,
             stacklevel=2,
         )
