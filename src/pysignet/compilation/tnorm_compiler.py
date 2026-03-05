@@ -28,9 +28,11 @@ class TNormCompiler(LogicCompiler):
         tnorm: T-norm instance for relaxation (default: MixedTNorm)
 
     Example:
-        >>> compiler = TNormCompiler()  # uses MixedTNorm by default
-        >>> compiled = compiler.compile(expr, predicates)
-        >>> satisfaction = compiled(X=x)  # Returns tensor in [0, 1]
+        ```python
+        compiler = TNormCompiler()  # uses MixedTNorm by default
+        compiled = compiler.compile(expr, predicates)
+        satisfaction = compiled(X=x)  # Returns tensor in [0, 1]
+        ```
     """
 
     def __init__(self, tnorm: Optional[TNorm] = None) -> None:

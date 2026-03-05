@@ -32,9 +32,11 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             thresholds and have larger gradients around zero.
 
     Example:
-        >>> compiler = LinearThresholdUnitCompiler(mode='soft')
-        >>> compiled = compiler.compile(expr, predicates)
-        >>> satisfaction = compiled(X=x)  # Returns tensor in [0, 1]
+        ```python
+        compiler = LinearThresholdUnitCompiler(mode='soft')
+        compiled = compiler.compile(expr, predicates)
+        satisfaction = compiled(X=x)  # Returns tensor in [0, 1]
+        ```
     """
 
     # Configurable limit for multiplier to the sigmoid
