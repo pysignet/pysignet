@@ -724,6 +724,7 @@ class TestBaseCompilerEdgeCases:
         with pytest.raises(ValueError, match="Missing input"):
             compiled_expr(X=x)
 
+    @pytest.mark.filterwarnings("ignore:Could not determine activation:UserWarning")
     def test_higher_dim_output_indexing(self):
         """Test indexing higher dimensional outputs (line 563)."""
         P = Symbol("P")

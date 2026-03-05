@@ -191,6 +191,7 @@ class TestMixedArgumentEvaluation:
 
         assert result.shape == (batch_size,)
 
+    @pytest.mark.filterwarnings("ignore:Could not determine activation:UserWarning")
     def test_nn_module_as_multiarg_predicate(self):
         """nn.Module can be used as multi-argument predicate."""
         X1, X2 = Variable("X1 X2")
@@ -303,6 +304,7 @@ class TestEdgeCases:
 class TestGradientFlow:
     """Tests for gradient flow with mixed arguments."""
 
+    @pytest.mark.filterwarnings("ignore:Could not determine activation:UserWarning")
     def test_gradients_flow_with_multiple_variables(self):
         """Gradients flow through predicates with multiple variables."""
         X1, X2 = Variable("X1 X2")
