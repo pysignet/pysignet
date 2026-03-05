@@ -20,7 +20,8 @@ Quick Start:
 
     # Create differentiable logic loss
     logic_loss = logic_to_loss(expr, predicates)
-    loss = logic_loss.loss(X=x_tensor)  # Keyword args for variables
+    satisfaction = logic_loss.satisfaction(X=x_tensor)
+    loss = logic_loss.loss(X=x_tensor)
 
 Advanced Usage:
     from pysignet import TNormCompiler, LogicLoss
