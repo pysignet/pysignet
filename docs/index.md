@@ -3,11 +3,11 @@
 ![pysignet logo](assets/pysignet-logo.png)
 
 pysignet is a PyTorch library that converts symbolic predicate logic expressions
-(written in SymPy notation, with minor extensions) into differentiable loss
-functions, enabling you to train neural networks with logical constraints using
-First-Order Logic (FOL). It bridges symbolic reasoning and gradient-based
-optimization so that logical rules, such as implication, mutual exclusion, or
-quantified constraints, become training signals.
+(written in SymPy notation) into differentiable loss functions, enabling you to
+train neural networks with logical constraints using First-Order Logic (FOL). It
+bridges symbolic reasoning and gradient-based optimization so that logical rules
+like implication, mutual exclusion, or quantified constraints become training
+signals.
 
 ## Quick Start
 
@@ -55,7 +55,7 @@ poetry add pysignet
 
 ## Next Steps
 
-- [Core Concepts](concepts.md) — Symbols, Variables, Predicates, T-Norms, and Quantifiers
-- [API Reference](api.md) — Full API documentation auto-generated from docstrings
-- [Custom Compilers](custom-compilers.md) — Implement your own logic compilation strategy
-- [Notebooks](https://github.com/pysignet/pysignet/tree/main/notebooks) — Interactive examples on GitHub
+- [Core Concepts](concepts.md): Symbols, Variables, Predicates, T-Norms, and Quantifiers
+- [API Reference](api.md): Full API documentation auto-generated from docstrings
+- [Custom Compilers](custom-compilers.md): Implement your own logic compilation strategy
+- [Notebooks](https://github.com/pysignet/pysignet/tree/main/notebooks): Interactive examples on GitHub

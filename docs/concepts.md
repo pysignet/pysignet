@@ -2,7 +2,7 @@
 
 ## Symbols and Variables
 
-**Symbols** represent named predicates — functions that map inputs to truth values in [0, 1]:
+**Symbols** represent named predicates (functions that map inputs to truth values in [0, 1]):
 
 ```python
 from pysignet import Symbol, Variable, And, Or, Not, Implies, Equivalent
@@ -10,7 +10,7 @@ from pysignet import Symbol, Variable, And, Or, Not, Implies, Equivalent
 # Create predicate symbols
 P, Q, R = Symbol("P Q R")
 
-# Create FOL variables — placeholders bound to tensors at evaluation time
+# Create FOL variables (placeholders bound to tensors at evaluation time)
 X, Y = Variable("X Y")
 ```
 
@@ -38,7 +38,7 @@ expr = P(X)
 Digit = Symbol("Digit")
 expr = Digit(X, 3)  # "X is digit 3"
 
-# Multi-class classifier — model returns (batch, 10), class index selects output
+# Multi-class classifier: model returns (batch, 10), class index selects output
 model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
 predicates = {"Digit": model}
 ```
