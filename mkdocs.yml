@@ -35,5 +35,6 @@ nav:
     - CompiledExpression: api-compiled-expression.md
     - LogicLoss: api-logic-loss.md
     - T-Norms: api-tnorms.md
+    - Compilers: api-compilers.md
   - Advanced:
     - Custom Compilers: custom-compilers.md

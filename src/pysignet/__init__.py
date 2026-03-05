@@ -45,7 +45,7 @@ Logic Operators (re-exported from SymPy for convenience):
 
 # Core API
 from .predicate import Predicate
-from .compilation import TNormCompiler
+from .compilation import TNormCompiler, LinearThresholdUnitCompiler
 from .loss import LogicLoss
 from .api import compile_logic, logic_to_loss, consistency_report
 from .compilation.compiled_expression import CompiledExpression
@@ -74,7 +74,7 @@ from .tnorms import (
     MixedTNorm,
 )
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 __all__ = [
     # Core API
     "compile_logic",
@@ -83,19 +83,14 @@ __all__ = [
     "CompiledExpression",
     "LogicLoss",
     "TNormCompiler",
+    "LinearThresholdUnitCompiler",
     "Predicate",
     # Symbol API
     "Symbol",
-    "PredicateSymbol",
-    "PredicateApplication",
-    "EvaluationContext",
     # Logic variables and quantifiers
     "Variable",
     "ForAll",
     "Exists",
-    "extract_variables",
-    "Binding",
-    "ground",
     # Logic operators (re-exported from SymPy)
     "And",
     "Or",

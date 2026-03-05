@@ -211,30 +211,35 @@ class LinearThresholdUnitCompiler(LogicCompiler):
 
 ## Usage Example
 
+`LinearThresholdUnitCompiler` is built into pysignet and can be imported directly:
+
 ```python
 import torch
-import sympy as sp
-from pysignet import Symbol
+from pysignet import Symbol, Variable, LinearThresholdUnitCompiler, LogicLoss
+from pysignet import And, Implies
 
-# Create your custom compiler
+# Create the built-in LTU compiler
 compiler = LinearThresholdUnitCompiler(mode='soft')
 
 # Define logic expression
 P, Q = Symbol("P Q")
-expr = sp.And(P, Q)
+X = Variable("X")
+expr = Implies(P(X), Q(X))
 
 # Define predicates
 predicates = {
     "P": lambda x: torch.sigmoid(x.sum(dim=-1)),
-    "Q": lambda x: torch.sigmoid(x.mean(dim=-1))
+    "Q": lambda x: torch.sigmoid(x.mean(dim=-1)),
 }
 
-# Compile
+# Compile and wrap in LogicLoss
 compiled = compiler.compile(expr, predicates)
+logic_loss = LogicLoss(compiled)
 
 # Evaluate
 x = torch.randn(10, 5)
-result = compiled(x)  # Shape: (10,), values in [0, 1]
+satisfaction = logic_loss.satisfaction(X=x)  # scalar
+loss = logic_loss.loss(X=x)                  # for training
 ```
 
 ## Base Class Methods You Should Use
