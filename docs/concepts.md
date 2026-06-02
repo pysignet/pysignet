@@ -27,36 +27,75 @@ Constants like `3` are passed through as-is; only variables are bound to tensors
 ## Predicates and Arity
 
 Predicates wrap any callable that outputs a tensor of shape `(batch_size,)` with
-values in [0, 1]:
+values in [0, 1].
+
+### Unary predicates
+
+The simplest case: one variable, one model, scalar output.
 
 ```python
-# Unary predicate: P(X) maps each input to [0, 1]
 P = Symbol("P")
+X = Variable("X")
 expr = P(X)
 
-# Binary predicate with constant: Digit(X, label)
-Digit = Symbol("Digit")
-expr = Digit(X, 3)  # "X is digit 3"
-
-# Multi-class classifier: model returns (batch, 10), class index selects output
-model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
-predicates = {"Digit": model}
+model = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
+predicates = {"P": model}
+compiled = compile_logic(expr, predicates)
+compiled(X=x_tensor)  # model(x_tensor), shape: (batch,)
 ```
 
-For binary relations, use two separate variables:
+### Multiclass predicates and the class-selector pattern
+
+When an `nn.Module` produces a vector of class probabilities, the *last*
+argument in the predicate application acts as a **class selector** that indexes
+into that output vector. It is not a second model input.
+
+```python
+Digit = Symbol("Digit")
+X, Y = Variable("X Y")
+expr = Digit(X, Y)  # Y selects which class probability to use
+
+# model takes X, outputs (batch, 10) class probabilities
+model = nn.Sequential(nn.Linear(784, 10), nn.Softmax(dim=-1))
+predicates = {"Digit": model}
+
+# Passing Y=labels picks output[:, labels[i]] for each batch element i
+compiled = compile_logic(expr, predicates)
+compiled(X=images, Y=labels)  # model(images)[:, labels]
+```
+
+You can also use a constant as the class selector:
+
+```python
+expr = Digit(X, 3)  # "X should be classified as digit 3"
+compiled(X=images)  # model(images)[:, 3]
+```
+
+### Multi-input predicates (binary relations)
+
+When a model takes **two or more input tensors** -- such as a similarity
+model `f(x1, x2)` -- it does not fit the single-input `nn.Module` pattern above.
+Register it as a **lambda** instead. The lambda is treated as a plain callable:
+pysignet passes the predicate arguments to it in the order they appear in the
+expression, and thresholds the scalar output at 0.5.
 
 ```python
 X1, X2 = Variable("X1 X2")
 Similar = Symbol("Similar")
-expr = Equivalent(Similar(X1, X2), Similar(X2, X1))  # Symmetry
+expr = Equivalent(Similar(X1, X2), Similar(X2, X1))
 
-predicates = {
-    "Similar": lambda x1, x2: similarity_model(
-        torch.cat([x1, x2], dim=-1)
-    ).squeeze(-1)
-}
-logic_loss.satisfaction(X1=batch1, X2=batch2)
+# similarity_model.forward(x1, x2) takes two inputs
+predicates = {"Similar": lambda x1, x2: similarity_model(x1, x2)}
+
+# pysignet calls lambda(x1, x2) for Similar(X1, X2)
+# and lambda(x2, x1) for Similar(X2, X1)
+compiled = compile_logic(expr, predicates)
+compiled(X1=batch1, X2=batch2)
 ```
+
+Passing `similarity_model` directly (without a lambda) would cause pysignet to
+treat it as a single-input multiclass classifier and apply softmax over the
+wrong dimension. The lambda wrapper avoids this.
 
 ## Domain Quantifiers
 
