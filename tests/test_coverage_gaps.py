@@ -861,6 +861,92 @@ class TestLTUCompilerEdgeCases:
         assert result2.shape == (4,)
 
 
+class TestLTUMode:
+    """Tests for mode='ltu' in compile_logic and logic_to_loss."""
+
+    def test_compile_logic_ltu_mode_basic(self):
+        """compile_logic with mode='ltu' returns CompiledExpression."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+        compiled = compile_logic(expr, {"P": lambda x: torch.ones(x.shape[0])},
+                                 mode="ltu")
+        x = torch.randn(4, 8)
+        result = compiled(X=x)
+        assert result.shape == (4,)
+
+    def test_compile_logic_ltu_mode_and(self):
+        """mode='ltu' AND differs from tnorm AND for values near 0.5."""
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        expr = sp.And(P(X), Q(X))
+        x = torch.randn(4, 8)
+        pred = {"P": lambda x: 0.5 * torch.ones(x.shape[0]),
+                "Q": lambda x: 0.5 * torch.ones(x.shape[0])}
+        ltu_result   = compile_logic(expr, pred, mode="ltu")(X=x)
+        tnorm_result = compile_logic(expr, pred, mode="tnorm")(X=x)
+        assert ltu_result.shape == tnorm_result.shape == (4,)
+        # LTU: sigmoid(alpha*(1.0 - 1.5)) != tnorm product 0.25
+        assert not torch.allclose(ltu_result, tnorm_result)
+
+    def test_compile_logic_ltu_alpha_passed_through(self):
+        """alpha parameter changes LTU output."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+        x = torch.randn(4, 8)
+        pred = {"P": lambda x: 0.5 * torch.ones(x.shape[0])}
+        r1 = compile_logic(expr, pred, mode="ltu", alpha=1.0)(X=x)
+        r2 = compile_logic(expr, pred, mode="ltu", alpha=5.0)(X=x)
+        # Single predicate: output is the predicate itself, alpha unused
+        assert torch.allclose(r1, r2)
+
+    def test_compile_logic_ltu_alpha_affects_and(self):
+        """alpha changes the sharpness of LTU AND."""
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        expr = sp.And(P(X), Q(X))
+        x = torch.randn(4, 8)
+        pred = {"P": lambda x: 0.6 * torch.ones(x.shape[0]),
+                "Q": lambda x: 0.6 * torch.ones(x.shape[0])}
+        r1 = compile_logic(expr, pred, mode="ltu", alpha=1.0)(X=x)
+        r5 = compile_logic(expr, pred, mode="ltu", alpha=5.0)(X=x)
+        assert not torch.allclose(r1, r5)
+
+    def test_compile_logic_ltu_tnorm_conflict_raises(self):
+        """Passing tnorm= with mode='ltu' raises ValueError."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+        with pytest.raises(ValueError, match="tnorm"):
+            compile_logic(expr, {"P": lambda x: torch.ones(x.shape[0])},
+                          mode="ltu", tnorm=GodelTNorm())
+
+    def test_logic_to_loss_ltu_mode(self):
+        """logic_to_loss with mode='ltu' returns a working LogicLoss."""
+        P = Symbol("P")
+        X = Variable("X")
+        expr = P(X)
+        constraint = logic_to_loss(expr, {"P": lambda x: 0.8 * torch.ones(x.shape[0])},
+                                   mode="ltu")
+        x = torch.randn(4, 8)
+        loss = constraint.loss(X=x)
+        assert loss.shape == ()
+        assert 0.0 <= loss.item() <= 1.0
+
+    def test_logic_to_loss_ltu_alpha(self):
+        """logic_to_loss passes alpha through to the LTU compiler."""
+        P, Q = Symbol("P Q")
+        X = Variable("X")
+        expr = sp.And(P(X), Q(X))
+        pred = {"P": lambda x: 0.6 * torch.ones(x.shape[0]),
+                "Q": lambda x: 0.6 * torch.ones(x.shape[0])}
+        c1 = logic_to_loss(expr, pred, mode="ltu", alpha=1.0)
+        c5 = logic_to_loss(expr, pred, mode="ltu", alpha=5.0)
+        x = torch.randn(4, 8)
+        assert not torch.allclose(c1.satisfaction(X=x), c5.satisfaction(X=x))
+
+
 class TestQuantifierEdgeCases:
     """Tests targeting uncovered lines in quantifier.py."""
 

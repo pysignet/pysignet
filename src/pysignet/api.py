@@ -6,7 +6,7 @@ import sympy as sp
 import torch
 
 from pysignet.predicate import Predicate
-from pysignet.compilation import TNormCompiler
+from pysignet.compilation import TNormCompiler, LinearThresholdUnitCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.eval.report import ConsistencyReport
 from pysignet.loss import LogicLoss
@@ -18,6 +18,7 @@ def compile_logic(
     predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     mode: str = "tnorm",
     tnorm: Optional[TNorm] = None,
+    alpha: float = 1.0,
 ) -> CompiledExpression:
     """Compile logic expression into a CompiledExpression.
 
@@ -30,17 +31,21 @@ def compile_logic(
         expr: SymPy logic expression (e.g., sp.And(P(X), Q(X)))
         predicates: Dict mapping predicate names to Predicate objects or
             callables that produce torch Tensors
-        mode: Compilation mode - 'tnorm' (default), or 'semantic' (future)
-        tnorm: T-norm for mode='tnorm' (default: MixedTNorm)
+        mode: Compilation mode - 'tnorm' (default) or 'ltu'
+        tnorm: T-norm for mode='tnorm' (default: MixedTNorm). Ignored
+            for other modes.
+        alpha: Sigmoid sharpness for mode='ltu' (default: 1.0). Larger
+            values make AND/OR thresholds sharper.
 
     Returns:
         CompiledExpression instance for evaluating satisfaction degrees
 
     Raises:
-        ValueError: If unknown mode specified
+        ValueError: If unknown mode specified, or tnorm= given with
+            mode='ltu'
 
     Examples:
-        Direct satisfaction evaluation:
+        Default (MixedTNorm):
 
         ```python
         P, Q = Symbol("P Q")
@@ -50,21 +55,17 @@ def compile_logic(
         satisfaction = compiled(X=x)  # shape: (batch_size,)
         ```
 
-        Wrap in LogicLoss for training:
-
-        ```python
-        compiled = compile_logic(expr, predicates)
-        logic_loss = LogicLoss(compiled)
-        loss = logic_loss.loss(X=x)
-        ```
-
         With a custom t-norm:
 
         ```python
         from pysignet.tnorms import LukasiewiczTNorm
-        compiled = compile_logic(
-            expr, predicates, tnorm=LukasiewiczTNorm()
-        )
+        compiled = compile_logic(expr, predicates, tnorm=LukasiewiczTNorm())
+        ```
+
+        With the LTU compiler:
+
+        ```python
+        compiled = compile_logic(expr, predicates, mode='ltu', alpha=2.0)
         ```
     """
     # Auto-wrap raw callables in Predicate objects
@@ -85,13 +86,21 @@ def compile_logic(
             )
 
     if mode == "tnorm":
-        # Create t-norm compiler
         tnorm_instance = tnorm or MixedTNorm()
-        compiler = TNormCompiler(tnorm=tnorm_instance)
+        compiler: TNormCompiler | LinearThresholdUnitCompiler = (
+            TNormCompiler(tnorm=tnorm_instance)
+        )
+    elif mode == "ltu":
+        if tnorm is not None:
+            raise ValueError(
+                "tnorm= is only valid with mode='tnorm'. "
+                "Use alpha= to configure the LTU compiler."
+            )
+        compiler = LinearThresholdUnitCompiler(mode="soft", alpha=alpha)
     else:
         raise NotImplementedError(
             f"Mode '{mode}' is not yet implemented. "
-            f"Only 'tnorm' is supported in this release."
+            f"Supported modes: 'tnorm', 'ltu'."
         )
 
     # Compile the expression with wrapped predicates
@@ -104,6 +113,7 @@ def logic_to_loss(
     predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
     mode: str = "tnorm",
     tnorm: Optional[TNorm] = None,
+    alpha: float = 1.0,
     post_processing: str | Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> LogicLoss:
     """Compile logic expression and wrap in LogicLoss.
@@ -111,22 +121,25 @@ def logic_to_loss(
     Convenience function that compiles a logic expression and wraps it
     in a LogicLoss for training. Equivalent to:
 
-        compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm)
+        compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm,
+                                 alpha=alpha)
         LogicLoss(compiled, post_processing=post_processing)
 
     Args:
         expr: SymPy logic expression (e.g., sp.And(P(X), Q(X)))
         predicates: Dict mapping predicate names to Predicate objects or
             callables that produce torch Tensors
-        mode: Compilation mode - 'tnorm' (default)
-        tnorm: T-norm for mode='tnorm' (default: MixedTNorm)
+        mode: Compilation mode - 'tnorm' (default) or 'ltu'
+        tnorm: T-norm for mode='tnorm' (default: MixedTNorm). Ignored
+            for other modes.
+        alpha: Sigmoid sharpness for mode='ltu' (default: 1.0).
         post_processing: Post-processing mode - 'log', 'linear', callable,
-            or None to use t-norm's recommendation (default)
+            or None to use the compiler's recommendation (default)
 
     Returns:
         LogicLoss instance ready for computing satisfaction and loss
 
-    Example:
+    Examples:
         ```python
         P, Q = Symbol("P Q")
         X = Variable("X")
@@ -134,8 +147,15 @@ def logic_to_loss(
         logic_loss = logic_to_loss(expr, {"P": model_p, "Q": model_q})
         loss = logic_loss.loss(X=x)
         ```
+
+        With LTU compiler:
+
+        ```python
+        logic_loss = logic_to_loss(expr, predicates, mode='ltu', alpha=2.0)
+        ```
     """
-    compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm)
+    compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm,
+                             alpha=alpha)
     return LogicLoss(compiled, post_processing=post_processing)
 
 
