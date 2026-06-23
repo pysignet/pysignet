@@ -32,8 +32,8 @@ model_p = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 model_q = nn.Sequential(nn.Linear(10, 1), nn.Sigmoid())
 
 predicates = {
-    "P": lambda x: model_p(x).squeeze(-1),
-    "Q": lambda x: model_q(x).squeeze(-1),
+    "P": model_p,
+    "Q": model_q,
 }
 
 # Compile to a loss function
