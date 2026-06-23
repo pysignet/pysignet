@@ -15,6 +15,11 @@ signals.
 
 ## Quick Start
 
+Let us look at an example first. We will define a logical constraint in SymPy
+notation, map each predicate symbol to a neural network, and compile it into a
+differentiable loss whose gradients flow back through the logic to every model
+involved.
+
 ```python
 import torch
 import torch.nn as nn
