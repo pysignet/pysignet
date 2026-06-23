@@ -54,14 +54,16 @@ Your custom compiler must:
 Here's a complete implementation of a compiler that uses linear threshold units:
 
 ```python
-from typing import Callable, Dict, Union
+from typing import Callable, Dict
 
 import sympy as sp
 import torch
 
 from pysignet.compilation import LogicCompiler
+from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.predicate import Predicate
 from pysignet.context import EvaluationContext
+from pysignet.logic import extract_variables
 from pysignet.symbols import PredicateApplication
 
 
@@ -93,37 +95,41 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate]
-    ) -> Callable[[Union[torch.Tensor, Dict[str, torch.Tensor]]], torch.Tensor]:
-        """Compile a logic expression into a differentiable callable.
+        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+    ) -> CompiledExpression:
+        """Compile a logic expression into a CompiledExpression.
 
         Args:
             expr: SymPy logic expression
             predicates: Dict mapping predicate names to Predicate objects or callables
 
         Returns:
-            Callable that takes inputs and returns satisfaction tensor
+            CompiledExpression that can be evaluated with variable bindings
         """
         # Use base class for all validation and preprocessing
         wrapped_predicates = self._wrap_and_validate_predicates(expr, predicates)
         expanded_expr = self._expand_quantifiers(expr)
+        free_vars = extract_variables(expanded_expr)
 
-        # Return a closure that evaluates the expression
-        def compiled_logic(
-            inputs: Union[torch.Tensor, Dict[str, torch.Tensor]]
-        ) -> torch.Tensor:
+        def compiled_logic(inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
             """Evaluate compiled logic expression."""
             ctx = EvaluationContext()
             return self._evaluate_expression(
                 expanded_expr, inputs, wrapped_predicates, ctx
             )
 
-        return compiled_logic
+        return CompiledExpression(
+            compiled_logic=compiled_logic,
+            free_variables=set(v.name for v in free_vars),
+            predicates=wrapped_predicates,
+            compiler=self,
+            expr=expr,
+        )
 
     def _evaluate_expression(
         self,
         expr: sp.Basic,
-        inputs: Union[torch.Tensor, Dict[str, torch.Tensor]],
+        inputs: Dict[str, torch.Tensor],
         predicates: Dict[str, Predicate],
         ctx: EvaluationContext
     ) -> torch.Tensor:
@@ -131,7 +137,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
 
         Args:
             expr: SymPy expression to evaluate
-            inputs: Single tensor or dict of tensors
+            inputs: Dict mapping variable names to tensors
             predicates: Dict of predicates
             ctx: Evaluation context for caching
 
@@ -376,13 +382,14 @@ Example test structure:
 ```python
 import pytest
 import torch
-from pysignet import Symbol
+from pysignet import Symbol, Variable, And
 
 def test_basic_and():
     """Test AND operation."""
     compiler = MyCompiler()
     P, Q = Symbol("P Q")
-    expr = sp.And(P, Q)
+    X = Variable("X")
+    expr = And(P(X), Q(X))
 
     predicates = {
         "P": lambda x: torch.full((x.shape[0],), 0.8),
@@ -391,7 +398,7 @@ def test_basic_and():
 
     compiled = compiler.compile(expr, predicates)
     x = torch.randn(5, 10)
-    result = compiled(x)
+    result = compiled(X=x)
 
     assert result.shape == (5,)
     assert torch.all((result >= 0) & (result <= 1))

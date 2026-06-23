@@ -77,7 +77,8 @@ When a model takes **two or more input tensors** -- such as a similarity
 model `f(x1, x2)` -- it does not fit the single-input `nn.Module` pattern above.
 Register it as a **lambda** instead. The lambda is treated as a plain callable:
 pysignet passes the predicate arguments to it in the order they appear in the
-expression, and thresholds the scalar output at 0.5.
+expression and uses the returned [0, 1] value as a fuzzy truth value directly
+(no thresholding).
 
 ```python
 X1, X2 = Variable("X1 X2")
