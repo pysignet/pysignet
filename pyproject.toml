@@ -1,7 +1,7 @@
 [project]
 name = "pysignet"
-version = "0.2.0"
-description = "A library for integrating symbolic logic with neural networks"
+version = "1.0.0"
+description = "Bridge symbolic predicate logic (SymPy) and PyTorch for neuro-symbolic AI"
 authors = [
     {name = "Vivek Srikumar",email = "svivek@cs.utah.edu"}
 ]
@@ -12,6 +12,21 @@ dependencies = [
     "sympy (>=1.14.0,<2.0.0)",
 ]
 license = "MIT"
+keywords = ["neuro-symbolic AI", "symbolic logic", "logic constraints", "neural networks", "PyTorch", "SymPy", "t-norms", "differentiable logic"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://pysignet.github.io/"
+Repository = "https://github.com/pysignet/pysignet"
 
 [tool.poetry]
 packages = [{include = "pysignet", from = "src"}]
@@ -38,6 +53,9 @@ addopts = [
     "--cov-report=html",
     "--cov-fail-under=95",
     "-v"
+]
+filterwarnings = [
+    "ignore:Failed to initialize NumPy:UserWarning",
 ]
 
 [tool.mypy]
