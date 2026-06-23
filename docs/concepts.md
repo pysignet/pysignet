@@ -167,6 +167,8 @@ The default is `MixedTNorm`, which uses `GodelTNorm` for high-arity conjunctions
 (arity > 4) and `RProductTNorm` otherwise to balance gradient quality and
 numerical stability.
 
+To use a specific t-norm, pass it to `logic_to_loss` or `compile_logic`:
+
 ```python
 from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm, GodelTNorm
 

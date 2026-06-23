@@ -267,6 +267,8 @@ These methods:
 
 ### Predicate Evaluation
 
+Use these three base class methods to handle all predicate leaf nodes in your expression tree:
+
 ```python
 # In your _evaluate_expression() method:
 
@@ -294,6 +296,8 @@ These methods handle:
 ## Best Practices
 
 ### 1. Always Use Base Class Methods
+
+Predicate evaluation has many edge cases (arity, caching, output channel selection). Delegate it entirely to the base class:
 
 ```python
 # GOOD: Use base class for predicate evaluation
@@ -345,6 +349,8 @@ If you want gradients to flow through your logic:
 - Avoid operations that break gradient flow (e.g., `.detach()`, comparisons)
 
 ### 6. Validate Constructor Arguments
+
+Reject invalid arguments in `__init__` so errors are caught at construction time, not buried inside a training loop:
 
 ```python
 def __init__(self, mode: str = 'soft'):
