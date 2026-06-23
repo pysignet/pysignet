@@ -218,8 +218,8 @@ import torch
 from pysignet import Symbol, Variable, LinearThresholdUnitCompiler, LogicLoss
 from pysignet import And, Implies
 
-# Create the built-in LTU compiler
-compiler = LinearThresholdUnitCompiler(mode='soft')
+# Create the built-in LTU compiler (alpha controls sigmoid sharpness)
+compiler = LinearThresholdUnitCompiler(mode='soft', alpha=10.0)
 
 # Define logic expression
 P, Q = Symbol("P Q")
@@ -407,9 +407,10 @@ The library includes two built-in compilers:
 - NOT: `1 - a`
 
 **LinearThresholdUnitCompiler** (threshold functions):
-- AND: `sigmoid(10 * (sum(literals) - (n - 0.5)))`
-- OR: `sigmoid(10 * (sum(literals) - 0.5))`
+- AND: `sigmoid(alpha * (sum(literals) - (n - 0.5)))`
+- OR: `sigmoid(alpha * (sum(literals) - 0.5))`
 - NOT: `1 - a`
+- `alpha` (default 1.0) controls sigmoid sharpness; larger values approach hard thresholds
 
 Both use the same base class infrastructure, differing only in operator semantics.
 

@@ -172,3 +172,38 @@ from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm, GodelTNorm
 # Specify a t-norm explicitly
 logic_loss = logic_to_loss(expr, predicates, tnorm=LukasiewiczTNorm())
 ```
+
+## Compilation Modes
+
+Both `compile_logic` and `logic_to_loss` accept a `mode` parameter that selects the
+compilation strategy. The default is `mode='tnorm'`, which uses the t-norm compiler
+described above.
+
+Pass `mode='ltu'` to use a LinearThresholdUnit (LTU) compiler instead:
+
+```python
+from pysignet import Symbol, Variable, Implies, compile_logic
+
+P, Q = Symbol("P Q")
+X = Variable("X")
+expr = Implies(P(X), Q(X))
+
+predicates = {"P": model_p, "Q": model_q}
+
+# T-norm mode (default)
+compiled = compile_logic(expr, predicates)
+
+# LTU mode
+compiled = compile_logic(expr, predicates, mode='ltu')
+
+# LTU mode with sharper thresholds
+compiled = compile_logic(expr, predicates, mode='ltu', alpha=10.0)
+```
+
+The `alpha` parameter controls sigmoid sharpness in LTU mode. Larger values push
+the soft threshold closer to a hard binary threshold (useful for near-deterministic
+predicates). The `tnorm=` parameter is ignored in LTU mode; pass `alpha=` instead.
+
+You can also import and instantiate `LinearThresholdUnitCompiler` directly for
+use outside of `compile_logic`. See [Custom Compilers](custom-compilers.md) for
+details on extending the compiler base class.
