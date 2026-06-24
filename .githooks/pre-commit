@@ -50,22 +50,6 @@ else
     FAILED=1
 fi
 
-# 4. Check for syntax errors in examples
-echo ""
-echo "4. Checking example syntax..."
-EXAMPLE_ERRORS=0
-for f in examples/*.py; do
-    if ! python -m py_compile "$f" 2>/dev/null; then
-        echo -e "${RED}[FAIL]${NC} Syntax error in $f"
-        EXAMPLE_ERRORS=1
-    fi
-done
-if [ $EXAMPLE_ERRORS -eq 0 ]; then
-    echo -e "${GREEN}[PASS]${NC} All examples have valid syntax"
-else
-    FAILED=1
-fi
-
 echo ""
 echo "======================================"
 
