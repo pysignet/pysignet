@@ -41,6 +41,7 @@ mypy = "^1.14.1"
 pylint = "^4.0.4"
 radon = "^6.0.1"
 notebook = "^7.5.3"
+ruff = "^0.15.21"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -86,6 +87,17 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "pysignet.*"
 ignore_missing_imports = false
+
+[tool.ruff]
+line-length = 80
+target-version = "py312"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pysignet"]
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = ">=1.6,<2.0"

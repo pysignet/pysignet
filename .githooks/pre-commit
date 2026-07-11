@@ -40,9 +40,19 @@ else
     FAILED=1
 fi
 
-# 3. Run pylint
+# 3. Run ruff
 echo ""
-echo "3. Running pylint..."
+echo "3. Running ruff..."
+if poetry run ruff check src/ tests/; then
+    echo -e "${GREEN}[PASS]${NC} Ruff passed"
+else
+    echo -e "${RED}[FAIL]${NC} Ruff failed"
+    FAILED=1
+fi
+
+# 4. Run pylint
+echo ""
+echo "4. Running pylint..."
 if poetry run pylint src/; then
     echo -e "${GREEN}[PASS]${NC} Pylint passed"
 else
