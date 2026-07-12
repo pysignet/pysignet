@@ -7,9 +7,9 @@ their specified domains into conjunctions and disjunctions.
 import pytest
 import sympy as sp
 
-from pysignet.logic import Variable, ForAll, Exists
-from pysignet.logic.expansion import expand_quantifier
 from pysignet import Symbol
+from pysignet.logic import Exists, ForAll, Variable
+from pysignet.logic.expansion import expand_quantifier
 
 
 class TestForAllExpansion:
@@ -570,7 +570,10 @@ class TestInternalHelpers:
     def test_substitute_variable_in_arithmetic_predicate_arg(self):
         """Substitution into arithmetic expression in predicate argument."""
         import sympy as sp
-        from pysignet.logic.expansion import _substitute_in_predicate_application
+
+        from pysignet.logic.expansion import (
+            _substitute_in_predicate_application,
+        )
 
         S, I = Variable("S I")
         Digit = Symbol("Digit")
@@ -587,7 +590,10 @@ class TestInternalHelpers:
     def test_substitute_both_variables_in_arithmetic_arg(self):
         """Substituting both variables in an arithmetic arg yields a Python int."""
         import sympy as sp
-        from pysignet.logic.expansion import _substitute_in_predicate_application
+
+        from pysignet.logic.expansion import (
+            _substitute_in_predicate_application,
+        )
 
         S, I = Variable("S I")
         Digit = Symbol("Digit")
@@ -657,8 +663,9 @@ class TestArithmeticPredicateArguments:
     def test_addition_constraint_pattern(self):
         """Full ForAll-Implies-Exists pattern from the MNIST addition notebook."""
         import torch
+
         from pysignet import logic_to_loss
-        from pysignet.logic.quantifier import ForAll, Exists
+        from pysignet.logic.quantifier import Exists, ForAll
 
         Sum = Symbol("Sum")
         Digit = Symbol("Digit")

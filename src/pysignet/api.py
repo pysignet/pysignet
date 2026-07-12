@@ -1,23 +1,23 @@
 """Convenience API for logic compilation and evaluation."""
 
-from typing import Callable, Dict, Optional, Union
+from collections.abc import Callable
 
 import sympy as sp
 import torch
 
-from pysignet.predicate import Predicate
-from pysignet.compilation import TNormCompiler, LinearThresholdUnitCompiler
+from pysignet.compilation import LinearThresholdUnitCompiler, TNormCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.eval.report import ConsistencyReport
 from pysignet.loss import LogicLoss
-from pysignet.tnorms import TNorm, MixedTNorm
+from pysignet.predicate import Predicate
+from pysignet.tnorms import MixedTNorm, TNorm
 
 
 def compile_logic(
     expr: sp.Basic,
-    predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+    predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
     mode: str = "tnorm",
-    tnorm: Optional[TNorm] = None,
+    tnorm: TNorm | None = None,
     alpha: float = 1.0,
 ) -> CompiledExpression:
     """Compile logic expression into a CompiledExpression.
@@ -69,7 +69,7 @@ def compile_logic(
         ```
     """
     # Auto-wrap raw callables in Predicate objects
-    wrapped_predicates: Dict[str, Predicate | Callable[..., torch.Tensor]] = {}
+    wrapped_predicates: dict[str, Predicate | Callable[..., torch.Tensor]] = {}
     for key, value in predicates.items():
         if isinstance(value, Predicate):
             # Already a Predicate, use as-is
@@ -110,9 +110,9 @@ def compile_logic(
 
 def logic_to_loss(
     expr: sp.Basic,
-    predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+    predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
     mode: str = "tnorm",
-    tnorm: Optional[TNorm] = None,
+    tnorm: TNorm | None = None,
     alpha: float = 1.0,
     post_processing: str | Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> LogicLoss:
@@ -160,11 +160,8 @@ def logic_to_loss(
 
 
 def consistency_report(
-    expression: Union[
-        sp.Basic,
-        Dict[str, sp.Basic],
-    ],
-    predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+    expression: sp.Basic | dict[str, sp.Basic],
+    predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
 ) -> ConsistencyReport:
     """Create a ConsistencyReport for measuring formula consistency.
 
@@ -199,7 +196,7 @@ def consistency_report(
         print(report.global_violation())
         ```
     """
-    wrapped_predicates: Dict[str, Predicate] = {}
+    wrapped_predicates: dict[str, Predicate] = {}
     for key, value in predicates.items():
         if isinstance(value, Predicate):
             wrapped_predicates[key] = value

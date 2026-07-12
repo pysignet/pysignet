@@ -9,37 +9,37 @@ analysis.
 import warnings
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 from sympy import srepr
 
 from pysignet import (
+    ConsistencyChecker,
+    Predicate,
     Symbol,
     Variable,
-    Predicate,
     compile_logic,
     logic_to_loss,
-    ConsistencyChecker,
 )
 from pysignet.compilation import (
-    TNormCompiler,
     LinearThresholdUnitCompiler,
+    TNormCompiler,
 )
 from pysignet.compilation.module_utils import (
-    infer_module_arity,
-    has_final_activation,
-    wrap_module_as_predicate,
-    _get_output_dim,
     _get_final_layer,
+    _get_output_dim,
+    has_final_activation,
+    infer_module_arity,
+    wrap_module_as_predicate,
 )
-from pysignet.logic import ForAll, Exists
+from pysignet.logic import Exists, ForAll
 from pysignet.logic.expansion import expand_quantifier
 from pysignet.logic.extraction import (
-    extract_variables_from_application,
     extract_constants_from_application,
-    is_variable,
+    extract_variables_from_application,
     is_constant,
+    is_variable,
 )
 from pysignet.tnorms import GodelTNorm, LukasiewiczTNorm
 

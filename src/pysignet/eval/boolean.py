@@ -8,14 +8,13 @@ hard boolean decisions using appropriate thresholding rules:
 - Others: threshold at 0.5
 """
 
-from typing import Optional, Union
 
 import torch
 
 
 def to_boolean(
     output: torch.Tensor,
-    class_idx: Optional[Union[int, torch.Tensor]] = None,
+    class_idx: int | torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Convert soft output to a boolean decision tensor.
 

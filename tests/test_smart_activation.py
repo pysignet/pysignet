@@ -15,8 +15,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import Symbol, Variable, compile_logic, logic_to_loss, Predicate
-
+from pysignet import Predicate, Symbol, Variable, compile_logic, logic_to_loss
 
 # -- Binary classifiers (1 output) ------------------------------------------
 

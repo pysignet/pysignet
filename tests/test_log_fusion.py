@@ -9,20 +9,19 @@ threads through the evaluation chain to use fused ops.
 
 # pylint: disable=invalid-name,not-callable
 
+import sympy as sp
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import sympy as sp
 
 from pysignet import Predicate, Symbol, Variable, logic_to_loss
 from pysignet.compilation import TNormCompiler
 from pysignet.tnorms import (
-    RProductTNorm,
-    SProductTNorm,
     GodelTNorm,
     LukasiewiczTNorm,
+    RProductTNorm,
+    SProductTNorm,
 )
-
 
 # ------------------------------------------------------------------ #
 # 1. Fused activation correctness (Predicate.log_call)
@@ -365,7 +364,7 @@ class TestLogModeNumericalEquivalence:
         grads_manual = [p.grad.clone() for p in model.parameters()]
 
         # Gradients should be close
-        for g_log, g_manual in zip(grads_log, grads_manual):
+        for g_log, g_manual in zip(grads_log, grads_manual, strict=True):
             assert torch.allclose(g_log, g_manual, atol=1e-4)
 
 

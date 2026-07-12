@@ -5,12 +5,12 @@ over the batch dimension after domain quantifier expansion.
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
-from pysignet import Symbol, compile_logic, logic_to_loss, Predicate
-from pysignet.logic import Variable, ForAll, Exists, expand_quantifier
+from pysignet import Predicate, Symbol, compile_logic, logic_to_loss
+from pysignet.logic import Exists, ForAll, Variable, expand_quantifier
 
 
 class TestBasicAutoBatching:

@@ -13,7 +13,7 @@ import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet import ConsistencyChecker, Symbol, Predicate
+from pysignet import ConsistencyChecker, Predicate, Symbol
 from pysignet.api import consistency_report
 from pysignet.logic import Variable
 

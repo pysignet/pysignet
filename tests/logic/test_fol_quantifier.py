@@ -10,9 +10,9 @@ Multiple variables are handled via nesting.
 import pytest
 import sympy as sp
 
-from pysignet.logic import Variable
-from pysignet.logic.quantifier import ForAll, Exists
 from pysignet import Symbol
+from pysignet.logic import Variable
+from pysignet.logic.quantifier import Exists, ForAll
 
 
 class TestForAllBasics:

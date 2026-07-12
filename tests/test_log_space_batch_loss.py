@@ -12,7 +12,7 @@ import torch.nn as nn
 
 from pysignet import Predicate, Symbol, Variable, logic_to_loss
 from pysignet.compilation import TNormCompiler
-from pysignet.tnorms import RProductTNorm, SProductTNorm, MixedTNorm
+from pysignet.tnorms import MixedTNorm, RProductTNorm, SProductTNorm
 
 
 class TestLogSpaceForallLoss:

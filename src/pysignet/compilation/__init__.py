@@ -1,9 +1,9 @@
 """Logic compilation strategies."""
 
 from .base import LogicCompiler
-from .tnorm_compiler import TNormCompiler
-from .ltu_compiler import LinearThresholdUnitCompiler
 from .compiled_expression import CompiledExpression
+from .ltu_compiler import LinearThresholdUnitCompiler
+from .tnorm_compiler import TNormCompiler
 
 __all__ = [
     "LogicCompiler",

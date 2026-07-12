@@ -5,12 +5,12 @@ end-to-end through the compilation and evaluation pipeline, with proper
 variable scoping and gradient flow.
 """
 
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
 from pysignet import Symbol, compile_logic, logic_to_loss
-from pysignet.logic import Variable, ForAll, Exists
+from pysignet.logic import Exists, ForAll, Variable
 
 
 class TestForAllForAllNesting:

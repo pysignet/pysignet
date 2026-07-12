@@ -11,16 +11,15 @@ instead of human-readable strings.
 
 import pytest
 import sympy as sp
-from sympy.printing.pretty import pretty as sympy_pretty
-from sympy.printing.latex import latex as sympy_latex
-from sympy.printing.pretty.stringpict import prettyForm
 import torch
+from sympy.printing.latex import latex as sympy_latex
+from sympy.printing.pretty import pretty as sympy_pretty
+from sympy.printing.pretty.stringpict import prettyForm
 
 import pysignet as psn
-from pysignet.symbols import PredicateApplication
 from pysignet.logic import Variable
-from pysignet.logic.quantifier import ForAll, Exists
-
+from pysignet.logic.quantifier import Exists, ForAll
+from pysignet.symbols import PredicateApplication
 
 # ---------------------------------------------------------------------------
 # Helpers

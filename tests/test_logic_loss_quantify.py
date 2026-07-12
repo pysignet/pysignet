@@ -15,18 +15,18 @@ import torch
 import torch.nn as nn
 
 from pysignet import (
+    LogicLoss,
+    Predicate,
     Symbol,
+    TNormCompiler,
     Variable,
     logic_to_loss,
-    Predicate,
-    LogicLoss,
-    TNormCompiler,
 )
 from pysignet.tnorms import (
+    GodelTNorm,
+    LukasiewiczTNorm,
     RProductTNorm,
     SProductTNorm,
-    LukasiewiczTNorm,
-    GodelTNorm,
 )
 
 

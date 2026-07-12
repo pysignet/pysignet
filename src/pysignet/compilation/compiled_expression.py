@@ -11,7 +11,8 @@ computation are handled by LogicLoss, which uses BatchHandlerMixin.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Set, List, Optional, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import sympy as sp
 import torch
@@ -78,15 +79,15 @@ class CompiledExpression:
 
     def __init__(
         self,
-        compiled_logic: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
-        free_variables: Set[str],
-        predicates: Dict[str, Predicate],
-        partial_bindings: Optional[Dict[str, torch.Tensor]] = None,
-        compiler: Optional[LogicCompiler] = None,
-        expr: Optional[sp.Basic] = None,
-        compiled_logic_log: Optional[
-            Callable[[Dict[str, torch.Tensor]], torch.Tensor]
-        ] = None,
+        compiled_logic: Callable[[dict[str, torch.Tensor]], torch.Tensor],
+        free_variables: set[str],
+        predicates: dict[str, Predicate],
+        partial_bindings: dict[str, torch.Tensor] | None = None,
+        compiler: LogicCompiler | None = None,
+        expr: sp.Basic | None = None,
+        compiled_logic_log: (
+            Callable[[dict[str, torch.Tensor]], torch.Tensor] | None
+        ) = None,
     ) -> None:
         """Initialize CompiledExpression.
 
@@ -113,7 +114,7 @@ class CompiledExpression:
         self._expr = expr
 
     @property
-    def compiler(self) -> Optional[LogicCompiler]:
+    def compiler(self) -> LogicCompiler | None:
         """Return the LogicCompiler that produced this expression.
 
         Returns:
@@ -122,7 +123,7 @@ class CompiledExpression:
         return self._compiler
 
     @property
-    def expr(self) -> Optional[sp.Basic]:
+    def expr(self) -> sp.Basic | None:
         """Return the original SymPy expression.
 
         Returns:
@@ -178,7 +179,7 @@ class CompiledExpression:
         p.text(repr(self))
 
     @property
-    def free_variables(self) -> Set[str]:
+    def free_variables(self) -> set[str]:
         """Return set of variables that still need to be bound.
 
         Returns:
@@ -248,7 +249,7 @@ class CompiledExpression:
             ```
         """
         # Merge partial bindings with new bindings
-        all_bindings: Dict[str, torch.Tensor] = dict(self._partial_bindings)
+        all_bindings: dict[str, torch.Tensor] = dict(self._partial_bindings)
         all_bindings.update(variable_bindings)
 
         # Validate all free variables are bound
@@ -273,7 +274,7 @@ class CompiledExpression:
         return self._compiled_logic(all_bindings)
 
     def _evaluate_boolean_satisfaction(
-        self, bindings: Dict[str, torch.Tensor]
+        self, bindings: dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Evaluate expression with boolean (hard) decisions.
 
@@ -378,7 +379,7 @@ class CompiledExpression:
             compiled_logic_log=self._compiled_logic_log,
         )
 
-    def get_trainable_parameters(self) -> List[nn.Parameter]:
+    def get_trainable_parameters(self) -> list[nn.Parameter]:
         """Get all trainable parameters from model-based predicates.
 
         Returns:
@@ -391,7 +392,7 @@ class CompiledExpression:
             optimizer = torch.optim.Adam(params, lr=0.001)
             ```
         """
-        params: List[nn.Parameter] = []
+        params: list[nn.Parameter] = []
         for pred in self._predicates.values():
             if pred.is_model and hasattr(pred.func, "parameters"):
                 params.extend(pred.func.parameters())

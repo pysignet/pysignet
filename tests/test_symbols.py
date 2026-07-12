@@ -5,13 +5,13 @@ and PredicateApplication for predicate application with arguments.
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
-from pysignet import compile_logic, logic_to_loss, Symbol, Variable
+from pysignet import Symbol, Variable, compile_logic, logic_to_loss
 from pysignet.symbols import PredicateApplication
-from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm
+from pysignet.tnorms import LukasiewiczTNorm, RProductTNorm
 
 
 class TestSymbolBasic:

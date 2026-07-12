@@ -7,7 +7,7 @@ many values are combined (e.g., 0.9^10 = 0.35, gradient vanishing).
 import pytest
 import torch
 
-from pysignet.tnorms import MixedTNorm, GodelTNorm, RProductTNorm
+from pysignet.tnorms import GodelTNorm, MixedTNorm, RProductTNorm
 
 
 class TestMixedTNormInitialization:
@@ -261,6 +261,7 @@ class TestMixedTNormIntegration:
     def test_with_compile_logic(self):
         """Test MixedTNorm works with compile_logic."""
         import sympy as sp
+
         from pysignet import Symbol, Variable, logic_to_loss
         from pysignet.compilation import TNormCompiler
 
@@ -288,6 +289,7 @@ class TestMixedTNormIntegration:
     def test_with_large_expression(self):
         """Test MixedTNorm with large conjunction."""
         import sympy as sp
+
         from pysignet import Symbol, Variable
         from pysignet.compilation import TNormCompiler
 

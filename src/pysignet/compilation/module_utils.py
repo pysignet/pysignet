@@ -14,13 +14,14 @@ Key principles:
 """
 
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Tuple, cast
+from collections.abc import Callable
+from typing import Any, cast
 
 import torch
 import torch.nn as nn
 
 
-def infer_module_arity(module: nn.Module) -> Optional[int]:
+def infer_module_arity(module: nn.Module) -> int | None:
     """Infer predicate arity from module output dimensionality.
 
     Args:
@@ -127,7 +128,7 @@ def wrap_module_as_predicate(
     # Validate arity matches module
     module_arity = infer_module_arity(module)
     if module_arity is not None and module_arity != arity:
-        arity_names: Dict[int, str] = {1: "unary", 2: "binary"}
+        arity_names: dict[int, str] = {1: "unary", 2: "binary"}
         mod_arity_name = arity_names.get(module_arity, str(module_arity))
         spec_arity_name = arity_names.get(arity, str(arity))
         out_dim = _get_output_dim(module)
@@ -182,9 +183,9 @@ def get_module_forward_param_count(module: nn.Module) -> int:
 
 
 def resolve_variable_inputs(
-    variables: List[Any],
-    inputs: Dict[str, torch.Tensor],
-) -> List[torch.Tensor]:
+    variables: list[Any],
+    inputs: dict[str, torch.Tensor],
+) -> list[torch.Tensor]:
     """Resolve variable symbols to their bound tensors.
 
     Args:
@@ -198,7 +199,7 @@ def resolve_variable_inputs(
     Raises:
         ValueError: If a variable is missing from inputs.
     """
-    resolved: List[torch.Tensor] = []
+    resolved: list[torch.Tensor] = []
     for var in variables:
         var_name = str(var)
         if var_name not in inputs:
@@ -212,8 +213,8 @@ def resolve_variable_inputs(
 
 def split_model_and_index_vars(
     module: nn.Module,
-    free_vars: List[Any],
-) -> Tuple[List[Any], List[Any]]:
+    free_vars: list[Any],
+) -> tuple[list[Any], list[Any]]:
     """Split free variables into model inputs and index variables.
 
     For multiclass modules, extra variables beyond what forward()

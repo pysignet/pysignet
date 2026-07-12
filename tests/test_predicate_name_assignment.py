@@ -5,9 +5,9 @@ compiler from dict keys, eliminating the need for redundant name parameters.
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
 from pysignet import Predicate, Symbol, Variable, compile_logic, logic_to_loss
 from pysignet.compilation import TNormCompiler

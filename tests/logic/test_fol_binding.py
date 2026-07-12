@@ -5,11 +5,11 @@ variables with concrete tensor indices for batch evaluation.
 """
 
 import pytest
-import torch
 import sympy as sp
+import torch
 
 from pysignet import Symbol
-from pysignet.logic import Variable, Binding, ground
+from pysignet.logic import Binding, Variable, ground
 from pysignet.symbols import PredicateApplication
 
 

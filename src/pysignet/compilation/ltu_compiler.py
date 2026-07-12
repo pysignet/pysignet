@@ -1,17 +1,16 @@
 """Linear Threshold Unit (LTU) based logic compilation strategy."""
 
-from typing import Callable, Dict
 import warnings
+from collections.abc import Callable
 
 import sympy as sp
 import torch
 
-
 from pysignet.compilation.base import LogicCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
-from pysignet.predicate import Predicate
 from pysignet.context import EvaluationContext
 from pysignet.logic import extract_variables
+from pysignet.predicate import Predicate
 
 
 class LinearThresholdUnitCompiler(LogicCompiler):
@@ -62,7 +61,9 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             warnings.warn(
                 f"Parameter alpha = {alpha} is too large and may "
                 f"lead to unreliable gradients. Consider using "
-                f"smaller alpha."
+                f"smaller alpha.",
+                UserWarning,
+                stacklevel=2,
             )
         self.mode = mode
         self.alpha = alpha
@@ -110,7 +111,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+        predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a CompiledExpression.
 
@@ -139,7 +140,7 @@ class LinearThresholdUnitCompiler(LogicCompiler):
         free_vars = extract_variables(expanded_expr)
 
         # Create a closure that evaluates the expression
-        def compiled_logic(inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        def compiled_logic(inputs: dict[str, torch.Tensor]) -> torch.Tensor:
             """Evaluate compiled logic expression.
 
             Args:

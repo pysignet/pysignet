@@ -7,7 +7,9 @@ values from the domain.
 Multiple variables are handled via nesting quantifiers.
 """
 
-from typing import Any, Iterable, List, Tuple
+from collections.abc import Iterable
+from typing import Any
+
 import sympy as sp
 from sympy.logic.boolalg import Boolean
 
@@ -56,7 +58,7 @@ class Quantifier(Boolean):  # type: ignore[misc]
         return self._body
 
     @property
-    def args(self) -> Tuple[sp.Basic, sp.Basic]:
+    def args(self) -> tuple[sp.Basic, sp.Basic]:
         """Return args tuple for SymPy compatibility.
 
         Returns:
@@ -91,19 +93,8 @@ class Quantifier(Boolean):  # type: ignore[misc]
         # Handle different iterable types
         try:
             # For lists, tuples, sets - convert to list for comparison
-            if isinstance(self.domain, (list, tuple, set)):
-                self_domain = list(self.domain)
-            elif isinstance(self.domain, range):
-                self_domain = list(self.domain)
-            else:
-                self_domain = list(self.domain)
-
-            if isinstance(other.domain, (list, tuple, set)):
-                other_domain = list(other.domain)
-            elif isinstance(other.domain, range):
-                other_domain = list(other.domain)
-            else:
-                other_domain = list(other.domain)
+            self_domain = list(self.domain)
+            other_domain = list(other.domain)
 
             return self_domain == other_domain
         except (TypeError, ValueError):
@@ -130,7 +121,7 @@ class Quantifier(Boolean):  # type: ignore[misc]
         Returns:
             Domain string, truncated to first 5 elements if longer.
         """
-        domain_list: List[Any] = list(self.domain)
+        domain_list: list[Any] = list(self.domain)
         if len(domain_list) > 5:
             return str(domain_list[:5])[:-1] + ", ...]"
         return str(domain_list)
@@ -148,7 +139,9 @@ class Quantifier(Boolean):  # type: ignore[misc]
             prettyForm with the human-readable quantifier string.
         """
         del printer  # unused
-        from sympy.printing.pretty.stringpict import prettyForm  # pylint: disable=import-outside-toplevel
+        from sympy.printing.pretty.stringpict import (  # pylint: disable=import-outside-toplevel
+            prettyForm,
+        )
         return prettyForm(str(self))
 
     def _latex(self, printer: Any) -> str:

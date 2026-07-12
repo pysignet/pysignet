@@ -274,7 +274,7 @@ class TestCacheSizeAndMemory:
         ctx = EvaluationContext()
 
         for i in range(10):
-            ctx.get_or_compute(f"key_{i}", lambda: torch.tensor([i]))
+            ctx.get_or_compute(f"key_{i}", lambda i=i: torch.tensor([i]))
 
         assert len(ctx.cache) == 10
 

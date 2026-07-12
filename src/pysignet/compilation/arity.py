@@ -11,7 +11,8 @@ Key principles:
 """
 
 import inspect
-from typing import Any, Callable, Dict
+from collections.abc import Callable
+from typing import Any
 
 import sympy as sp
 import torch.nn as nn
@@ -21,7 +22,7 @@ from pysignet.symbols import PredicateApplication
 
 
 def validate_predicate_arity(
-    expr: sp.Basic, predicates: Dict[str, Predicate]
+    expr: sp.Basic, predicates: dict[str, Predicate]
 ) -> None:
     """Validate that callable signatures match predicate usage.
 
@@ -44,7 +45,7 @@ def validate_predicate_arity(
 
 
 def _validate_arity_recursive(
-    node: sp.Basic, predicates: Dict[str, Predicate]
+    node: sp.Basic, predicates: dict[str, Predicate]
 ) -> None:
     """Recursively validate arity for all predicates in expression tree.
 
@@ -62,20 +63,18 @@ def _validate_arity_recursive(
         # Validate PredicateApplication: P(X, Y, 0, ...)
         _validate_application_arity(node, predicates)
 
-    elif isinstance(node, sp.Symbol):
-        # Check for disallowed nullary usage (bare symbol)
-        if (
-            not isinstance(node, VariableSymbol)
-            and node not in (sp.true, sp.false)
-            and str(node) in predicates
-        ):
-            # This is a predicate used without arguments - disallowed
-            pred_name = str(node)
-            raise ValueError(
-                f"Predicate '{pred_name}' used without arguments. "
-                f"Nullary predicates are not allowed. "
-                f"Use '{pred_name}(X)' with an explicit variable instead."
-            )
+    elif (
+        isinstance(node, sp.Symbol)
+        and not isinstance(node, VariableSymbol)
+        and node not in (sp.true, sp.false)
+        and str(node) in predicates
+    ):
+        pred_name = str(node)
+        raise ValueError(
+            f"Predicate '{pred_name}' used without arguments. "
+            f"Nullary predicates are not allowed. "
+            f"Use '{pred_name}(X)' with an explicit variable instead."
+        )
 
     # Recurse into subexpressions
     for arg in getattr(node, "args", []):
@@ -83,7 +82,7 @@ def _validate_arity_recursive(
 
 
 def _validate_application_arity(
-    app: PredicateApplication, predicates: Dict[str, Predicate]
+    app: PredicateApplication, predicates: dict[str, Predicate]
 ) -> None:
     """Validate arity for a single PredicateApplication.
 

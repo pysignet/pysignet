@@ -8,9 +8,9 @@ This module tests the new clean arity validation implementation that:
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
 from pysignet import Symbol, Variable
 from pysignet.compilation.arity import validate_predicate_arity

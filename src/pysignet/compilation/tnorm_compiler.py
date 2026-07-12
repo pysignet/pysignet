@@ -1,17 +1,17 @@
 """T-norm based logic compilation strategy."""
 
-from typing import Callable, Dict, Optional
+from collections.abc import Callable
 
 import sympy as sp
 import torch
 
 from pysignet.compilation.base import LogicCompiler
 from pysignet.compilation.compiled_expression import CompiledExpression
-from pysignet.predicate import Predicate
-from pysignet.tnorms import TNorm, MixedTNorm
-from pysignet.tnorms.product import SProductTNorm
 from pysignet.context import EvaluationContext
 from pysignet.logic import extract_variables
+from pysignet.predicate import Predicate
+from pysignet.tnorms import MixedTNorm, TNorm
+from pysignet.tnorms.product import SProductTNorm
 
 
 class TNormCompiler(LogicCompiler):
@@ -35,7 +35,7 @@ class TNormCompiler(LogicCompiler):
         ```
     """
 
-    def __init__(self, tnorm: Optional[TNorm] = None) -> None:
+    def __init__(self, tnorm: TNorm | None = None) -> None:
         """Initialize TNormCompiler with a t-norm.
 
         Args:
@@ -81,7 +81,7 @@ class TNormCompiler(LogicCompiler):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+        predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
@@ -113,7 +113,7 @@ class TNormCompiler(LogicCompiler):
         free_vars = extract_variables(expanded_expr)
 
         # Create a closure that evaluates the expression
-        def compiled_logic(inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        def compiled_logic(inputs: dict[str, torch.Tensor]) -> torch.Tensor:
             """Evaluate compiled logic expression.
 
             Args:
@@ -133,7 +133,7 @@ class TNormCompiler(LogicCompiler):
 
         # Create a log-space closure for fused log-activation
         def compiled_logic_log(
-            inputs: Dict[str, torch.Tensor],
+            inputs: dict[str, torch.Tensor],
         ) -> torch.Tensor:
             """Evaluate compiled logic in log-space.
 

@@ -5,11 +5,11 @@ with the FOL interface, including gradient flow and parameter extraction.
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
-from pysignet import Symbol, Variable, compile_logic, logic_to_loss, Predicate
+from pysignet import Predicate, Symbol, Variable, compile_logic, logic_to_loss
 from pysignet.compilation import TNormCompiler
 from pysignet.loss import LogicLoss
 

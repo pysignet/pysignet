@@ -4,7 +4,6 @@ This module provides reusable fixtures for testing the pysignet library.
 Fixtures include common predicates, sample expressions, and test inputs.
 """
 
-from typing import Dict
 
 import pytest
 import sympy as sp
@@ -15,7 +14,7 @@ from pysignet import Predicate
 
 
 @pytest.fixture
-def simple_predicates() -> Dict[str, Predicate]:
+def simple_predicates() -> dict[str, Predicate]:
     """Simple deterministic predicates with constant values.
 
     Returns:
@@ -30,7 +29,7 @@ def simple_predicates() -> Dict[str, Predicate]:
 
 
 @pytest.fixture
-def neural_predicates() -> Dict[str, Predicate]:
+def neural_predicates() -> dict[str, Predicate]:
     """Neural network-based predicates.
 
     Returns:
@@ -49,7 +48,7 @@ def neural_predicates() -> Dict[str, Predicate]:
 
 
 @pytest.fixture
-def dynamic_predicates() -> Dict[str, Predicate]:
+def dynamic_predicates() -> dict[str, Predicate]:
     """Input-dependent predicates.
 
     Returns:
@@ -63,7 +62,7 @@ def dynamic_predicates() -> Dict[str, Predicate]:
 
 
 @pytest.fixture
-def batch_inputs() -> Dict[str, torch.Tensor]:
+def batch_inputs() -> dict[str, torch.Tensor]:
     """Various batch sizes for testing.
 
     Returns:
@@ -79,7 +78,7 @@ def batch_inputs() -> Dict[str, torch.Tensor]:
 
 
 @pytest.fixture
-def special_values() -> Dict[str, torch.Tensor]:
+def special_values() -> dict[str, torch.Tensor]:
     """Tensors with special values (NaN, Inf, etc.).
 
     Returns:

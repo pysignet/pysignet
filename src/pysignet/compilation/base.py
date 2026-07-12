@@ -1,26 +1,27 @@
 """Base class for logic compilation strategies."""
 
-from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Set, cast
 import warnings
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any, cast
 
 import sympy as sp
 import torch
 import torch.nn as nn
 
-from pysignet.context import EvaluationContext
-from pysignet.predicate import Predicate
-from pysignet.symbols import PredicateApplication
-from pysignet.logic.quantifier import Quantifier
-from pysignet.logic.expansion import expand_quantifier
-from pysignet.logic.variable import VariableSymbol
 from pysignet.compilation.arity import validate_predicate_arity
+from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.compilation.module_utils import (
     infer_module_arity,
     resolve_variable_inputs,
     split_model_and_index_vars,
 )
-from pysignet.compilation.compiled_expression import CompiledExpression
+from pysignet.context import EvaluationContext
+from pysignet.logic.expansion import expand_quantifier
+from pysignet.logic.quantifier import Quantifier
+from pysignet.logic.variable import VariableSymbol
+from pysignet.predicate import Predicate
+from pysignet.symbols import PredicateApplication
 
 
 class LogicCompiler(ABC):
@@ -142,7 +143,7 @@ class LogicCompiler(ABC):
     def compile(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
+        predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
     ) -> CompiledExpression:
         """Compile a logic expression into a differentiable CompiledExpression.
 
@@ -246,8 +247,8 @@ class LogicCompiler(ABC):
     def _wrap_and_validate_predicates(
         self,
         expr: sp.Basic,
-        predicates: Dict[str, Predicate | Callable[..., torch.Tensor]],
-    ) -> Dict[str, Predicate]:
+        predicates: dict[str, Predicate | Callable[..., torch.Tensor]],
+    ) -> dict[str, Predicate]:
         """Wrap, validate, and prepare predicates for compilation.
 
         Args:
@@ -268,7 +269,7 @@ class LogicCompiler(ABC):
         predicate_arities = self._extract_predicate_arities(expanded_expr)
 
         # Wrap predicates and validate nn.Module arity
-        wrapped_predicates: Dict[str, Predicate] = {}
+        wrapped_predicates: dict[str, Predicate] = {}
         for key, value in predicates.items():
             # Validate module arity if applicable
             module = self._extract_module_to_check(value)
@@ -343,6 +344,7 @@ class LogicCompiler(ABC):
                         f"{node.__class__.__name__} may impact performance. "
                         f"Consider using smaller domains or restructuring.",
                         UserWarning,
+                        stacklevel=2,
                     )
 
                 # Expand this quantifier
@@ -362,7 +364,7 @@ class LogicCompiler(ABC):
 
         return _expand_recursive(expr)
 
-    def _extract_predicate_arities(self, expr: sp.Basic) -> Dict[str, int]:
+    def _extract_predicate_arities(self, expr: sp.Basic) -> dict[str, int]:
         """Extract predicate names and their arities from expression.
 
         Validates that each predicate is used consistently with the same arity.
@@ -380,7 +382,7 @@ class LogicCompiler(ABC):
             expr = sp.And(P(X), Q(X, Y))
             → {"P": 1, "Q": 2}
         """
-        arities: Dict[str, int] = {}
+        arities: dict[str, int] = {}
 
         def extract(e: sp.Basic) -> None:
             if isinstance(e, PredicateApplication):
@@ -405,7 +407,7 @@ class LogicCompiler(ABC):
         extract(expr)
         return arities
 
-    def _extract_predicate_symbols(self, expr: sp.Basic) -> Set[str]:
+    def _extract_predicate_symbols(self, expr: sp.Basic) -> set[str]:
         """Extract all predicate symbols from a SymPy expression.
 
         Handles both regular SymPy symbols and PredicateApplication nodes.
@@ -422,7 +424,7 @@ class LogicCompiler(ABC):
         if isinstance(expr, PredicateApplication):
             return {expr.predicate_name}
 
-        symbols: Set[str] = set()
+        symbols: set[str] = set()
         for arg in expr.args:
             symbols.update(self._extract_predicate_symbols(arg))
         return symbols
@@ -438,7 +440,7 @@ class LogicCompiler(ABC):
         Raises:
             ValueError: If any predicate is used with inconsistent arity
         """
-        predicate_arities: Dict[str, int] = {}
+        predicate_arities: dict[str, int] = {}
 
         def collect_usage(e: sp.Basic) -> None:
             """Recursively collect predicate usage."""
@@ -500,7 +502,7 @@ class LogicCompiler(ABC):
             ([X1, X2], [0, 1])
         """
         # Use dict to preserve order while deduplicating
-        free_vars_dict: Dict[str, VariableSymbol] = {}
+        free_vars_dict: dict[str, VariableSymbol] = {}
         constants: list[Any] = []
 
         for arg in app.application_args:
@@ -518,8 +520,8 @@ class LogicCompiler(ABC):
     def _evaluate_predicate_application(
         self,
         app: PredicateApplication,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
         log_mode: bool = False,
     ) -> torch.Tensor:
@@ -582,7 +584,7 @@ class LogicCompiler(ABC):
     def _evaluate_callable_predicate(
         self,
         app: PredicateApplication,
-        inputs: Dict[str, torch.Tensor],
+        inputs: dict[str, torch.Tensor],
         predicate: Predicate,
         ctx: EvaluationContext,
         log_mode: bool = False,
@@ -604,7 +606,7 @@ class LogicCompiler(ABC):
         func = predicate.func
 
         # Build args in the order they appear in application_args
-        call_args: List[Any] = []
+        call_args: list[Any] = []
         for arg in app.application_args:
             if isinstance(arg, VariableSymbol):
                 var_name = str(arg)
@@ -648,9 +650,9 @@ class LogicCompiler(ABC):
 
     def _resolve_var_inputs(
         self,
-        variables: List[VariableSymbol],
-        inputs: Dict[str, torch.Tensor],
-    ) -> List[torch.Tensor]:
+        variables: list[VariableSymbol],
+        inputs: dict[str, torch.Tensor],
+    ) -> list[torch.Tensor]:
         """Resolve variable symbols to their bound tensors.
 
         Delegates to the shared resolve_variable_inputs utility.
@@ -670,8 +672,8 @@ class LogicCompiler(ABC):
     def _apply_variable_indices(
         self,
         result: torch.Tensor,
-        index_vars: List[VariableSymbol],
-        inputs: Dict[str, torch.Tensor],
+        index_vars: list[VariableSymbol],
+        inputs: dict[str, torch.Tensor],
     ) -> torch.Tensor:
         """Apply per-element indexing using variable tensors.
 
@@ -697,7 +699,7 @@ class LogicCompiler(ABC):
         return result
 
     def _apply_constant_indices(
-        self, result: torch.Tensor, constants: List[Any]
+        self, result: torch.Tensor, constants: list[Any]
     ) -> torch.Tensor:
         """Apply column selection using constant indices.
 
@@ -722,10 +724,10 @@ class LogicCompiler(ABC):
     def _evaluate_module_predicate(
         self,
         unused_app: PredicateApplication,
-        inputs: Dict[str, torch.Tensor],
+        inputs: dict[str, torch.Tensor],
         predicate: Predicate,
-        free_vars: List[VariableSymbol],
-        constants: List[Any],
+        free_vars: list[VariableSymbol],
+        constants: list[Any],
         ctx: EvaluationContext,
         log_mode: bool = False,
     ) -> torch.Tensor:
@@ -797,7 +799,7 @@ class LogicCompiler(ABC):
         return self._apply_constant_indices(result, constants)
 
     def _evaluate_boolean_constant(
-        self, const: sp.Basic, inputs: Dict[str, torch.Tensor]
+        self, const: sp.Basic, inputs: dict[str, torch.Tensor]
     ) -> torch.Tensor:
         """Evaluate boolean constant (sp.true or sp.false).
 
@@ -834,8 +836,8 @@ class LogicCompiler(ABC):
     def _evaluate_expression(
         self,
         expr: sp.Basic,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Recursively evaluate SymPy expression using logical operations.
@@ -896,8 +898,8 @@ class LogicCompiler(ABC):
     def _evaluate_and(
         self,
         expr: sp.And,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate And expression."""
@@ -910,8 +912,8 @@ class LogicCompiler(ABC):
     def _evaluate_or(
         self,
         expr: sp.Or,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate Or expression."""
@@ -924,8 +926,8 @@ class LogicCompiler(ABC):
     def _evaluate_not(
         self,
         expr: sp.Not,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate Not expression."""
@@ -936,8 +938,8 @@ class LogicCompiler(ABC):
     def _evaluate_implies(
         self,
         expr: sp.Implies,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate Implies expression."""
@@ -949,8 +951,8 @@ class LogicCompiler(ABC):
     def _evaluate_equivalent(
         self,
         expr: sp.Equivalent,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate Equivalent expression."""
@@ -962,8 +964,8 @@ class LogicCompiler(ABC):
     def _evaluate_expression_log(
         self,
         expr: sp.Basic,
-        inputs: Dict[str, torch.Tensor],
-        predicates: Dict[str, Predicate],
+        inputs: dict[str, torch.Tensor],
+        predicates: dict[str, Predicate],
         ctx: EvaluationContext,
     ) -> torch.Tensor:
         """Evaluate expression in log-space for numerical stability.

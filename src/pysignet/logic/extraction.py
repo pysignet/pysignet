@@ -5,14 +5,15 @@ logical expressions containing PredicateApplications with variables and
 constant arguments.
 """
 
-from typing import Any, Set
+from typing import Any
+
 import sympy as sp
 
 from pysignet.logic.variable import VariableSymbol
 from pysignet.symbols import PredicateApplication
 
 
-def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
+def extract_variables(expr: sp.Basic) -> set[VariableSymbol]:
     """Extract all free variables from a logical expression.
 
     Recursively traverses the expression tree and collects all VariableSymbol
@@ -56,7 +57,7 @@ def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
         >>> variables = extract_variables(expr)
         >>> # variables = set()
     """
-    variables: Set[VariableSymbol] = set()
+    variables: set[VariableSymbol] = set()
 
     def _traverse(node: sp.Basic) -> None:
         """Recursively traverse expression tree and collect variables."""
@@ -82,7 +83,7 @@ def extract_variables(expr: sp.Basic) -> Set[VariableSymbol]:
 
 def extract_variables_from_application(
     app: PredicateApplication,
-) -> Set[VariableSymbol]:
+) -> set[VariableSymbol]:
     """Extract free variables from a single PredicateApplication.
 
     Args:
@@ -113,7 +114,7 @@ def extract_variables_from_application(
         >>> vars = extract_variables_from_application(app)
         >>> # vars = set()
     """
-    variables: Set[VariableSymbol] = set()
+    variables: set[VariableSymbol] = set()
     for arg in app.application_args:
         if isinstance(arg, VariableSymbol):
             variables.add(arg)
@@ -171,7 +172,7 @@ def is_constant(arg: Any) -> bool:
     return not isinstance(arg, VariableSymbol)
 
 
-def extract_constants(expr: sp.Basic) -> Set[Any]:
+def extract_constants(expr: sp.Basic) -> set[Any]:
     """Extract all constants from a logical expression.
 
     Recursively traverses the expression tree and collects all non-Variable
@@ -215,7 +216,7 @@ def extract_constants(expr: sp.Basic) -> Set[Any]:
         >>> constants = extract_constants(expr)
         >>> # constants = set()
     """
-    constants: Set[Any] = set()
+    constants: set[Any] = set()
 
     def _traverse(node: sp.Basic) -> None:
         """Recursively traverse expression tree and collect constants."""
@@ -239,7 +240,7 @@ def extract_constants(expr: sp.Basic) -> Set[Any]:
     return constants
 
 
-def extract_constants_from_application(app: PredicateApplication) -> Set[Any]:
+def extract_constants_from_application(app: PredicateApplication) -> set[Any]:
     """Extract constants from a single PredicateApplication.
 
     Args:
@@ -270,7 +271,7 @@ def extract_constants_from_application(app: PredicateApplication) -> Set[Any]:
         >>> consts = extract_constants_from_application(app)
         >>> # consts = set()
     """
-    constants: Set[Any] = set()
+    constants: set[Any] = set()
     for arg in app.application_args:
         if is_constant(arg):
             constants.add(arg)

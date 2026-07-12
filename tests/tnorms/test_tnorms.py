@@ -11,15 +11,14 @@ import sympy as sp
 import torch
 
 from pysignet import (
+    GodelTNorm,
+    LukasiewiczTNorm,
+    Predicate,
+    SProductTNorm,
     Symbol,
     Variable,
     compile_logic,
-    Predicate,
-    SProductTNorm,
-    LukasiewiczTNorm,
-    GodelTNorm,
 )
-
 
 # Product T-Norm Tests
 

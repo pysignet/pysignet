@@ -4,7 +4,7 @@ This module provides the Binding class for mapping variables to tensor indices,
 and the ground() function for substituting variables with concrete values.
 """
 
-from typing import Dict
+
 import sympy as sp
 
 from pysignet.logic.variable import VariableSymbol
@@ -42,14 +42,14 @@ class Binding:
     """
 
     def __init__(
-        self, bindings: Dict[VariableSymbol, int] | None = None
+        self, bindings: dict[VariableSymbol, int] | None = None
     ) -> None:
         """Initialize a binding.
 
         Args:
             bindings: Optional dictionary mapping variables to indices.
         """
-        self._bindings: Dict[VariableSymbol, int] = (
+        self._bindings: dict[VariableSymbol, int] = (
             bindings if bindings is not None else {}
         )
 

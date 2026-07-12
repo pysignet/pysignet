@@ -4,10 +4,10 @@ This module tests the compile_logic() factory function which provides a
 one-liner for common usage patterns.
 """
 
+import pytest
 import sympy as sp
 import torch
 import torch.nn as nn
-import pytest
 
 # Import from pysignet package
 from pysignet import (
@@ -20,9 +20,9 @@ from pysignet import (
 )
 from pysignet.compilation import CompiledExpression
 from pysignet.tnorms import (
+    LukasiewiczTNorm,
     RProductTNorm,
     SProductTNorm,
-    LukasiewiczTNorm,
 )
 
 

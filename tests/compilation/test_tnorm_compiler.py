@@ -4,19 +4,19 @@ This module tests the TNormCompiler class which compiles SymPy logic
 expressions into callable PyTorch functions using t-norm relaxations.
 """
 
+import pytest
 import sympy as sp
 import torch
 import torch.nn as nn
-import pytest
 
 # Import from current location (will be moved to pysignet later)
 from pysignet import Predicate, Symbol, TNormCompiler, Variable
 from pysignet.tnorms import (
+    GodelTNorm,
+    LukasiewiczTNorm,
+    MixedTNorm,
     RProductTNorm,
     SProductTNorm,
-    LukasiewiczTNorm,
-    GodelTNorm,
-    MixedTNorm,
 )
 
 

@@ -10,13 +10,7 @@ returns the same value as per-batch - just as a scalar.
 import sympy as sp
 import torch
 
-from pysignet import (
-    Predicate,
-    Symbol,
-    Variable,
-    compile_logic,
-    logic_to_loss
-)
+from pysignet import Predicate, Symbol, Variable, compile_logic, logic_to_loss
 
 
 def test_basic_and() -> None:

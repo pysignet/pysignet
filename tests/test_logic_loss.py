@@ -4,9 +4,9 @@ This module tests the LogicLoss class which wraps compiled logic and provides
 loss computation with configurable post-processing and reduction modes.
 """
 
+import pytest
 import torch
 import torch.nn as nn
-import pytest
 
 # Import from pysignet package
 from pysignet import LogicLoss, Predicate, Symbol, TNormCompiler, Variable

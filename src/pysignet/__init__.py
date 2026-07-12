@@ -44,34 +44,34 @@ Logic Operators (re-exported from SymPy for convenience):
 """
 
 # Core API
-from .predicate import Predicate
-from .compilation import TNormCompiler, LinearThresholdUnitCompiler
-from .loss import LogicLoss
-from .api import compile_logic, logic_to_loss, consistency_report
-from .compilation.compiled_expression import CompiledExpression
-
-# Symbol API for predicates
-from .symbols import Symbol, PredicateSymbol, PredicateApplication
-from .context import EvaluationContext
-
-# Logic (First-Order Logic)
-from .logic import Variable, extract_variables, Binding, ground
-from .logic.quantifier import ForAll, Exists
-
 # Logic operators re-exported from SymPy for convenience.
 # These are identical to the SymPy types - no wrapping or copying.
 # Power users who need advanced SymPy features can still import sympy directly.
-from sympy import And, Or, Not, Implies, Equivalent
+from sympy import And, Equivalent, Implies, Not, Or
+
+from .api import compile_logic, consistency_report, logic_to_loss
+from .compilation import LinearThresholdUnitCompiler, TNormCompiler
+from .compilation.compiled_expression import CompiledExpression
+from .context import EvaluationContext
 
 # Evaluation
 from .eval import ConsistencyChecker, ConsistencyReport
+
+# Logic (First-Order Logic)
+from .logic import Binding, Variable, extract_variables, ground
+from .logic.quantifier import Exists, ForAll
+from .loss import LogicLoss
+from .predicate import Predicate
+
+# Symbol API for predicates
+from .symbols import PredicateApplication, PredicateSymbol, Symbol
 from .tnorms import (
-    TNorm,
+    GodelTNorm,
+    LukasiewiczTNorm,
+    MixedTNorm,
     RProductTNorm,
     SProductTNorm,
-    LukasiewiczTNorm,
-    GodelTNorm,
-    MixedTNorm,
+    TNorm,
 )
 
 __version__ = "1.0.0"

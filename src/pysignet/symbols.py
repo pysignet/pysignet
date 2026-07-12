@@ -21,7 +21,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sympy as sp
 from sympy.logic.boolalg import Boolean
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from .logic.variable import VariableSymbol
 
 
-def Symbol(names: str) -> "PredicateSymbol" | Tuple["PredicateSymbol", ...]:
+def Symbol(names: str) -> PredicateSymbol | tuple[PredicateSymbol, ...]:
     """Create predicate symbols for use in FOL expressions.
 
     All predicates must be called with at least one Variable argument.
@@ -121,7 +121,7 @@ class PredicateSymbol(sp.Symbol):  # type: ignore[misc]
         PredicateApplication instances.
     """
 
-    def __call__(self, *args: int | "VariableSymbol") -> "PredicateApplication":
+    def __call__(self, *args: int | VariableSymbol) -> PredicateApplication:
         """Call with arguments to create a predicate application (n-ary).
 
         Create a PredicateApplication AST node representing this predicate
@@ -212,7 +212,7 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
     def __init__(
         self,
         predicate_name: str,
-        args: Tuple[int | "VariableSymbol", ...],
+        args: tuple[int | VariableSymbol, ...],
     ) -> None:
         """Initialize a new PredicateApplication instance.
 
@@ -224,7 +224,7 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
         self.application_args = args
 
     @property
-    def args(self) -> Tuple[()]:
+    def args(self) -> tuple[()]:
         """Return args for SymPy compatibility.
 
         SymPy expects Basic objects to have an args property.
@@ -309,7 +309,9 @@ class PredicateApplication(Boolean):  # type: ignore[misc]
             prettyForm with the human-readable predicate application string.
         """
         del printer  # unused
-        from sympy.printing.pretty.stringpict import prettyForm  # pylint: disable=import-outside-toplevel
+        from sympy.printing.pretty.stringpict import (  # pylint: disable=import-outside-toplevel
+            prettyForm,
+        )
         args_str = ", ".join(str(arg) for arg in self.application_args)
         return prettyForm(f"{self.predicate_name}({args_str})")
 

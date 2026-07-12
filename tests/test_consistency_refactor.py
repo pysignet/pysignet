@@ -13,13 +13,13 @@ Tests verify that ConsistencyChecker:
 
 # pylint: disable=invalid-name
 
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
-from pysignet import Symbol, Variable, Predicate, compile_logic
+from pysignet import Predicate, Symbol, Variable, compile_logic
 from pysignet.eval import ConsistencyChecker, to_boolean
-from pysignet.logic import ForAll, Exists
+from pysignet.logic import Exists, ForAll
 
 
 class TestAccuracyEqualsConsistency:

@@ -7,7 +7,6 @@ arXiv:1909.00126.
 
 # pylint: disable=invalid-name
 
-from typing import Dict
 
 import sympy as sp
 import torch
@@ -580,7 +579,7 @@ class TestMultiConstraint:
     """Test multi-constraint ConsistencyReport."""
 
     @staticmethod
-    def _make_predicates() -> Dict[str, Predicate]:
+    def _make_predicates() -> dict[str, Predicate]:
         """Shared predicates for multi-constraint tests.
 
         P: [T, T, F, F], Q: [T, F, T, F]

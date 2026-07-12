@@ -21,9 +21,9 @@ import torch
 from pysignet.batch_handler import BatchHandlerMixin
 from pysignet.compilation import TNormCompiler
 from pysignet.tnorms import (
-    RProductTNorm,
-    LukasiewiczTNorm,
     GodelTNorm,
+    LukasiewiczTNorm,
+    RProductTNorm,
 )
 
 

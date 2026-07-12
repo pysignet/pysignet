@@ -24,7 +24,7 @@ Example:
     >>> accuracy = satisfied.float().mean().item()
 """
 
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 import sympy as sp
 import torch
@@ -34,9 +34,9 @@ from pysignet.compilation.module_utils import (
     split_model_and_index_vars,
 )
 from pysignet.eval.boolean import to_boolean
+from pysignet.logic.variable import VariableSymbol
 from pysignet.predicate import Predicate
 from pysignet.symbols import PredicateApplication
-from pysignet.logic.variable import VariableSymbol
 
 
 class ConsistencyChecker:
@@ -66,7 +66,7 @@ class ConsistencyChecker:
     def __init__(
         self,
         expression: sp.Basic,
-        predicates: Dict[str, Predicate],
+        predicates: dict[str, Predicate],
     ) -> None:
         # pylint: disable=import-outside-toplevel
         from pysignet.logic.expansion import (
@@ -116,8 +116,8 @@ class ConsistencyChecker:
 
     def _evaluate_predicates(
         self,
-        bindings: Dict[str, torch.Tensor],
-    ) -> Dict[PredicateApplication, torch.Tensor]:
+        bindings: dict[str, torch.Tensor],
+    ) -> dict[PredicateApplication, torch.Tensor]:
         """Evaluate all predicate applications to boolean decisions.
 
         Args:
@@ -127,9 +127,9 @@ class ConsistencyChecker:
             Dict mapping PredicateApplication instances to boolean
             tensors.
         """
-        decisions: Dict[PredicateApplication, torch.Tensor] = {}
-        model_cache: Dict[
-            Tuple[int, Tuple[int, ...]], torch.Tensor
+        decisions: dict[PredicateApplication, torch.Tensor] = {}
+        model_cache: dict[
+            tuple[int, tuple[int, ...]], torch.Tensor
         ] = {}
 
         applications = self._extract_predicate_applications(
@@ -160,11 +160,11 @@ class ConsistencyChecker:
     def _evaluate_model_predicate(
         self,
         predicate: Predicate,
-        variables: List[VariableSymbol],
-        constants: List[Any],
-        bindings: Dict[str, torch.Tensor],
-        model_cache: Dict[
-            Tuple[int, Tuple[int, ...]], torch.Tensor
+        variables: list[VariableSymbol],
+        constants: list[Any],
+        bindings: dict[str, torch.Tensor],
+        model_cache: dict[
+            tuple[int, tuple[int, ...]], torch.Tensor
         ],
     ) -> torch.Tensor:
         """Evaluate nn.Module predicate to boolean.
@@ -229,7 +229,7 @@ class ConsistencyChecker:
         int_consts = [
             c for c in constants if isinstance(c, int)
         ]
-        class_idx: Optional[int] = (
+        class_idx: int | None = (
             int_consts[0] if int_consts else None
         )
 
@@ -239,7 +239,7 @@ class ConsistencyChecker:
         self,
         predicate: Predicate,
         app: PredicateApplication,
-        bindings: Dict[str, torch.Tensor],
+        bindings: dict[str, torch.Tensor],
     ) -> torch.Tensor:
         """Evaluate function predicate to boolean.
 
@@ -268,7 +268,7 @@ class ConsistencyChecker:
     def _evaluate_boolean(
         self,
         expr: sp.Basic,
-        decisions: Dict[PredicateApplication, torch.Tensor],
+        decisions: dict[PredicateApplication, torch.Tensor],
     ) -> torch.Tensor:
         """Recursively evaluate SymPy expression with boolean logic.
 
@@ -346,7 +346,7 @@ class ConsistencyChecker:
     @staticmethod
     def _parse_args(
         app: PredicateApplication,
-    ) -> Tuple[List[VariableSymbol], List[Any]]:
+    ) -> tuple[list[VariableSymbol], list[Any]]:
         """Split application args into variables and constants.
 
         Args:
@@ -355,8 +355,8 @@ class ConsistencyChecker:
         Returns:
             Tuple of (variables, constants).
         """
-        variables: List[VariableSymbol] = []
-        constants: List[Any] = []
+        variables: list[VariableSymbol] = []
+        constants: list[Any] = []
         for arg in app.application_args:
             if isinstance(arg, VariableSymbol):
                 variables.append(arg)
@@ -367,8 +367,8 @@ class ConsistencyChecker:
     @staticmethod
     def _build_call_args(
         app: PredicateApplication,
-        bindings: Dict[str, torch.Tensor],
-    ) -> List[Any]:
+        bindings: dict[str, torch.Tensor],
+    ) -> list[Any]:
         """Build call args for a function predicate.
 
         Resolves variables from bindings and passes constants
@@ -384,7 +384,7 @@ class ConsistencyChecker:
         Raises:
             ValueError: If a variable is missing from bindings.
         """
-        call_args: List[Any] = []
+        call_args: list[Any] = []
         for arg in app.application_args:
             if isinstance(arg, VariableSymbol):
                 var_name = str(arg)
@@ -401,7 +401,7 @@ class ConsistencyChecker:
 
     @staticmethod
     def _make_bool_constant(
-        decisions: Dict[PredicateApplication, torch.Tensor],
+        decisions: dict[PredicateApplication, torch.Tensor],
         value: bool,
     ) -> torch.Tensor:
         """Create a boolean constant tensor matching batch size.
@@ -435,7 +435,7 @@ class ConsistencyChecker:
         softmax/sigmoid applied instead of falling back to
         clamping.
         """
-        arities: Dict[str, int] = {}
+        arities: dict[str, int] = {}
         for app in self._extract_predicate_applications(
             self._expression
         ):
@@ -452,7 +452,7 @@ class ConsistencyChecker:
 
     def _extract_predicate_symbols(
         self, expr: sp.Basic
-    ) -> Set[str]:
+    ) -> set[str]:
         """Extract all predicate symbol names from expression.
 
         Args:
@@ -467,7 +467,7 @@ class ConsistencyChecker:
         if isinstance(expr, VariableSymbol):
             return set()
 
-        symbols: Set[str] = set()
+        symbols: set[str] = set()
         for arg in expr.args:
             symbols.update(
                 self._extract_predicate_symbols(arg)
@@ -476,7 +476,7 @@ class ConsistencyChecker:
 
     def _extract_predicate_applications(
         self, expr: sp.Basic
-    ) -> Set[PredicateApplication]:
+    ) -> set[PredicateApplication]:
         """Extract all unique PredicateApplications.
 
         Args:
@@ -485,7 +485,7 @@ class ConsistencyChecker:
         Returns:
             Set of PredicateApplication instances.
         """
-        applications: Set[PredicateApplication] = set()
+        applications: set[PredicateApplication] = set()
 
         if isinstance(expr, PredicateApplication):
             applications.add(expr)

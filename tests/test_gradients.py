@@ -9,13 +9,13 @@ import torch
 import torch.nn as nn
 
 from pysignet import (
-    logic_to_loss,
-    Symbol,
-    Variable,
+    GodelTNorm,
+    LukasiewiczTNorm,
     Predicate,
     RProductTNorm,
-    LukasiewiczTNorm,
-    GodelTNorm,
+    Symbol,
+    Variable,
+    logic_to_loss,
 )
 
 
@@ -353,7 +353,7 @@ def test_gradient_accumulation() -> None:
     loss2.backward()  # type: ignore[no-untyped-call]
 
     # Gradients should have accumulated
-    for param, first_grad in zip(model.parameters(), first_grads):
+    for param, first_grad in zip(model.parameters(), first_grads, strict=True):
         assert param.grad is not None
         # Gradients should be different (accumulated)
         assert not torch.allclose(param.grad, first_grad)

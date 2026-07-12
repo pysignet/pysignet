@@ -34,7 +34,8 @@ Since both inputs and outputs can be named neurons, input-output constraints
 """
 
 import warnings
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -88,7 +89,7 @@ class Predicate:
     def __init__(
         self,
         func: torch.nn.Module | Callable[..., Any],
-        is_model: Optional[bool] = None,
+        is_model: bool | None = None,
     ) -> None:
         """Initialize a predicate wrapping a named neuron.
 
@@ -98,7 +99,7 @@ class Predicate:
             is_model: True if func is trainable, False otherwise,
                 None to auto-detect
         """
-        self.name: Optional[str] = None  # Assigned by compiler
+        self.name: str | None = None  # Assigned by compiler
         self.func = func  # The named neuron being wrapped
 
         # Auto-detect if it's a trainable model (has parameters)
@@ -108,9 +109,9 @@ class Predicate:
             self.is_model = is_model
 
         # Activation metadata for nn.Module predicates
-        self._activation: Optional[str] = None
-        self._has_activation: Optional[bool] = None
-        self._inferred_arity: Optional[int] = None
+        self._activation: str | None = None
+        self._has_activation: bool | None = None
+        self._inferred_arity: int | None = None
 
         if isinstance(func, torch.nn.Module):
             self._detect_activation(func)

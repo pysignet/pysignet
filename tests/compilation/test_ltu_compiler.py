@@ -5,11 +5,11 @@ logical operations as linear threshold units.
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
-from pysignet import Symbol, Variable, LogicLoss
+from pysignet import LogicLoss, Symbol, Variable
 from pysignet.compilation import LinearThresholdUnitCompiler
 
 

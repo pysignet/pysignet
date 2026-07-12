@@ -8,19 +8,19 @@ This module tests t-norm-specific loss post-processing strategies:
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
 from pysignet import (
-    Symbol,
-    Variable,
-    logic_to_loss,
+    GodelTNorm,
+    LukasiewiczTNorm,
     Predicate,
     RProductTNorm,
     SProductTNorm,
-    LukasiewiczTNorm,
-    GodelTNorm,
+    Symbol,
+    Variable,
+    logic_to_loss,
 )
 
 

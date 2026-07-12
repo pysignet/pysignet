@@ -5,8 +5,8 @@ evaluated with universal quantification over batch dimensions.
 """
 
 import pytest
-import torch
 import sympy as sp
+import torch
 
 from pysignet import Symbol, Variable, compile_logic
 from pysignet.compilation import TNormCompiler

@@ -12,7 +12,8 @@ Batch quantification control:
 - quantify='none': No quantification (return per-batch results)
 """
 
-from typing import Any, Callable, List, Literal
+from collections.abc import Callable
+from typing import Any, Literal
 
 import torch
 
@@ -373,7 +374,7 @@ class LogicLoss(BatchHandlerMixin):
         return self._compiled_expr.free_variables
 
     @property
-    def trainable_parameters(self) -> List[torch.nn.Parameter]:
+    def trainable_parameters(self) -> list[torch.nn.Parameter]:
         """All trainable parameters from model-based predicates.
 
         Delegates to the underlying CompiledExpression.

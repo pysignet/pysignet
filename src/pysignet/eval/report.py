@@ -31,20 +31,20 @@ Example:
     >>> print(report.global_violation())
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import sympy as sp
 import torch
 
 from pysignet.eval.checker import ConsistencyChecker
 from pysignet.eval.display import (
+    _html_no_data,
     html_chart_multi,
     html_chart_single,
     html_history_multi,
     html_history_single,
     html_metrics_multi,
     html_metrics_single,
-    _html_no_data,
 )
 from pysignet.predicate import Predicate
 
@@ -80,23 +80,21 @@ class ConsistencyReport:
 
     def __init__(
         self,
-        expression: Union[
-            sp.Basic, Dict[str, sp.Basic]
-        ],
-        predicates: Dict[str, Predicate],
+        expression: sp.Basic | dict[str, sp.Basic],
+        predicates: dict[str, Predicate],
     ) -> None:
         if isinstance(expression, dict):
             self._is_single = False
-            self._names: List[str] = list(expression.keys())
+            self._names: list[str] = list(expression.keys())
             expr_dict = expression
         else:
             self._is_single = True
             self._names = ["default"]
             expr_dict = {"default": expression}
 
-        self._checkers: Dict[str, ConsistencyChecker] = {}
-        self._antecedents: Dict[
-            str, Optional[ConsistencyChecker]
+        self._checkers: dict[str, ConsistencyChecker] = {}
+        self._antecedents: dict[
+            str, ConsistencyChecker | None
         ] = {}
 
         for name, expr in expr_dict.items():
@@ -116,24 +114,24 @@ class ConsistencyReport:
         if self._is_single:
             self.antecedent = self._antecedents["default"]
 
-        self._satisfied_counts: Dict[str, int] = {
+        self._satisfied_counts: dict[str, int] = {
             n: 0 for n in self._names
         }
         self._total_count: int = 0
-        self._antecedent_true_counts: Dict[str, int] = {
+        self._antecedent_true_counts: dict[str, int] = {
             n: 0 for n in self._names
         }
-        self._antecedent_true_violated: Dict[str, int] = {
+        self._antecedent_true_violated: dict[str, int] = {
             n: 0 for n in self._names
         }
-        self._last_satisfied: Dict[
-            str, Optional[torch.Tensor]
+        self._last_satisfied: dict[
+            str, torch.Tensor | None
         ] = {n: None for n in self._names}
-        self._history: List[Dict[str, Any]] = []
+        self._history: list[dict[str, Any]] = []
 
     def eval(
         self, **variable_bindings: torch.Tensor
-    ) -> Union[torch.Tensor, Dict[str, torch.Tensor]]:
+    ) -> torch.Tensor | dict[str, torch.Tensor]:
         """Evaluate one batch and accumulate results.
 
         Args:
@@ -145,8 +143,8 @@ class ConsistencyReport:
             Multi mode: Dict mapping constraint names to
                 boolean tensors.
         """
-        results: Dict[str, torch.Tensor] = {}
-        batch_size: Optional[int] = None
+        results: dict[str, torch.Tensor] = {}
+        batch_size: int | None = None
 
         for name in self._names:
             satisfied = self._checkers[name](
@@ -195,9 +193,9 @@ class ConsistencyReport:
 
     def _build_history_entry(
         self,
-        results: Dict[str, torch.Tensor],
+        results: dict[str, torch.Tensor],
         batch_size: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build a history entry for the current batch.
 
         Args:
@@ -218,7 +216,7 @@ class ConsistencyReport:
                 "tau": rho,
             }
 
-        constraints: Dict[str, Dict[str, float]] = {}
+        constraints: dict[str, dict[str, float]] = {}
         for name in self._names:
             satisfied = results[name]
             sat_count = int(satisfied.sum().item())
@@ -233,7 +231,7 @@ class ConsistencyReport:
 
     def global_violation(
         self,
-    ) -> Union[float, Dict[str, float]]:
+    ) -> float | dict[str, float]:
         """Global violation rate (rho).
 
         Fraction of all evaluated examples where the formula
@@ -262,7 +260,7 @@ class ConsistencyReport:
 
     def global_consistency(
         self,
-    ) -> Union[float, Dict[str, float]]:
+    ) -> float | dict[str, float]:
         """Global consistency rate (1 - rho).
 
         Fraction of all evaluated examples where the formula
@@ -288,7 +286,7 @@ class ConsistencyReport:
 
     def conditional_violation(
         self,
-    ) -> Union[float, Dict[str, float]]:
+    ) -> float | dict[str, float]:
         """Conditional violation rate (tau).
 
         Fraction of examples with antecedent=True where the
@@ -320,7 +318,7 @@ class ConsistencyReport:
 
     def satisfaction_count(
         self,
-    ) -> Union[int, Dict[str, int]]:
+    ) -> int | dict[str, int]:
         """Number of examples where formula was satisfied.
 
         Returns:
@@ -342,9 +340,7 @@ class ConsistencyReport:
 
     def violated_indices(
         self,
-    ) -> Union[
-        torch.Tensor, Dict[str, torch.Tensor]
-    ]:
+    ) -> torch.Tensor | dict[str, torch.Tensor]:
         """Indices violated in the most recent eval() call.
 
         Returns indices where the formula was not satisfied
@@ -372,7 +368,7 @@ class ConsistencyReport:
             return torch.tensor([], dtype=torch.int64)
         return torch.where(~last)[0]
 
-    def history(self) -> List[Dict[str, Any]]:
+    def history(self) -> list[dict[str, Any]]:
         """Per-batch history of metrics.
 
         Each eval() call appends one entry. Reset clears all.
@@ -427,7 +423,7 @@ class ConsistencyReport:
             )
         return "\n".join(lines)
 
-    def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> dict[str, Any]:
         """Return metrics as a JSON-serializable dict.
 
         Returns:
@@ -456,7 +452,7 @@ class ConsistencyReport:
                 ),
             }
 
-        constraints: Dict[str, Dict[str, Any]] = {}
+        constraints: dict[str, dict[str, Any]] = {}
         for name in self._names:
             constraints[name] = {
                 "satisfied_count": (
@@ -488,10 +484,10 @@ class ConsistencyReport:
 
     def _single_metrics_args(
         self,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Collect single-mode metrics for display."""
         rho = self._global_violation_for("default")
-        tau: Optional[float] = None
+        tau: float | None = None
         if self._antecedents["default"] is not None:
             tau = self._conditional_violation_for("default")
         return {
@@ -504,9 +500,9 @@ class ConsistencyReport:
 
     def _multi_metrics_args(
         self,
-    ) -> Dict[str, Dict[str, Any]]:
+    ) -> dict[str, dict[str, Any]]:
         """Collect multi-mode per-constraint metrics."""
-        result: Dict[str, Dict[str, Any]] = {}
+        result: dict[str, dict[str, Any]] = {}
         for name in self._names:
             rho = self._global_violation_for(name)
             result[name] = {

@@ -12,9 +12,9 @@ import torch
 import torch.nn as nn
 
 from pysignet.compilation.module_utils import (
-    infer_module_arity,
     has_final_activation,
-    wrap_module_as_predicate
+    infer_module_arity,
+    wrap_module_as_predicate,
 )
 
 

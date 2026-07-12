@@ -5,9 +5,9 @@ Tests verify that gradients flow correctly and that PyTorch goodness works.
 """
 
 import pytest
+import sympy as sp
 import torch
 import torch.nn as nn
-import sympy as sp
 
 from pysignet import Symbol, Variable, logic_to_loss
 from pysignet.logic.quantifier import ForAll

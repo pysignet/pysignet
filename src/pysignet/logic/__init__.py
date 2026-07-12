@@ -4,18 +4,18 @@ This module provides first-order logic capabilities including variables,
 quantifiers, and binding.
 """
 
-from .variable import Variable
+from .binding import Binding, ground
+from .expansion import expand_quantifier
 from .extraction import (
-    extract_variables,
-    extract_variables_from_application,
     extract_constants,
     extract_constants_from_application,
-    is_variable,
+    extract_variables,
+    extract_variables_from_application,
     is_constant,
+    is_variable,
 )
-from .binding import Binding, ground
-from .quantifier import ForAll, Exists
-from .expansion import expand_quantifier
+from .quantifier import Exists, ForAll
+from .variable import Variable
 
 __all__ = [
     "Variable",

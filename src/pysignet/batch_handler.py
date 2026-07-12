@@ -6,12 +6,12 @@ This ensures batch reduction (forall/exists) uses the same logical operations
 as expression evaluation.
 """
 
-from typing import Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import torch
+
 from pysignet.compilation import CompiledExpression, TNormCompiler
-from pysignet.tnorms import RProductTNorm
-from pysignet.tnorms import MixedTNorm
+from pysignet.tnorms import MixedTNorm, RProductTNorm
 
 if TYPE_CHECKING:
     from pysignet.compilation.base import LogicCompiler
@@ -54,9 +54,10 @@ class BatchHandlerMixin:
             # conjunction will get used, which will only propagate gradients
             # to the worst element in a batch.
 
-            if isinstance(compiler, TNormCompiler):
-                if isinstance(compiler.tnorm, MixedTNorm):
-                    return TNormCompiler(tnorm=RProductTNorm())
+            if isinstance(compiler, TNormCompiler) and isinstance(
+                compiler.tnorm, MixedTNorm
+            ):
+                return TNormCompiler(tnorm=RProductTNorm())
             return compiler
         else:
             # Fallback: create a default TNormCompiler

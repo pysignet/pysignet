@@ -7,8 +7,7 @@ no JavaScript, and no external dependencies.
 All output is ASCII-only (no emojis, no unicode symbols).
 """
 
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 _MAX_HISTORY_ROWS = 20
 
@@ -106,7 +105,7 @@ def html_metrics_single(
     total: int,
     rho: float,
     consistency: float,
-    tau: Optional[float],
+    tau: float | None,
 ) -> str:
     """Render single-expression metrics card.
 
@@ -153,7 +152,7 @@ def html_metrics_single(
 
 
 def html_metrics_multi(
-    constraints: Dict[str, Dict[str, Any]],
+    constraints: dict[str, dict[str, Any]],
     total: int,
     show_tau: bool,
 ) -> str:
@@ -216,7 +215,7 @@ def html_chart_single(
     total: int,
     rho: float,
     consistency: float,
-    tau: Optional[float],
+    tau: float | None,
 ) -> str:
     """Render single-expression metrics + bar chart.
 
@@ -264,7 +263,7 @@ def html_chart_single(
 
 
 def html_chart_multi(
-    constraints: Dict[str, Dict[str, Any]],
+    constraints: dict[str, dict[str, Any]],
     total: int,
     show_tau: bool,
 ) -> str:
@@ -331,8 +330,8 @@ def html_history_single(
     total: int,
     rho: float,
     consistency: float,
-    tau: Optional[float],
-    history: List[Dict[str, Any]],
+    tau: float | None,
+    history: list[dict[str, Any]],
 ) -> str:
     """Render single-expression metrics + history table.
 
@@ -393,11 +392,11 @@ def html_history_single(
 
 
 def html_history_multi(
-    constraints: Dict[str, Dict[str, Any]],
+    constraints: dict[str, dict[str, Any]],
     total: int,
     show_tau: bool,
-    constraint_names: List[str],
-    history: List[Dict[str, Any]],
+    constraint_names: list[str],
+    history: list[dict[str, Any]],
 ) -> str:
     """Render multi-constraint metrics + history table.
 

@@ -4,7 +4,7 @@ Variables are placeholders in logical expressions that can be bound to
 concrete tensors during evaluation.
 """
 
-from typing import Tuple
+
 import sympy as sp
 
 
@@ -39,7 +39,7 @@ class VariableSymbol(sp.Symbol):  # type: ignore[misc]
 
 def Variable(
     names: str,
-) -> VariableSymbol | Tuple[VariableSymbol, ...]:
+) -> VariableSymbol | tuple[VariableSymbol, ...]:
     """Create one or more FOL variables.
 
     Variables are placeholders in logical expressions that must be bound to

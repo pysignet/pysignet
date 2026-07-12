@@ -5,8 +5,8 @@ network outputs during a single expression evaluation to avoid redundant
 forward passes.
 """
 
-from collections.abc import Hashable
-from typing import Any, Callable, Dict
+from collections.abc import Callable, Hashable
+from typing import Any
 
 
 class EvaluationContext:
@@ -39,7 +39,7 @@ class EvaluationContext:
 
     def __init__(self) -> None:
         """Initialize an empty evaluation context."""
-        self.cache: Dict[Hashable, Any] = {}
+        self.cache: dict[Hashable, Any] = {}
 
     def get_or_compute(
         self, cache_key: Hashable, compute_fn: Callable[[], Any]
