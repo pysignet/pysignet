@@ -12,8 +12,7 @@ rather than listing every individual commit.
 ## [Unreleased]
 
 - v1.0.0 has not been tagged/published yet. Remaining step: push the
-  `v1.0.0` git tag to trigger the automated PyPI publish workflow
-  (see TODO.md).
+  `v1.0.0` git tag to trigger the automated PyPI publish workflow.
 
 ## [1.0.0] - 2026-06-23 to 2026-07-12
 
