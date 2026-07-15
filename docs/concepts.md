@@ -210,3 +210,52 @@ predicates). The `tnorm=` parameter is ignored in LTU mode; pass `alpha=` instea
 You can also import and instantiate `LinearThresholdUnitCompiler` directly for
 use outside of `compile_logic`. See [Custom Compilers](custom-compilers.md) for
 details on extending the compiler base class.
+
+## Combining Multiple Losses
+
+There are two different ways to train with more than one constraint, and they
+are **not equivalent**.
+
+**Satisfaction-level combination** conjoins expressions before compiling, so
+a single t-norm evaluates the whole formula together:
+
+```python
+expr = sp.And(symmetry_expr, transitivity_expr)
+logic_loss = logic_to_loss(expr, predicates)
+```
+
+Use this when the constraints share predicates and variables and should be
+evaluated as one formula.
+
+**Loss-level combination** keeps each constraint as its own `LogicLoss`
+(its own predicates, variables, t-norm, and post-processing) and combines
+their already-computed loss *values* with `CombinedLoss`:
+
+```python
+from pysignet import CombinedLoss
+
+symmetry_loss = logic_to_loss(symmetry_expr, symmetry_predicates)
+addition_loss = logic_to_loss(addition_expr, addition_predicates)
+
+combined = CombinedLoss(
+    {"symmetry": symmetry_loss, "addition": addition_loss},
+    weights={"symmetry": 0.1, "addition": 1.0},
+)
+
+loss = combined.loss({
+    "symmetry": {"X1": x1, "X2": x2},
+    "addition": {"X": x, "Y": y},
+})
+```
+
+Use this when the constraints are logically independent -- different
+predicates, variables, batch sizes, data streams, or even different t-norms
+per constraint -- and you want to weight/balance their training signal.
+
+Weights may be static floats or learnable `nn.Parameter`s (mixed freely per
+constraint), and `normalize=True` divides the weighted sum by the sum of
+weights instead of returning the raw sum. `combined.trainable_parameters`
+collects every sub-loss's parameters plus any learnable weights,
+deduplicated by identity, so a predicate reused across constraints (e.g. the
+same digit classifier used in both a symmetry and an addition constraint)
+is not double-counted in the optimizer.

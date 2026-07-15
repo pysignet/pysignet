@@ -67,6 +67,7 @@ poetry add pysignet
 - **Flexible Predicates**: Neural networks or deterministic functions
 - **Multiple T-Norms**: Product, Lukasiewicz, Godel, and Mixed t-norms
 - **Multiple Compilers**: T-norm (`mode='tnorm'`) and LinearThresholdUnit (`mode='ltu'`) built-in; extend via `LogicCompiler`
+- **Combining Constraints**: `CombinedLoss` weights and sums independent `LogicLoss` objects for multi-constraint training
 - **Full PyTorch Integration**: Gradients flow through all operations
 
 ## Learn More

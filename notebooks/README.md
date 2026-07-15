@@ -33,3 +33,7 @@ Shows how to select a compilation strategy with `mode='tnorm'` (default) or `mod
 ## [Multi-Modal Predicates](Multi-Modal%20Predicates.ipynb)
 
 Introduces the dict-as-variable pattern, where a single logical variable `X` carries a dict and each predicate reads its own slice. Uses a fully synthetic two-view dataset: each sample is observed by two independent noisy sensors. `ViewA(X)` reads `x["view_a"]` and `ViewB(X)` reads `x["view_b"]`; the cross-view consistency constraint `Equivalent(ViewA(X), ViewB(X))` is applied on unlabeled samples as a semi-supervised signal. Explains when to use the dict pattern versus the single-tensor and multi-variable patterns from earlier notebooks.
+
+## [Combining Multiple Losses](Combining%20Multiple%20Losses.ipynb)
+
+Trains the MNIST Addition classifier under two independent constraints at once -- the addition constraint and the exactly-one constraint from Semi-Supervised MNIST, applied to a separate pool of unlabeled images -- combined with `CombinedLoss`. Shows that `CombinedLoss.trainable_parameters` deduplicates the shared classifier's parameters so the optimizer does not double-step them, then sweeps the auxiliary constraint's weight. The sweep shows the constraint is close to inert at small weights and actively harmful at `entropy_weight=1.0`, destabilizing the first epoch before the addition signal recovers it -- a concrete case for treating combination weights as a swept hyperparameter rather than a hardcoded `1.0`.

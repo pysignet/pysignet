@@ -40,6 +40,7 @@ nav:
     - Functions: api-functions.md
     - CompiledExpression: api-compiled-expression.md
     - LogicLoss: api-logic-loss.md
+    - CombinedLoss: api-combined-loss.md
     - T-Norms: api-tnorms.md
     - Compilers: api-compilers.md
   - Advanced:
