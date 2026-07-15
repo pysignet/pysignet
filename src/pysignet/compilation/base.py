@@ -54,6 +54,17 @@ class LogicCompiler(ABC):
     MAX_DOMAIN_SIZE = 1000
     WARN_DOMAIN_SIZE = 100
 
+    # Minimum number of distinct leaf atoms before the opt-in jit=True
+    # path wraps the combinator-dispatch step in torch.compile. Below
+    # this, tracing overhead is not worth it and the eager path is used
+    # even when jit=True.
+    JIT_SIZE_THRESHOLD = 8
+
+    # Subclasses that support the opt-in JIT path set self.jit in their
+    # __init__. This class-level default keeps it False (Phase 1:
+    # opt-in) for any subclass that does not set it explicitly.
+    jit = False
+
     @property
     @abstractmethod
     def recommended_postprocessing(self) -> str:
@@ -1015,3 +1026,167 @@ class LogicCompiler(ABC):
             expr, inputs, predicates, ctx
         )
         return torch.log(linear + 1e-10)
+
+    def _collect_leaves(
+        self, expr: sp.Basic
+    ) -> list[PredicateApplication]:
+        """Collect unique PredicateApplication leaves in evaluation order.
+
+        Args:
+            expr: SymPy expression to walk (after quantifier expansion)
+
+        Returns:
+            List of unique PredicateApplication nodes in first-occurrence
+            order. Duplicate ground atoms (same predicate name and
+            arguments) are deduplicated via PredicateApplication's
+            structural equality/hash.
+        """
+        seen: dict[PredicateApplication, None] = {}
+
+        def _walk(node: sp.Basic) -> None:
+            if isinstance(node, PredicateApplication):
+                seen.setdefault(node, None)
+                return
+            for arg in getattr(node, "args", ()):
+                _walk(arg)
+
+        _walk(expr)
+        return list(seen.keys())
+
+    def _build_combine_fn(
+        self,
+        expr: sp.Basic,
+        leaf_order: list[PredicateApplication],
+    ) -> Callable[[list[torch.Tensor]], torch.Tensor]:
+        """Build a pure tensor-only function combining leaf values.
+
+        Unlike _evaluate_expression, this function never calls a
+        predicate -- it only combines already-evaluated leaf tensors
+        according to the (fixed) formula structure. This is what makes
+        it safe to wrap in torch.compile: its Python control flow
+        depends only on the closed-over SymPy structure, never on
+        tensor values or arbitrary user predicate code.
+
+        Args:
+            expr: SymPy expression (after quantifier expansion)
+            leaf_order: Unique leaf atoms, as returned by
+                _collect_leaves(expr)
+
+        Returns:
+            Callable taking a list of leaf tensors (in leaf_order) and
+            returning the combined satisfaction tensor.
+        """
+        leaf_index = {atom: i for i, atom in enumerate(leaf_order)}
+
+        def _combine(
+            node: sp.Basic, leaf_values: list[torch.Tensor]
+        ) -> torch.Tensor:
+            if isinstance(node, PredicateApplication):
+                return leaf_values[leaf_index[node]]
+
+            if isinstance(node, sp.Symbol):
+                raise ValueError(
+                    f"Bare symbol '{node}' is not supported. "
+                    f"All predicates must be called with at least one "
+                    f"variable argument (e.g., use P(X) instead of P)."
+                )
+
+            # leaf_values[0] is safe here: an all-constant expression
+            # has zero leaf atoms, which keeps use_jit False in
+            # _build_evaluator, so this branch is never reached with an
+            # empty leaf_values.
+            if node in (sp.true, sp.false):
+                return (
+                    torch.ones_like(leaf_values[0])
+                    if node == sp.true
+                    else torch.zeros_like(leaf_values[0])
+                )
+
+            if isinstance(node, sp.And):
+                return self.conjunction(
+                    torch.stack(
+                        [_combine(a, leaf_values) for a in node.args]
+                    )
+                )
+            if isinstance(node, sp.Or):
+                return self.disjunction(
+                    torch.stack(
+                        [_combine(a, leaf_values) for a in node.args]
+                    )
+                )
+            if isinstance(node, sp.Not):
+                return self.negation(_combine(node.args[0], leaf_values))
+            if isinstance(node, sp.Implies):
+                left, right = node.args
+                return self.implication(
+                    _combine(left, leaf_values),
+                    _combine(right, leaf_values),
+                )
+            if isinstance(node, sp.Equivalent):
+                left, right = node.args
+                return self.equivalence(
+                    _combine(left, leaf_values),
+                    _combine(right, leaf_values),
+                )
+
+            raise ValueError(
+                f"Unsupported expression type for jit combine: "
+                f"{type(node)}"
+            )
+
+        def combine(leaf_values: list[torch.Tensor]) -> torch.Tensor:
+            return _combine(expr, leaf_values)
+
+        return combine
+
+    def _build_evaluator(
+        self,
+        expanded_expr: sp.Basic,
+        predicates: dict[str, Predicate],
+    ) -> Callable[[dict[str, torch.Tensor]], torch.Tensor]:
+        """Build the compiled_logic closure for a compiled expression.
+
+        Uses the opt-in jit=True combinator path (torch.compile) when
+        the formula has at least JIT_SIZE_THRESHOLD leaf atoms;
+        otherwise -- including whenever jit=False, the Phase 1 default
+        (TODO.md 2.21) -- returns the ordinary eager evaluator.
+
+        Args:
+            expanded_expr: SymPy expression after quantifier expansion
+            predicates: Dict of wrapped predicates
+
+        Returns:
+            Callable taking a dict of variable bindings and returning
+            the satisfaction tensor of shape (batch_size,).
+        """
+        leaf_order = self._collect_leaves(expanded_expr)
+        use_jit = self.jit and len(leaf_order) >= self.JIT_SIZE_THRESHOLD
+
+        if not use_jit:
+            def compiled_logic(
+                inputs: dict[str, torch.Tensor]
+            ) -> torch.Tensor:
+                ctx = EvaluationContext()
+                return self._evaluate_expression(
+                    expanded_expr, inputs, predicates, ctx
+                )
+
+            return compiled_logic
+
+        combine = torch.compile(
+            self._build_combine_fn(expanded_expr, leaf_order)
+        )
+
+        def compiled_logic_jit(
+            inputs: dict[str, torch.Tensor]
+        ) -> torch.Tensor:
+            ctx = EvaluationContext()
+            leaf_values = [
+                self._evaluate_predicate_application(
+                    atom, inputs, predicates, ctx
+                )
+                for atom in leaf_order
+            ]
+            return combine(leaf_values)
+
+        return compiled_logic_jit

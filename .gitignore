@@ -148,3 +148,4 @@ cython_debug/
 
 obsolete
 /notebooks/data/
+/benchmarks/results/

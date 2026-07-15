@@ -26,6 +26,11 @@ class TNormCompiler(LogicCompiler):
 
     Args:
         tnorm: T-norm instance for relaxation (default: MixedTNorm)
+        jit: If True, wrap the combinator-dispatch step in torch.compile
+            for formulas with at least `JIT_SIZE_THRESHOLD` leaf atoms.
+            Default False (opt-in; see TODO.md 2.21). Predicate calls
+            are never traced -- only the connective combination of
+            already-evaluated leaf tensors is compiled.
 
     Example:
         ```python
@@ -35,14 +40,19 @@ class TNormCompiler(LogicCompiler):
         ```
     """
 
-    def __init__(self, tnorm: TNorm | None = None) -> None:
+    def __init__(
+        self, tnorm: TNorm | None = None, jit: bool = False
+    ) -> None:
         """Initialize TNormCompiler with a t-norm.
 
         Args:
             tnorm: T-norm for logical operator relaxation. If None, uses
                   MixedTNorm as default (matches compile_logic default).
+            jit: Opt-in torch.compile path for large formulas. Default
+                False. See class docstring.
         """
         self._tnorm = tnorm or MixedTNorm()
+        self.jit = jit
 
     @property
     def recommended_postprocessing(self) -> str:
@@ -112,24 +122,12 @@ class TNormCompiler(LogicCompiler):
         # Extract free variables for FOL support (batch quantification)
         free_vars = extract_variables(expanded_expr)
 
-        # Create a closure that evaluates the expression
-        def compiled_logic(inputs: dict[str, torch.Tensor]) -> torch.Tensor:
-            """Evaluate compiled logic expression.
-
-            Args:
-                inputs: Dict mapping variable names to tensors
-
-            Returns:
-                Satisfaction tensor of shape (batch_size,) in [0, 1]
-            """
-            # Create evaluation context for this evaluation
-            # Context manages caching to avoid redundant forward passes
-            ctx = EvaluationContext()
-
-            # Evaluate expression
-            return self._evaluate_expression(
-                expanded_expr, inputs, wrapped_predicates, ctx
-            )
+        # Create a closure that evaluates the expression. Uses the
+        # opt-in jit=True torch.compile path for large formulas, or the
+        # ordinary eager evaluator otherwise (default).
+        compiled_logic = self._build_evaluator(
+            expanded_expr, wrapped_predicates
+        )
 
         # Create a log-space closure for fused log-activation
         def compiled_logic_log(
