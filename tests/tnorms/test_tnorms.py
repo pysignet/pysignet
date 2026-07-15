@@ -447,3 +447,58 @@ def test_godel_multi_and() -> None:
 
     # Gödel AND: min(0.8, 0.6, 0.5) = 0.5
     assert torch.allclose(satisfaction, torch.tensor(0.5), atol=1e-5)
+
+
+def test_godel_conjunction_gradient_splits_across_ties() -> None:
+    """Gödel AND (min) with a tie splits the gradient equally across
+    every tied minimum element, instead of assigning it all to a
+    single (arbitrary, first-occurring) index."""
+    tnorm = GodelTNorm()
+    a = torch.tensor([0.3, 0.3, 0.9], requires_grad=True)
+    b = torch.tensor([0.7, 0.3, 0.3], requires_grad=True)
+    c = torch.tensor([0.5, 0.3, 0.6], requires_grad=True)
+
+    result = tnorm.conjunction(torch.stack([a, b, c]))
+    result.sum().backward()
+
+    # Index 0: unique minimum is a (0.3) -> full gradient to a only.
+    assert torch.isclose(a.grad[0], torch.tensor(1.0))
+    assert torch.isclose(b.grad[0], torch.tensor(0.0))
+    assert torch.isclose(c.grad[0], torch.tensor(0.0))
+
+    # Index 1: three-way tie at 0.3 -> gradient split equally.
+    assert torch.isclose(a.grad[1], torch.tensor(1 / 3))
+    assert torch.isclose(b.grad[1], torch.tensor(1 / 3))
+    assert torch.isclose(c.grad[1], torch.tensor(1 / 3))
+
+    # Index 2: unique minimum is b (0.3) -> full gradient to b only.
+    assert torch.isclose(a.grad[2], torch.tensor(0.0))
+    assert torch.isclose(b.grad[2], torch.tensor(1.0))
+    assert torch.isclose(c.grad[2], torch.tensor(0.0))
+
+
+def test_godel_disjunction_gradient_splits_across_ties() -> None:
+    """Gödel OR (max) with a tie splits the gradient equally across
+    every tied maximum element."""
+    tnorm = GodelTNorm()
+    a = torch.tensor([0.7, 0.7, 0.1], requires_grad=True)
+    b = torch.tensor([0.3, 0.7, 0.7], requires_grad=True)
+    c = torch.tensor([0.5, 0.7, 0.4], requires_grad=True)
+
+    result = tnorm.disjunction(torch.stack([a, b, c]))
+    result.sum().backward()
+
+    # Index 0: unique maximum is a (0.7) -> full gradient to a only.
+    assert torch.isclose(a.grad[0], torch.tensor(1.0))
+    assert torch.isclose(b.grad[0], torch.tensor(0.0))
+    assert torch.isclose(c.grad[0], torch.tensor(0.0))
+
+    # Index 1: three-way tie at 0.7 -> gradient split equally.
+    assert torch.isclose(a.grad[1], torch.tensor(1 / 3))
+    assert torch.isclose(b.grad[1], torch.tensor(1 / 3))
+    assert torch.isclose(c.grad[1], torch.tensor(1 / 3))
+
+    # Index 2: unique maximum is b (0.7) -> full gradient to b only.
+    assert torch.isclose(a.grad[2], torch.tensor(0.0))
+    assert torch.isclose(b.grad[2], torch.tensor(1.0))
+    assert torch.isclose(c.grad[2], torch.tensor(0.0))
