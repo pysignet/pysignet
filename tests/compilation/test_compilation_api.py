@@ -377,7 +377,7 @@ class TestCompileLogicErrorHandling:
 
         # Test mode error message - should mention not yet implemented
         with pytest.raises(NotImplementedError, match="not yet implemented"):
-            compile_logic(expr, predicates, mode="semantic")
+            compile_logic(expr, predicates, mode="bogus_mode")
 
 
 class TestCompileLogicWithComplexExpressions:

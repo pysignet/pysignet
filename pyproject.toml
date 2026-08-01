@@ -24,6 +24,9 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 
+[project.optional-dependencies]
+semantic = ["PySDD (>=1.0.6,<2.0.0)"]
+
 [project.urls]
 Homepage = "https://pysignet.github.io/"
 Repository = "https://github.com/pysignet/pysignet"
@@ -82,6 +85,10 @@ namespace_packages = true
 
 [[tool.mypy.overrides]]
 module = "sympy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pysdd.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

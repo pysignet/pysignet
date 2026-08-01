@@ -211,6 +211,38 @@ You can also import and instantiate `LinearThresholdUnitCompiler` directly for
 use outside of `compile_logic`. See [Custom Compilers](custom-compilers.md) for
 details on extending the compiler base class.
 
+### Semantic loss (`mode='semantic'`)
+
+T-norms and LTU combine truth degrees *locally* at each And/Or/Not node, so
+the result can depend on how a formula happens to be written: `And(X, X)`
+evaluates differently from `X` under a product t-norm, even though they are
+logically identical. **Semantic loss** (Xu et al., ICML 2018) instead defines
+satisfaction directly over a formula's models (its satisfying assignments),
+computed via weighted model counting (WMC) over a compiled Sentential
+Decision Diagram (SDD). This makes satisfaction depend only on a formula's
+*meaning*, not its syntax.
+
+Requires the optional `pysignet[semantic]` extra (PySDD, a C extension):
+
+```bash
+pip install pysignet[semantic]
+```
+
+```python
+compiled = compile_logic(expr, predicates, mode='semantic')
+```
+
+`tnorm=`/`alpha=` are not valid with `mode='semantic'`; pass `max_atoms=` to
+raise or lower the guard on the number of unique ground atoms (default 20).
+This is a coarse guard, not a true circuit-size bound -- compiled circuit
+size depends heavily on formula structure, not just atom count (a 10-atom
+"exactly one of N" constraint compiles to dozens of nodes, while a
+39-atom constraint with denser cross-variable structure was found to compile
+to hundreds of thousands of nodes during development -- see
+`SEMANTIC_LOSS_DESIGN.md` for the full feasibility analysis). Start with the
+default and raise it only after checking that compilation stays fast for
+your formula.
+
 ## Combining Multiple Losses
 
 There are two different ways to train with more than one constraint, and they

@@ -5,7 +5,11 @@ from collections.abc import Callable
 import sympy as sp
 import torch
 
-from pysignet.compilation import LinearThresholdUnitCompiler, TNormCompiler
+from pysignet.compilation import (
+    LinearThresholdUnitCompiler,
+    SemanticLossCompiler,
+    TNormCompiler,
+)
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.eval.report import ConsistencyReport
 from pysignet.loss import LogicLoss
@@ -19,6 +23,7 @@ def compile_logic(
     mode: str = "tnorm",
     tnorm: TNorm | None = None,
     alpha: float = 1.0,
+    max_atoms: int | None = None,
 ) -> CompiledExpression:
     """Compile logic expression into a CompiledExpression.
 
@@ -31,18 +36,23 @@ def compile_logic(
         expr: SymPy logic expression (e.g., sp.And(P(X), Q(X)))
         predicates: Dict mapping predicate names to Predicate objects or
             callables that produce torch Tensors
-        mode: Compilation mode - 'tnorm' (default) or 'ltu'
+        mode: Compilation mode - 'tnorm' (default), 'ltu', or 'semantic'
         tnorm: T-norm for mode='tnorm' (default: MixedTNorm). Ignored
             for other modes.
         alpha: Sigmoid sharpness for mode='ltu' (default: 1.0). Larger
             values make AND/OR thresholds sharper.
+        max_atoms: Maximum unique ground atoms for mode='semantic'
+            (default: SemanticLossCompiler.DEFAULT_MAX_ATOMS). Ignored
+            for other modes. See SemanticLossCompiler's docstring for
+            why this guard exists.
 
     Returns:
         CompiledExpression instance for evaluating satisfaction degrees
 
     Raises:
         ValueError: If unknown mode specified, or tnorm= given with
-            mode='ltu'
+            mode='ltu' or mode='semantic'
+        ImportError: If mode='semantic' and PySDD is not installed
 
     Examples:
         Default (MixedTNorm):
@@ -67,6 +77,12 @@ def compile_logic(
         ```python
         compiled = compile_logic(expr, predicates, mode='ltu', alpha=2.0)
         ```
+
+        With the semantic loss compiler:
+
+        ```python
+        compiled = compile_logic(expr, predicates, mode='semantic')
+        ```
     """
     # Auto-wrap raw callables in Predicate objects
     wrapped_predicates: dict[str, Predicate | Callable[..., torch.Tensor]] = {}
@@ -85,11 +101,12 @@ def compile_logic(
                 f"got {type(value).__name__}"
             )
 
+    compiler: (
+        TNormCompiler | LinearThresholdUnitCompiler | SemanticLossCompiler
+    )
     if mode == "tnorm":
         tnorm_instance = tnorm or MixedTNorm()
-        compiler: TNormCompiler | LinearThresholdUnitCompiler = (
-            TNormCompiler(tnorm=tnorm_instance)
-        )
+        compiler = TNormCompiler(tnorm=tnorm_instance)
     elif mode == "ltu":
         if tnorm is not None:
             raise ValueError(
@@ -97,10 +114,21 @@ def compile_logic(
                 "Use alpha= to configure the LTU compiler."
             )
         compiler = LinearThresholdUnitCompiler(mode="soft", alpha=alpha)
+    elif mode == "semantic":
+        if tnorm is not None:
+            raise ValueError(
+                "tnorm= is only valid with mode='tnorm'. "
+                "Use max_atoms= to configure the semantic loss compiler."
+            )
+        compiler = (
+            SemanticLossCompiler(max_atoms=max_atoms)
+            if max_atoms is not None
+            else SemanticLossCompiler()
+        )
     else:
         raise NotImplementedError(
             f"Mode '{mode}' is not yet implemented. "
-            f"Supported modes: 'tnorm', 'ltu'."
+            f"Supported modes: 'tnorm', 'ltu', 'semantic'."
         )
 
     # Compile the expression with wrapped predicates
@@ -114,6 +142,7 @@ def logic_to_loss(
     mode: str = "tnorm",
     tnorm: TNorm | None = None,
     alpha: float = 1.0,
+    max_atoms: int | None = None,
     post_processing: str | Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> LogicLoss:
     """Compile logic expression and wrap in LogicLoss.
@@ -122,17 +151,19 @@ def logic_to_loss(
     in a LogicLoss for training. Equivalent to:
 
         compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm,
-                                 alpha=alpha)
+                                 alpha=alpha, max_atoms=max_atoms)
         LogicLoss(compiled, post_processing=post_processing)
 
     Args:
         expr: SymPy logic expression (e.g., sp.And(P(X), Q(X)))
         predicates: Dict mapping predicate names to Predicate objects or
             callables that produce torch Tensors
-        mode: Compilation mode - 'tnorm' (default) or 'ltu'
+        mode: Compilation mode - 'tnorm' (default), 'ltu', or 'semantic'
         tnorm: T-norm for mode='tnorm' (default: MixedTNorm). Ignored
             for other modes.
         alpha: Sigmoid sharpness for mode='ltu' (default: 1.0).
+        max_atoms: Maximum unique ground atoms for mode='semantic'.
+            Ignored for other modes.
         post_processing: Post-processing mode - 'log', 'linear', callable,
             or None to use the compiler's recommendation (default)
 
@@ -153,9 +184,15 @@ def logic_to_loss(
         ```python
         logic_loss = logic_to_loss(expr, predicates, mode='ltu', alpha=2.0)
         ```
+
+        With semantic loss:
+
+        ```python
+        logic_loss = logic_to_loss(expr, predicates, mode='semantic')
+        ```
     """
     compiled = compile_logic(expr, predicates, mode=mode, tnorm=tnorm,
-                             alpha=alpha)
+                             alpha=alpha, max_atoms=max_atoms)
     return LogicLoss(compiled, post_processing=post_processing)
 
 

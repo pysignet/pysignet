@@ -34,10 +34,10 @@ jobs:
 
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
+        run: poetry install --no-interaction --no-root --extras semantic
 
       - name: Install project
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --extras semantic
 
       - name: Run tests with pytest
         run: poetry run pytest tests/ -v --cov=src/pysignet --cov-report=term-missing --cov-fail-under=95

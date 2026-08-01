@@ -60,13 +60,19 @@ Or with Poetry:
 poetry add pysignet
 ```
 
+`mode='semantic'` requires the optional PySDD dependency (a C extension):
+
+```bash
+pip install pysignet[semantic]
+```
+
 ## Key Features
 
 - **First-Order Logic**: Variables, predicates with arguments, quantifiers
 - **Domain Quantifiers**: `ForAll` and `Exists` over finite domains
 - **Flexible Predicates**: Neural networks or deterministic functions
 - **Multiple T-Norms**: Product, Lukasiewicz, Godel, and Mixed t-norms
-- **Multiple Compilers**: T-norm (`mode='tnorm'`) and LinearThresholdUnit (`mode='ltu'`) built-in; extend via `LogicCompiler`
+- **Multiple Compilers**: T-norm (`mode='tnorm'`), LinearThresholdUnit (`mode='ltu'`), and semantic loss via weighted model counting (`mode='semantic'`, requires the optional `pysignet[semantic]` extra) built-in; extend via `LogicCompiler`
 - **Combining Constraints**: `CombinedLoss` weights and sums independent `LogicLoss` objects for multi-constraint training
 - **Full PyTorch Integration**: Gradients flow through all operations
 
@@ -82,7 +88,7 @@ poetry add pysignet
 ```bash
 git clone https://github.com/pysignet/pysignet.git
 cd pysignet
-poetry install
+poetry install --extras semantic
 poetry run pytest tests/
 ```
 

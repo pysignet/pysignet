@@ -51,7 +51,11 @@ from sympy import And, Equivalent, Implies, Not, Or
 
 from .api import compile_logic, consistency_report, logic_to_loss
 from .combined_loss import CombinedLoss
-from .compilation import LinearThresholdUnitCompiler, TNormCompiler
+from .compilation import (
+    LinearThresholdUnitCompiler,
+    SemanticLossCompiler,
+    TNormCompiler,
+)
 from .compilation.compiled_expression import CompiledExpression
 from .context import EvaluationContext
 
@@ -86,6 +90,7 @@ __all__ = [
     "CombinedLoss",
     "TNormCompiler",
     "LinearThresholdUnitCompiler",
+    "SemanticLossCompiler",
     "Predicate",
     # Symbol API
     "Symbol",

@@ -7,4 +7,4 @@
 | [LogicLoss](api-logic-loss.md) | Satisfaction, loss, batch quantification |
 | [CombinedLoss](api-combined-loss.md) | Weighting and summing independent `LogicLoss` objects |
 | [T-Norms](api-tnorms.md) | RProduct, SProduct, Lukasiewicz, Godel, Mixed |
-| [Compilers](api-compilers.md) | TNormCompiler, LinearThresholdUnitCompiler |
+| [Compilers](api-compilers.md) | TNormCompiler, LinearThresholdUnitCompiler, SemanticLossCompiler |

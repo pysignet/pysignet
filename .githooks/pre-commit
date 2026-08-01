@@ -18,7 +18,7 @@ FAILED=0
 # 0. Install
 echo ""
 echo "Installing ..."
-poetry install
+poetry install --extras semantic
 
 # 1. Run tests with coverage
 echo ""
