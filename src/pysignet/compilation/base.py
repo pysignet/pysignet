@@ -24,6 +24,34 @@ from pysignet.predicate import Predicate
 from pysignet.symbols import PredicateApplication
 
 
+def collect_leaves(expr: sp.Basic) -> list[PredicateApplication]:
+    """Collect unique PredicateApplication leaves in evaluation order.
+
+    Free-function form of LogicCompiler._collect_leaves, usable without
+    a compiler instance (e.g. by case-split atom-disjointness checks).
+
+    Args:
+        expr: SymPy expression to walk (after quantifier expansion)
+
+    Returns:
+        List of unique PredicateApplication nodes in first-occurrence
+        order. Duplicate ground atoms (same predicate name and
+        arguments) are deduplicated via PredicateApplication's
+        structural equality/hash.
+    """
+    seen: dict[PredicateApplication, None] = {}
+
+    def _walk(node: sp.Basic) -> None:
+        if isinstance(node, PredicateApplication):
+            seen.setdefault(node, None)
+            return
+        for arg in getattr(node, "args", ()):
+            _walk(arg)
+
+    _walk(expr)
+    return list(seen.keys())
+
+
 class LogicCompiler(ABC):
     """Abstract base class for compiling logic expressions into differentiable
     computations.
@@ -1041,17 +1069,7 @@ class LogicCompiler(ABC):
             arguments) are deduplicated via PredicateApplication's
             structural equality/hash.
         """
-        seen: dict[PredicateApplication, None] = {}
-
-        def _walk(node: sp.Basic) -> None:
-            if isinstance(node, PredicateApplication):
-                seen.setdefault(node, None)
-                return
-            for arg in getattr(node, "args", ()):
-                _walk(arg)
-
-        _walk(expr)
-        return list(seen.keys())
+        return collect_leaves(expr)
 
     def _build_combine_fn(
         self,

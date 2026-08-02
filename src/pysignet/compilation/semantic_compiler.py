@@ -18,7 +18,9 @@ from typing import Any, NamedTuple
 import sympy as sp
 import torch
 
+from pysignet.compilation import case_split
 from pysignet.compilation.base import LogicCompiler
+from pysignet.compilation.case_split import validate_hard_evidence
 from pysignet.compilation.compiled_expression import CompiledExpression
 from pysignet.context import EvaluationContext
 from pysignet.logic import extract_variables
@@ -159,7 +161,30 @@ class SemanticLossCompiler(LogicCompiler):
         wrapped_predicates = self._wrap_and_validate_predicates(
             expr, predicates
         )
-        expanded_expr = self._expand_quantifiers(expr)
+        pysdd_sdd = _import_pysdd()
+
+        # Case-split compilation (SEMANTIC_LOSS_DESIGN.md Section 10):
+        # replace any ForAll(S, domain, Implies(Cond(S), Body(S)))
+        # subtree whose atoms are disjoint from the rest of the formula
+        # with a synthetic ground atom, compiling each Body(s) as its
+        # own tiny circuit instead of one large joint circuit. Falls
+        # through untouched when no such subtree exists.
+        outer_expr = expr
+        compiled_case_splits: list[_CompiledCaseSplit] = []
+        for i, candidate in enumerate(
+            case_split.eligible_candidates(expr, self._expand_quantifiers)
+        ):
+            marker = PredicateApplication(f"__case_split_{i}", ())
+            outer_expr = case_split.replace_node(
+                outer_expr, candidate.node, marker
+            )
+            compiled_case_splits.append(
+                self._compile_case_split_branches(
+                    pysdd_sdd, candidate, marker
+                )
+            )
+
+        expanded_expr = self._expand_quantifiers(outer_expr)
         free_vars = extract_variables(expanded_expr)
 
         leaf_order = self._collect_leaves(expanded_expr)
@@ -174,11 +199,16 @@ class SemanticLossCompiler(LogicCompiler):
                 f"acceptable."
             )
 
-        pysdd_sdd = _import_pysdd()
         atom_to_var = {atom: i + 1 for i, atom in enumerate(leaf_order)}
         mgr = _make_sdd_manager(pysdd_sdd, len(leaf_order))
         compiled_sdd = _expr_to_sdd(expanded_expr, mgr, atom_to_var)
         program = _compile_wmc_program(compiled_sdd)
+
+        marker_vars = {
+            cs.marker: atom_to_var[cs.marker]
+            for cs in compiled_case_splits
+            if cs.marker in atom_to_var
+        }
 
         def compiled_logic(
             inputs: dict[str, torch.Tensor]
@@ -189,7 +219,16 @@ class SemanticLossCompiler(LogicCompiler):
                     atom, inputs, wrapped_predicates, ctx
                 )
                 for atom, var in atom_to_var.items()
+                if atom not in marker_vars
             }
+            for cs in compiled_case_splits:
+                if cs.marker not in marker_vars:
+                    continue
+                literal_weights[marker_vars[cs.marker]] = (
+                    _evaluate_case_split(
+                        self, cs, inputs, wrapped_predicates, ctx
+                    )
+                )
             batch_shape, dtype, device = _infer_batch_shape(
                 literal_weights, inputs
             )
@@ -204,6 +243,169 @@ class SemanticLossCompiler(LogicCompiler):
             compiler=self,
             expr=expr,
         )
+
+    def _compile_case_split_branches(
+        self,
+        pysdd_sdd: Any,
+        candidate: case_split.CaseSplitCandidate,
+        marker: PredicateApplication,
+    ) -> "_CompiledCaseSplit":
+        """Compile each Body(s) branch of a qualifying candidate into
+        its own independent small SDD + linearized WMC program.
+
+        Args:
+            pysdd_sdd: The pysdd.sdd module.
+            candidate: The eligible case-split candidate.
+            marker: The synthetic atom substituted for this candidate
+                in the outer expression.
+
+        Returns:
+            A _CompiledCaseSplit with one _CaseSplitBranch per domain
+            value.
+
+        Raises:
+            ValueError: If a branch has more unique ground atoms than
+                max_atoms.
+        """
+        branches: list[_CaseSplitBranch] = []
+        for value in candidate.domain:
+            cond_atom = case_split.substitute_variable(
+                candidate.cond_template, candidate.variable, value
+            )
+            assert isinstance(cond_atom, PredicateApplication)
+            body = case_split.substitute_variable(
+                candidate.body_template, candidate.variable, value
+            )
+            body_expanded = self._expand_quantifiers(body)
+            body_leaf_order = self._collect_leaves(body_expanded)
+            if len(body_leaf_order) > self.max_atoms:
+                raise ValueError(
+                    f"Case-split branch {candidate.variable}={value!r} "
+                    f"has {len(body_leaf_order)} unique ground atoms, "
+                    f"exceeding max_atoms={self.max_atoms}."
+                )
+            branch_atom_to_var = {
+                atom: i + 1 for i, atom in enumerate(body_leaf_order)
+            }
+            branch_mgr = _make_sdd_manager(
+                pysdd_sdd, len(body_leaf_order)
+            )
+            branch_sdd = _expr_to_sdd(
+                body_expanded, branch_mgr, branch_atom_to_var
+            )
+            branch_program = _compile_wmc_program(branch_sdd)
+            branches.append(
+                _CaseSplitBranch(
+                    value=value,
+                    cond_atom=cond_atom,
+                    program=branch_program,
+                    atom_to_var=branch_atom_to_var,
+                )
+            )
+        return _CompiledCaseSplit(marker=marker, branches=branches)
+
+
+class _CaseSplitBranch(NamedTuple):
+    """One Body(s) branch of a compiled case split.
+
+    Attributes:
+        value: The domain value s this branch corresponds to.
+        cond_atom: Cond(s), the ground atom whose evaluated value is
+            this branch's weight in the case-split sum.
+        program: Body(s)'s own linearized WMC program (from
+            _compile_wmc_program), independent of every other branch.
+        atom_to_var: Maps Body(s)'s own ground atoms to this branch's
+            own SDD variable indices (a separate index space per
+            branch, unrelated to the outer circuit's).
+    """
+
+    value: Any
+    cond_atom: PredicateApplication
+    program: "list[_SddOp]"
+    atom_to_var: dict[PredicateApplication, int]
+
+
+class _CompiledCaseSplit(NamedTuple):
+    """A fully compiled case-split candidate: one branch per domain
+    value, plus the synthetic marker atom substituted for it in the
+    outer expression.
+
+    Attributes:
+        marker: The synthetic PredicateApplication substituted for
+            this candidate's subtree in the outer expression.
+        branches: One _CaseSplitBranch per domain value.
+    """
+
+    marker: PredicateApplication
+    branches: list[_CaseSplitBranch]
+
+
+def _evaluate_case_split(
+    compiler: LogicCompiler,
+    compiled: _CompiledCaseSplit,
+    inputs: dict[str, torch.Tensor],
+    wrapped_predicates: dict[str, Predicate],
+    ctx: EvaluationContext,
+) -> torch.Tensor:
+    """Evaluate a compiled case split's marker value for this batch.
+
+    Verifies the hard-evidence precondition on Cond's actual values
+    (see SEMANTIC_LOSS_DESIGN.md Section 10: the decomposition below is
+    only exact when Cond is hard 0/1 evidence with exactly one true per
+    example, not a soft/uncertain prediction) before combining.
+
+    Args:
+        compiler: The LogicCompiler to evaluate predicate applications
+            with (provides _evaluate_predicate_application).
+        compiled: The compiled case split to evaluate.
+        inputs: Variable bindings for this batch.
+        wrapped_predicates: Dict of wrapped Predicate objects.
+        ctx: Shared EvaluationContext (so repeated atom evaluations
+            across branches, and with the outer circuit, are cached).
+
+    Returns:
+        Tensor of shape (batch_size,): the case-split value.
+
+    Raises:
+        ValueError: If Cond's evaluated values are not hard 0/1 with
+            exactly one true per batch element.
+    """
+    cond_probs = [
+        compiler._evaluate_predicate_application(  # pylint: disable=protected-access
+            branch.cond_atom, inputs, wrapped_predicates, ctx
+        )
+        for branch in compiled.branches
+    ]
+    validate_hard_evidence(cond_probs)
+
+    case_split_value: torch.Tensor | None = None
+    for branch, cond_prob in zip(
+        compiled.branches, cond_probs, strict=True
+    ):
+        branch_weights = {
+            var: compiler._evaluate_predicate_application(  # pylint: disable=protected-access
+                atom, inputs, wrapped_predicates, ctx
+            )
+            for atom, var in branch.atom_to_var.items()
+        }
+        branch_shape, branch_dtype, branch_device = _infer_batch_shape(
+            branch_weights, inputs
+        )
+        wmc_s = _wmc(
+            branch.program,
+            branch_weights,
+            branch_shape,
+            branch_dtype,
+            branch_device,
+        )
+        contribution = cond_prob * wmc_s
+        case_split_value = (
+            contribution
+            if case_split_value is None
+            else case_split_value + contribution
+        )
+    assert case_split_value is not None
+    return case_split_value
 
 
 def _make_sdd_manager(pysdd_sdd: Any, num_atoms: int) -> Any:
