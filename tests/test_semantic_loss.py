@@ -11,6 +11,7 @@ equivalence is tested explicitly. See SEMANTIC_LOSS_DESIGN.md.
 import itertools
 import sys
 from collections.abc import Callable
+from unittest import mock
 
 import pytest
 import sympy as sp
@@ -515,3 +516,104 @@ class TestMissingDependency:
             compile_logic(
                 expr, {"A": _const_pred(0.5)}, mode="semantic"
             )
+
+
+class TestLinearizedProgram:
+    """SEMANTIC_LOSS_DESIGN.md Optimization Considerations (2026-08-01):
+    the compiled SDD is linearized into a flat program once at
+    compile() time -- mirroring pypsdd's own weighted_model_count()/
+    generate_tf_ac(), which the authors' own comment describes as
+    "faster than recursive traversal" -- so _wmc() iterates a plain
+    list on every call instead of recursing over the SDD's own API
+    with a fresh memo dict each time."""
+
+    def test_program_built_once_across_multiple_calls(self):
+        X = Variable("X")
+        A, B = Symbol("A B")
+        expr = sp.And(A(X), B(X))
+
+        from pysignet.compilation import semantic_compiler as sc
+
+        with mock.patch.object(
+            sc, "_compile_wmc_program", wraps=sc._compile_wmc_program
+        ) as spy:
+            compiled = compile_logic(
+                expr,
+                {"A": _const_pred(0.3), "B": _const_pred(0.7)},
+                mode="semantic",
+            )
+            assert spy.call_count == 1
+
+            x = torch.zeros(1, 1, dtype=torch.float64)
+            compiled(X=x)
+            compiled(X=x)
+            compiled(X=x)
+            # Still only compiled once, even after three forward calls.
+            assert spy.call_count == 1
+
+    def test_repeated_calls_are_independent_and_correct(self):
+        """No stale state should leak between calls now that _wmc() no
+        longer takes a per-call memo dict -- each call must be
+        evaluated fresh against its own inputs."""
+        X = Variable("X")
+        A, B = Symbol("A B")
+        expr = sp.And(A(X), sp.Or(A(X), B(X)))  # absorption -> A
+
+        compiled = compile_logic(
+            expr,
+            {"A": _const_pred(0.2), "B": _const_pred(0.9)},
+            mode="semantic",
+        )
+        x = torch.zeros(1, 1, dtype=torch.float64)
+        first = compiled(X=x)
+        second = compiled(X=x)
+        assert torch.allclose(first, second, atol=1e-9)
+        assert torch.allclose(
+            first, torch.tensor([0.2], dtype=torch.float64), atol=1e-9
+        )
+
+    def test_program_structure_for_small_and(self):
+        """White-box: lock in the flat program's shape for a tiny known
+        SDD (A & B), as a contract for _wmc()'s consumer."""
+        from pysdd.sdd import SddManager, Vtree
+
+        from pysignet.compilation.semantic_compiler import (
+            _compile_wmc_program,
+            _wmc,
+        )
+
+        vtree = Vtree(var_count=1)
+        mgr = SddManager.from_vtree(vtree)
+        mgr.add_var_after_last()
+        a = mgr.literal(1)
+        b = mgr.literal(2)
+        sdd = a & b
+
+        program = _compile_wmc_program(sdd)
+        kinds = [op.kind for op in program]
+        # Exact node count/shape is an SDD compilation detail (e.g. a
+        # decomposition may include a "false" branch to cover the
+        # negated-prime case) -- only the position-indexed contract
+        # matters here: literals precede the decision(s), and the
+        # program is post-order (root last).
+        assert kinds.count("literal") >= 2
+        assert kinds[-1] == "decision"
+        for i, op in enumerate(program):
+            if op.kind == "decision":
+                for prime_pos, sub_pos in op.children:
+                    assert prime_pos < i
+                    assert sub_pos < i
+
+        result = _wmc(
+            program,
+            literal_weights={
+                1: torch.tensor([0.4], dtype=torch.float64),
+                2: torch.tensor([0.5], dtype=torch.float64),
+            },
+            batch_shape=torch.Size((1,)),
+            dtype=torch.float64,
+            device=torch.device("cpu"),
+        )
+        assert torch.allclose(
+            result, torch.tensor([0.2], dtype=torch.float64), atol=1e-9
+        )

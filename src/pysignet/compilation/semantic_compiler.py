@@ -13,7 +13,7 @@ Requires the optional PySDD dependency: pip install pysignet[semantic].
 import functools
 import operator
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NamedTuple
 
 import sympy as sp
 import torch
@@ -51,11 +51,15 @@ class SemanticLossCompiler(LogicCompiler):
     """Compiles logic expressions into semantic loss via a compiled SDD.
 
     Builds a Sentential Decision Diagram (SDD) once, at compile() time,
-    from the expanded SymPy expression, then evaluates a hand-written,
-    differentiable weighted-model-count (WMC) walk over that compiled
-    circuit on every call. Gradients flow to predicate parameters through
-    ordinary autograd, since the WMC walk is built entirely from +/-
-    tensor operations.
+    from the expanded SymPy expression, then linearizes it into a flat,
+    topologically ordered program (also once, at compile() time --
+    mirroring pypsdd's own weighted_model_count()/generate_tf_ac(),
+    which the reference implementation's own comment notes is "faster
+    than recursive traversal"). Every training-batch call evaluates
+    that flat program iteratively: no Python recursion, no per-call
+    memo dict, and no further PySDD API calls. Gradients flow to
+    predicate parameters through ordinary autograd, since the WMC walk
+    is built entirely from +/* tensor operations.
 
     Unlike TNormCompiler/LinearThresholdUnitCompiler, conjunction() and
     disjunction() on this class are NOT used to evaluate the formula
@@ -174,6 +178,7 @@ class SemanticLossCompiler(LogicCompiler):
         atom_to_var = {atom: i + 1 for i, atom in enumerate(leaf_order)}
         mgr = _make_sdd_manager(pysdd_sdd, len(leaf_order))
         compiled_sdd = _expr_to_sdd(expanded_expr, mgr, atom_to_var)
+        program = _compile_wmc_program(compiled_sdd)
 
         def compiled_logic(
             inputs: dict[str, torch.Tensor]
@@ -188,14 +193,8 @@ class SemanticLossCompiler(LogicCompiler):
             batch_shape, dtype, device = _infer_batch_shape(
                 literal_weights, inputs
             )
-            memo: dict[int, torch.Tensor] = {}
             return _wmc(
-                compiled_sdd,
-                literal_weights,
-                batch_shape,
-                dtype,
-                device,
-                memo,
+                program, literal_weights, batch_shape, dtype, device
             )
 
         return CompiledExpression(
@@ -330,65 +329,129 @@ def _infer_batch_shape(
     )
 
 
+class _SddOp(NamedTuple):
+    """One linearized SDD instruction, referencing children by position.
+
+    Attributes:
+        kind: One of "false", "true", "literal", "decision".
+        literal: The signed SDD literal (meaningful only for "literal").
+        children: (prime_position, sub_position) pairs, each an index
+            into the same program list this op belongs to (meaningful
+            only for "decision"). Positions always refer to earlier
+            entries, since the program is post-order (children before
+            parents).
+    """
+
+    kind: str
+    literal: int
+    children: tuple[tuple[int, int], ...]
+
+
+def _compile_wmc_program(root: Any) -> list[_SddOp]:
+    """Flatten a compiled SDD into a linear, position-indexed program.
+
+    Built once per compiled expression, at compile() time. Mirrors
+    pypsdd's own weighted_model_count()/generate_tf_ac() (see
+    art-ai/pypsdd, sdd.py), which linearize the SDD's DAG once via a
+    cached topological sort and then iterate it flatly -- their own
+    comment: "faster than recursive traversal of an SDD." This goes a
+    step further: every child reference is resolved to an integer
+    position at compile time, so evaluating the program (_wmc()) never
+    calls back into the PySDD API at all, only +/* tensor arithmetic.
+
+    Args:
+        root: The compiled Sdd node (from _expr_to_sdd()).
+
+    Returns:
+        A list of _SddOp in post-order (the root is always last).
+
+    Raises:
+        ValueError: If a node is not a recognized SDD node type.
+    """
+    order: list[Any] = []
+    positions: dict[int, int] = {}
+
+    def visit(node: Any) -> None:
+        if node.id in positions:
+            return
+        if node.is_decision():
+            for prime, sub in node.elements():
+                visit(prime)
+                visit(sub)
+        positions[node.id] = len(order)
+        order.append(node)
+
+    visit(root)
+
+    program: list[_SddOp] = []
+    for node in order:
+        if node.is_false():
+            program.append(_SddOp("false", 0, ()))
+        elif node.is_true():
+            program.append(_SddOp("true", 0, ()))
+        elif node.is_literal():
+            program.append(_SddOp("literal", node.literal, ()))
+        elif node.is_decision():
+            children = tuple(
+                (positions[prime.id], positions[sub.id])
+                for prime, sub in node.elements()
+            )
+            program.append(_SddOp("decision", 0, children))
+        else:
+            raise ValueError(f"Unknown SDD node type: {node}")
+    return program
+
+
 def _wmc(
-    node: Any,
+    program: list[_SddOp],
     literal_weights: dict[int, torch.Tensor],
     batch_shape: torch.Size,
     dtype: torch.dtype,
     device: torch.device,
-    memo: dict[int, torch.Tensor],
 ) -> torch.Tensor:
-    """Differentiable weighted model count over a compiled SDD.
+    """Differentiable weighted model count over a linearized SDD program.
 
-    Hand-written recursive walk over the compiled SDD's own node
-    structure (mirroring Pylon's circuit_solver.py), memoized on SDD
-    node identity since an SDD is a DAG, not a tree. Every leaf is a
-    (batch_size,) tensor with requires_grad tracing back to whatever
-    predicate produced it, so the +/* here build an ordinary autograd
-    graph -- no custom backward needed.
+    Iterates the flat, pre-linearized program (see
+    _compile_wmc_program()) exactly once per call: no Python recursion,
+    no per-call memo dict, and no PySDD API calls -- only +/* tensor
+    arithmetic over already-computed positions (each "decision" op's
+    children always refer to earlier positions, since the program is
+    post-order). Every leaf is a (batch_size,) tensor with
+    requires_grad tracing back to whatever predicate produced it, so
+    this builds an ordinary autograd graph -- no custom backward
+    needed.
 
     Never calls PySDD's own WmcManager.propagate(): that is a
     non-differentiable, non-batched C routine, reserved for test-only
     cross-checks (see SEMANTIC_LOSS_DESIGN.md Section 4.2, 8).
 
     Args:
-        node: Sdd node to evaluate (from a compiled SDD).
+        program: Linearized SDD program from _compile_wmc_program().
         literal_weights: Dict mapping SDD variable index to its
             (batch_size,) probability tensor (P(atom=True)).
         batch_shape: Shape to use for true()/false() leaf tensors.
         dtype: Dtype to use for true()/false() leaf tensors.
         device: Device to use for true()/false() leaf tensors.
-        memo: Memoization dict, keyed by node.id, shared across the
-            whole recursive walk.
 
     Returns:
         Tensor of shape batch_shape with values in [0, 1].
-
-    Raises:
-        ValueError: If node is not a recognized SDD node type.
     """
-    key = node.id
-    if key in memo:
-        return memo[key]
-
-    if node.is_false():
-        result = torch.zeros(batch_shape, dtype=dtype, device=device)
-    elif node.is_true():
-        result = torch.ones(batch_shape, dtype=dtype, device=device)
-    elif node.is_literal():
-        var = abs(node.literal)
-        prob = literal_weights[var]
-        result = prob if node.literal > 0 else (1.0 - prob)
-    elif node.is_decision():
-        result = torch.zeros(batch_shape, dtype=dtype, device=device)
-        for prime, sub in node.elements():
-            result = result + _wmc(
-                prime, literal_weights, batch_shape, dtype, device, memo
-            ) * _wmc(
-                sub, literal_weights, batch_shape, dtype, device, memo
+    values: list[torch.Tensor] = []
+    for op in program:
+        if op.kind == "false":
+            values.append(
+                torch.zeros(batch_shape, dtype=dtype, device=device)
             )
-    else:
-        raise ValueError(f"Unknown SDD node type: {node}")
-
-    memo[key] = result
-    return result
+        elif op.kind == "true":
+            values.append(
+                torch.ones(batch_shape, dtype=dtype, device=device)
+            )
+        elif op.kind == "literal":
+            prob = literal_weights[abs(op.literal)]
+            values.append(prob if op.literal > 0 else (1.0 - prob))
+        else:  # "decision"
+            total = torch.zeros(batch_shape, dtype=dtype, device=device)
+            for prime_pos, sub_pos in op.children:
+                total = total + values[prime_pos] * values[sub_pos]
+            values.append(total)
+    return values[-1]
