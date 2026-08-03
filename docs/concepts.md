@@ -238,10 +238,26 @@ This is a coarse guard, not a true circuit-size bound -- compiled circuit
 size depends heavily on formula structure, not just atom count (a 10-atom
 "exactly one of N" constraint compiles to dozens of nodes, while a
 39-atom constraint with denser cross-variable structure was found to compile
-to hundreds of thousands of nodes during development -- see
-`SEMANTIC_LOSS_DESIGN.md` for the full feasibility analysis). Start with the
+to hundreds of thousands of nodes during development). Start with the
 default and raise it only after checking that compilation stays fast for
 your formula.
+
+For constraints of the form `ForAll(S, domain, Implies(Cond(S), Body(S)))`,
+where `Cond` is per-example hard evidence (e.g. a training label, not a
+learned prediction), the compiler detects this shape automatically and
+compiles each `Body(s)` branch as its own small circuit instead of one
+circuit representing every branch at once -- this is what keeps a
+constraint with many branches (e.g. the MNIST Addition notebook's 19-way
+sum) tractable under `max_atoms`'s default guard. See the MNIST Addition
+notebook (`notebooks/MNIST Addition.ipynb`) for this in action.
+
+`compile_logic`'s `group_by_evidence=True` flag applies the analogous
+shape-detection to `mode='tnorm'` and `mode='ltu'`: instead of reducing
+circuit size, it skips evaluating branches that are entirely absent from a
+given batch. This only pays off when the branch domain is large relative to
+the batch size, so a given batch is likely to miss some branches entirely;
+if every batch touches every branch (e.g. a 19-way domain with batches of
+64+), the gather/scatter overhead costs more than it saves.
 
 ## Combining Multiple Losses
 

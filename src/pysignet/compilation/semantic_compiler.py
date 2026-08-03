@@ -109,6 +109,15 @@ class SemanticLossCompiler(LogicCompiler):
         """Semantic loss is literally -log(WMC), so recommend 'log'."""
         return "log"
 
+    def _is_product_conjunction(self) -> bool:
+        """Batch reduction (conjunction) is a plain product.
+
+        Enables LogicLoss's log-space forall shortcut, which avoids
+        the per-example WMC values underflowing once multiplied
+        across a realistic batch size (see compiled_logic_log below).
+        """
+        return True
+
     def conjunction(self, values: torch.Tensor) -> torch.Tensor:
         """Batch reduction ONLY: product of independent WMC values.
 
@@ -236,8 +245,22 @@ class SemanticLossCompiler(LogicCompiler):
                 program, literal_weights, batch_shape, dtype, device
             )
 
+        def compiled_logic_log(
+            inputs: dict[str, torch.Tensor]
+        ) -> torch.Tensor:
+            """Per-example log(WMC), computed before batch reduction.
+
+            Taking the log here (per example) rather than after the
+            batch-level product avoids underflow: each per-example
+            WMC value is a normal-scale float, but their product over
+            a realistic batch can underflow well below the epsilon
+            used to guard log(0).
+            """
+            return torch.log(compiled_logic(inputs) + 1e-10)
+
         return CompiledExpression(
             compiled_logic=compiled_logic,
+            compiled_logic_log=compiled_logic_log,
             free_variables=set(v.name for v in free_vars),
             predicates=wrapped_predicates,
             compiler=self,

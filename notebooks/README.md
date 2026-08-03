@@ -16,7 +16,7 @@ Explores when logical constraints are genuinely useful: when labeled data is sca
 
 ## [MNIST Addition](MNIST%20Addition.ipynb)
 
-Trains a digit classifier using only indirect supervision: pairs of MNIST images and their sum, with no individual digit labels. Expresses the addition constraint as a `ForAll`-`Implies`-`Exists` expression over all possible sums, and includes a helper predicate that returns zero probability for out-of-range indices. After 15 epochs the model reaches ~97.8% digit accuracy, matching a supervised baseline trained with full labels.
+Trains a digit classifier using only indirect supervision: pairs of MNIST images and their sum, with no individual digit labels. Expresses the addition constraint as a `ForAll`-`Implies`-`Exists` expression over all possible sums, and includes a helper predicate that returns zero probability for out-of-range indices. After 15 epochs the model reaches ~97.8% digit accuracy, matching a supervised baseline trained with full labels. Also compares the default t-norm compiler against `mode='semantic'`: the inner `Exists` has an arity high enough that `MixedTNorm` falls back to Godel (max), which only credits the single most likely digit pair, while semantic loss counts all contributing pairs exactly. Training both to completion shows this syntactic difference does not change final accuracy here, and relies on pysignet's case-split compilation to keep semantic loss tractable despite the constraint's 19 `Sum` branches.
 
 ## [Symmetry Constraints](Symmetry%20Constraints.ipynb)
 
@@ -28,7 +28,7 @@ Extends the binary similarity setting to a ternary predicate `Closer(A, P, N)`: 
 
 ## [Custom Compilers](Custom%20Compilers.ipynb)
 
-Shows how to select a compilation strategy with `mode='tnorm'` (default) or `mode='ltu'` in `compile_logic` and `logic_to_loss`. Plots how AND and OR behave differently under RProduct, Godel, and LTU compilers. Compares the two strategies on the semi-supervised MNIST task.
+Shows how to select a compilation strategy with `mode='tnorm'` (default), `mode='ltu'`, or `mode='semantic'` in `compile_logic` and `logic_to_loss`. Plots how AND and OR behave differently under RProduct, Godel, and LTU compilers. Compares all of them, including semantic loss, on the semi-supervised MNIST `exactly_one` task, where they converge to nearly identical accuracy since the 45-pair `at_most_one` conjunction dominates the gradient signal regardless of compiler.
 
 ## [Multi-Modal Predicates](Multi-Modal%20Predicates.ipynb)
 

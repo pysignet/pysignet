@@ -19,8 +19,6 @@ import torch
 
 from pysignet.batch_handler import BatchHandlerMixin
 from pysignet.compilation.compiled_expression import CompiledExpression
-from pysignet.compilation.tnorm_compiler import TNormCompiler
-from pysignet.tnorms import SProductTNorm
 
 
 class LogicLoss(BatchHandlerMixin):
@@ -85,11 +83,11 @@ class LogicLoss(BatchHandlerMixin):
         )
 
         # Cache whether batch compiler uses product conjunction
+        # (e.g. RProduct/SProduct t-norms, or SemanticLossCompiler,
+        # whose batch reduction is also a plain product -- see
+        # LogicCompiler._is_product_conjunction).
         self._product_conjunction = (
-            isinstance(self._compiler, TNormCompiler)
-            and isinstance(
-                self._compiler.tnorm, SProductTNorm
-            )
+            self._compiler._is_product_conjunction()  # pylint: disable=protected-access
         )
 
     def __repr__(self) -> str:

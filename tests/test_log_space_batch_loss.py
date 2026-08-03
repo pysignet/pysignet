@@ -7,12 +7,23 @@ computed as sum(-log(per_batch_i)) directly, instead of
 but the log-space form avoids numerical underflow with large batches.
 """
 
+from collections.abc import Callable
+
 import torch
 import torch.nn as nn
 
 from pysignet import Predicate, Symbol, Variable, logic_to_loss
 from pysignet.compilation import TNormCompiler
 from pysignet.tnorms import MixedTNorm, RProductTNorm, SProductTNorm
+
+
+def _const_pred(value: float) -> Callable[[torch.Tensor], torch.Tensor]:
+    """A predicate ignoring its input, returning a fixed probability."""
+
+    def pred(x: torch.Tensor) -> torch.Tensor:
+        return torch.full((x.shape[0],), value, dtype=torch.float64)
+
+    return pred
 
 
 class TestLogSpaceForallLoss:
@@ -321,3 +332,78 @@ class TestLogSpaceEndToEnd:
 
         # Loss should decrease
         assert losses[-1] < losses[0]
+
+
+class TestLogSpaceWithSemanticLoss:
+    """SemanticLossCompiler's batch conjunction is also a plain product
+    (see SemanticLossCompiler.conjunction docstring), so it needs the
+    same log-space forall protection as RProduct/SProduct t-norms.
+    """
+
+    def test_semantic_log_forall_matches_sum_neg_log(self) -> None:
+        """Log forall loss equals sum(-log(p_i)) under mode='semantic'."""
+        X = Variable("X")
+        A = Symbol("A")
+        expr = A(X)
+
+        predicates = {"A": _const_pred(0.3)}
+        logic_loss = logic_to_loss(expr, predicates, mode="semantic")
+
+        x = torch.zeros(4, 1, dtype=torch.float64)
+        loss = logic_loss.loss(X=x, post_processing="log")
+
+        expected = 4 * (
+            -torch.log(torch.tensor(0.3, dtype=torch.float64))
+        )
+        assert torch.allclose(loss, expected, atol=1e-4)
+
+    def test_semantic_log_forall_large_batch_no_underflow(self) -> None:
+        """Large-batch semantic loss must not saturate at -log(eps).
+
+        Regression test: batch-level product of 64 per-example WMC
+        values of 0.3 underflows to ~3.4e-34 in linear space, which
+        is dominated by the +1e-10 epsilon in the naive
+        log(satisfaction + eps) fallback, producing the constant
+        -log(1e-10) regardless of the true satisfaction -- destroying
+        gradient signal for any real training batch.
+        """
+        X = Variable("X")
+        A = Symbol("A")
+        expr = A(X)
+
+        batch_size = 64
+        predicates = {"A": _const_pred(0.3)}
+        logic_loss = logic_to_loss(expr, predicates, mode="semantic")
+
+        x = torch.zeros(batch_size, 1, dtype=torch.float64)
+        loss = logic_loss.loss(X=x, post_processing="log")
+
+        expected = batch_size * (
+            -torch.log(torch.tensor(0.3, dtype=torch.float64))
+        )
+        assert torch.allclose(loss, expected, atol=0.1)
+
+        underflow_constant = -torch.log(
+            torch.tensor(1e-10, dtype=torch.float64)
+        )
+        assert not torch.allclose(loss, underflow_constant, atol=1.0)
+
+    def test_semantic_log_forall_gradients_nonzero(self) -> None:
+        """Semantic loss under a large batch still yields real gradients."""
+        X = Variable("X")
+        A = Symbol("A")
+        expr = A(X)
+
+        model = nn.Sequential(nn.Linear(5, 1), nn.Sigmoid())
+        predicates = {"A": model}
+        logic_loss = logic_to_loss(expr, predicates, mode="semantic")
+
+        batch_size = 64
+        x = torch.randn(batch_size, 5)
+
+        loss = logic_loss.loss(X=x, post_processing="log")
+        loss.backward()
+
+        for param in model.parameters():
+            assert param.grad is not None
+            assert param.grad.abs().max() > 1e-10
