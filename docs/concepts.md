@@ -185,32 +185,12 @@ logically identical. **Semantic loss** (Xu et al., ICML 2018) takes a
 different approach: it defines satisfaction directly over a formula's
 models (its satisfying assignments), computed via weighted model counting
 (WMC) over a compiled Sentential Decision Diagram (SDD). This makes
-satisfaction depend only on a formula's *meaning*, not its syntax -- a
+satisfaction depend only on a formula's *meaning*, not its syntax. This is a
 structurally different foundation from the t-norms above, not just another
 choice of relaxation formula.
 
-For constraints of the form `ForAll(S, domain, Implies(Cond(S), Body(S)))`,
-where `Cond` is per-example hard evidence (e.g. a training label, not a
-learned prediction), WMC decomposes exactly into a probability-weighted sum
-of per-branch WMCs. pysignet's compiler detects this shape automatically
-and compiles each `Body(s)` branch as its own small circuit instead of one
-circuit representing every branch at once -- this is what keeps a
-constraint with many branches (e.g. the MNIST Addition notebook's 19-way
-sum) tractable. See the MNIST Addition notebook
-(`notebooks/MNIST Addition.ipynb`) for this in action.
-
-**Numerical stability at training batch sizes.** The batch-level reduction
-across independent examples is a plain product of per-example WMC values --
-the same shape that requires log-space protection for product t-norms: at
-realistic batch sizes this product underflows in linear space long before
-it reaches zero. `LogicLoss` handles this automatically -- `.loss()` (with
-the default `post_processing='log'`) and `.log_satisfaction()` compute
-`sum(log(p_i))` per example rather than `log(product(p_i))`, so training
-gradients stay meaningful even at batch sizes where the raw
-`.satisfaction()` value itself would print as `0.0`.
-
-To use WMC-based satisfaction, pass `mode='semantic'` -- see
-[Compilation Modes](#compilation-modes) below for the API.
+To use WMC-based satisfaction, pass `mode='semantic'`. See [Compilation
+Modes](#compilation-modes) below for the API.
 
 ## Compilation Modes
 
@@ -249,8 +229,8 @@ details on extending the compiler base class.
 
 ### Semantic loss (`mode='semantic'`)
 
-Selects the WMC-based compiler described in
-[Weighted Model Counting (WMC)](#weighted-model-counting-wmc) above.
+Selects the WMC-based compiler described in [Weighted Model Counting
+(WMC)](#weighted-model-counting-wmc) above.
 
 Requires the optional `pysignet[semantic]` extra (PySDD, a C extension):
 
