@@ -410,9 +410,9 @@ def test_basic_and():
     assert torch.all((result >= 0) & (result <= 1))
 ```
 
-## Comparison: T-norm vs LTU Compilers
+## Comparison: T-norm, LTU, and Semantic Loss Compilers
 
-The library includes two built-in compilers:
+The library includes three built-in compilers:
 
 **TNormCompiler** (continuous relaxations):
 - AND: `a * b` (Product) or `max(0, a+b-1)` (Lukasiewicz)
@@ -425,7 +425,28 @@ The library includes two built-in compilers:
 - NOT: `1 - a`
 - `alpha` (default 1.0) controls sigmoid sharpness; larger values approach hard thresholds
 
-Both use the same base class infrastructure, differing only in operator semantics.
+`TNormCompiler` and `LinearThresholdUnitCompiler` both follow the pattern
+this guide teaches: they inherit `LogicCompiler` and implement
+`_evaluate_expression()`, combining already-evaluated operand tensors
+locally at each `And`/`Or`/`Not` node via the base class's recursive
+dispatch, differing only in operator semantics.
+
+**SemanticLossCompiler** does not follow that pattern, and this is a
+deliberate design choice worth understanding if you are writing your own
+compiler: semantic loss (Xu et al., ICML 2018) computes satisfaction as
+exact weighted model counting (WMC) over a compiled Sentential Decision
+Diagram (SDD) -- a *global*, whole-formula property, not a value you can
+build up by combining child values pointwise at each operator. There is
+no `conjunction(a, b)` function that correctly composes WMC from `a`'s
+and `b`'s WMC values alone, so `SemanticLossCompiler` overrides
+`compile()` directly instead of implementing `_evaluate_expression()`:
+it builds an SDD from the whole expression once, then evaluates it via a
+flat, linearized weighted-model-count walk on every call. It still
+reuses the base class's predicate management, quantifier expansion, and
+`EvaluationContext` caching -- only the connective-combination step is
+different. If your own custom compiler's semantics are inherently
+whole-formula rather than local-pointwise, this is the pattern to follow
+instead of `_evaluate_expression()`.
 
 ## Summary
 

@@ -176,6 +176,42 @@ from pysignet.tnorms import RProductTNorm, LukasiewiczTNorm, GodelTNorm
 logic_loss = logic_to_loss(expr, predicates, tnorm=LukasiewiczTNorm())
 ```
 
+## Weighted Model Counting (WMC)
+
+T-norms and LTU combine truth degrees *locally* at each And/Or/Not node, so
+the result can depend on how a formula happens to be written: `And(X, X)`
+evaluates differently from `X` under a product t-norm, even though they are
+logically identical. **Semantic loss** (Xu et al., ICML 2018) takes a
+different approach: it defines satisfaction directly over a formula's
+models (its satisfying assignments), computed via weighted model counting
+(WMC) over a compiled Sentential Decision Diagram (SDD). This makes
+satisfaction depend only on a formula's *meaning*, not its syntax -- a
+structurally different foundation from the t-norms above, not just another
+choice of relaxation formula.
+
+For constraints of the form `ForAll(S, domain, Implies(Cond(S), Body(S)))`,
+where `Cond` is per-example hard evidence (e.g. a training label, not a
+learned prediction), WMC decomposes exactly into a probability-weighted sum
+of per-branch WMCs. pysignet's compiler detects this shape automatically
+and compiles each `Body(s)` branch as its own small circuit instead of one
+circuit representing every branch at once -- this is what keeps a
+constraint with many branches (e.g. the MNIST Addition notebook's 19-way
+sum) tractable. See the MNIST Addition notebook
+(`notebooks/MNIST Addition.ipynb`) for this in action.
+
+**Numerical stability at training batch sizes.** The batch-level reduction
+across independent examples is a plain product of per-example WMC values --
+the same shape that requires log-space protection for product t-norms: at
+realistic batch sizes this product underflows in linear space long before
+it reaches zero. `LogicLoss` handles this automatically -- `.loss()` (with
+the default `post_processing='log'`) and `.log_satisfaction()` compute
+`sum(log(p_i))` per example rather than `log(product(p_i))`, so training
+gradients stay meaningful even at batch sizes where the raw
+`.satisfaction()` value itself would print as `0.0`.
+
+To use WMC-based satisfaction, pass `mode='semantic'` -- see
+[Compilation Modes](#compilation-modes) below for the API.
+
 ## Compilation Modes
 
 Both `compile_logic` and `logic_to_loss` accept a `mode` parameter that selects the
@@ -213,14 +249,8 @@ details on extending the compiler base class.
 
 ### Semantic loss (`mode='semantic'`)
 
-T-norms and LTU combine truth degrees *locally* at each And/Or/Not node, so
-the result can depend on how a formula happens to be written: `And(X, X)`
-evaluates differently from `X` under a product t-norm, even though they are
-logically identical. **Semantic loss** (Xu et al., ICML 2018) instead defines
-satisfaction directly over a formula's models (its satisfying assignments),
-computed via weighted model counting (WMC) over a compiled Sentential
-Decision Diagram (SDD). This makes satisfaction depend only on a formula's
-*meaning*, not its syntax.
+Selects the WMC-based compiler described in
+[Weighted Model Counting (WMC)](#weighted-model-counting-wmc) above.
 
 Requires the optional `pysignet[semantic]` extra (PySDD, a C extension):
 
@@ -230,6 +260,15 @@ pip install pysignet[semantic]
 
 ```python
 compiled = compile_logic(expr, predicates, mode='semantic')
+
+# Or, for training: logic_to_loss returns a LogicLoss the same way it
+# does for mode='tnorm'/'ltu'. recommended_postprocessing is 'log'
+# (semantic loss is literally -log(WMC)), matching the compiler's own
+# formulation, and LogicLoss's log-space forall path automatically
+# avoids underflow at realistic batch sizes (see above).
+logic_loss = logic_to_loss(expr, predicates, mode='semantic')
+loss = logic_loss.loss(X=x)
+loss.backward()
 ```
 
 `tnorm=`/`alpha=` are not valid with `mode='semantic'`; pass `max_atoms=` to
@@ -242,22 +281,14 @@ to hundreds of thousands of nodes during development). Start with the
 default and raise it only after checking that compilation stays fast for
 your formula.
 
-For constraints of the form `ForAll(S, domain, Implies(Cond(S), Body(S)))`,
-where `Cond` is per-example hard evidence (e.g. a training label, not a
-learned prediction), the compiler detects this shape automatically and
-compiles each `Body(s)` branch as its own small circuit instead of one
-circuit representing every branch at once -- this is what keeps a
-constraint with many branches (e.g. the MNIST Addition notebook's 19-way
-sum) tractable under `max_atoms`'s default guard. See the MNIST Addition
-notebook (`notebooks/MNIST Addition.ipynb`) for this in action.
-
 `compile_logic`'s `group_by_evidence=True` flag applies the analogous
-shape-detection to `mode='tnorm'` and `mode='ltu'`: instead of reducing
-circuit size, it skips evaluating branches that are entirely absent from a
-given batch. This only pays off when the branch domain is large relative to
-the batch size, so a given batch is likely to miss some branches entirely;
-if every batch touches every branch (e.g. a 19-way domain with batches of
-64+), the gather/scatter overhead costs more than it saves.
+case-split shape-detection to `mode='tnorm'` and `mode='ltu'`: instead of
+reducing circuit size, it skips evaluating branches that are entirely
+absent from a given batch. This only pays off when the branch domain is
+large relative to the batch size, so a given batch is likely to miss some
+branches entirely; if every batch touches every branch (e.g. a 19-way
+domain with batches of 64+), the gather/scatter overhead costs more than
+it saves.
 
 ## Combining Multiple Losses
 
