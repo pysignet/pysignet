@@ -34,6 +34,18 @@ class LinearThresholdUnitCompiler(LogicCompiler):
             are never traced -- only the connective combination of
             already-evaluated leaf tensors is compiled.
 
+            Not a general-purpose speedup: benchmarking found a real,
+            reproducible win only at large batch sizes (tens of
+            thousands) combined with formulas of dozens of leaf atoms.
+            At the batch sizes most training loops use (tens to low
+            thousands), it is a wash or a measurable regression, since
+            torch.compile's own per-call dispatch/guard overhead
+            dominates at that scale. It also recompiles on every new
+            input shape it sees, so a training loop with a varying
+            batch size (e.g. a ragged final batch) pays repeated
+            compilation cost. Measure for your own formula size and
+            batch size before enabling.
+
     Example:
         ```python
         compiler = LinearThresholdUnitCompiler(mode='soft')
@@ -57,8 +69,9 @@ class LinearThresholdUnitCompiler(LogicCompiler):
                 Default: 1.0. When alpha is large, the sigmoids
                 become closer to thresholds and have larger
                 gradients around zero. Ignored when mode = "hard"
-            jit: Opt-in torch.compile path for large formulas. Default
-                False. See class docstring.
+            jit: Opt-in torch.compile path for large formulas at large
+                batch sizes -- not a general speedup. Default False.
+                See class docstring.
 
         Raises:
             ValueError: If mode is not 'soft' or 'hard'
