@@ -51,6 +51,8 @@ loss.backward()               # Gradients flow to both models
 
 ## Installation
 
+### From PyPI (stable release)
+
 ```bash
 pip install pysignet
 ```
@@ -60,10 +62,28 @@ Or with Poetry:
 poetry add pysignet
 ```
 
-`mode='semantic'` requires the optional PySDD dependency (a C extension):
+The `semantic` extra (`mode='semantic'`, PySDD) was added after the latest
+PyPI release and is not yet published -- install from GitHub below to use
+it until the next version is released.
+
+### From GitHub (development version)
+
+The `main` branch on GitHub can be ahead of the latest PyPI release --
+install this way to get in-progress features and fixes not yet published,
+including the `semantic` extra.
 
 ```bash
-pip install pysignet[semantic]
+pip install git+https://github.com/pysignet/pysignet.git
+```
+
+Or with Poetry:
+```bash
+poetry add git+https://github.com/pysignet/pysignet.git
+```
+
+With the `semantic` extra:
+```bash
+pip install "pysignet[semantic] @ git+https://github.com/pysignet/pysignet.git"
 ```
 
 ## Key Features
